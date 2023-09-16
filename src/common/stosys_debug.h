@@ -1,7 +1,7 @@
 /*
  * MIT License
-Copyright (c) 2021-2022
-Authors:  Animesh Trivedi
+Copyright (c) 2021-2023
+Authors:  Animesh Trivedi, Valentijn Dymphnus van de Beek & Zhiyang Wang
 This code is part of the Storage System Course at VU Amsterdam
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
