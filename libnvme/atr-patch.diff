@@ -7,7 +7,7 @@ index 00b1211..bd60d0d 100644
  #include "nvme/tree.h"
  #include "nvme/util.h"
 -#include "nvme/log.h"
- 
+
  #ifdef __cplusplus
  }
 diff --git a/src/libnvme.map b/src/libnvme.map

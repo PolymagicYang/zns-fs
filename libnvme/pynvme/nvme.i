@@ -604,4 +604,3 @@ struct nvme_ns {
     return nvme_ns_get_name(n);
   }
 %};
-

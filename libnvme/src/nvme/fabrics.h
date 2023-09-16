@@ -176,7 +176,7 @@ char *nvmf_hostid_from_file();
  * @defcfg:
  * @discover:
  *
- * Return: An 
+ * Return: An
  */
 nvme_ctrl_t nvmf_connect_disc_entry(nvme_host_t h,
 	struct nvmf_disc_log_entry *e,

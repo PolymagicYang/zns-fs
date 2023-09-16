@@ -20,33 +20,37 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
  */
 
-#include "S2FileSystem.h"
-#include "DummyFSForward.h"
-
-#include "rocksdb/utilities/object_registry.h"
 #include <iostream>
+
+#include "DummyFSForward.h"
+#include "S2FileSystem.h"
+#include "rocksdb/utilities/object_registry.h"
 
 using namespace std;
 
 namespace ROCKSDB_NAMESPACE {
 
-    extern "C" FactoryFunc <FileSystem> stosys_s2fs_reg;
+extern "C" FactoryFunc<FileSystem> stosys_s2fs_reg;
 
-    //FIXME: should move this registration code in its own unique file
-    FactoryFunc <FileSystem> stosys_s2fs_reg =
-            ObjectLibrary::Default()->Register<FileSystem>(
-                    "s2fs:.*://.*", [](const std::string &uri, std::unique_ptr<FileSystem> *ret_fs,
-                                     std::string *errmsg) {
-                        cout<<"Initialization uri is " << uri << " and errmsg: " << (*errmsg) << endl;
-                        // we have two setup - one - s2fs-rocksdb which is just forwarding, then the other that we can use to debug
-                        if(false){
-                            S2FileSystem *z = new S2FileSystem(uri, true);
-                            ret_fs->reset(z);
-                        } else {
-                            //DummyFSForward is forwarding implementation - I should be left in peace
-                            class DummyFSForward *m = new DummyFSForward();
-                            ret_fs->reset(m);
-                        }
-                        return ret_fs->get();
-                    });
-}
+// FIXME: should move this registration code in its own unique file
+FactoryFunc<FileSystem> stosys_s2fs_reg =
+    ObjectLibrary::Default()->Register<FileSystem>(
+        "s2fs:.*://.*",
+        [](const std::string &uri, std::unique_ptr<FileSystem> *ret_fs,
+           std::string *errmsg) {
+          cout << "Initialization uri is " << uri
+               << " and errmsg: " << (*errmsg) << endl;
+          // we have two setup - one - s2fs-rocksdb which is just forwarding,
+          // then the other that we can use to debug
+          if (false) {
+            S2FileSystem *z = new S2FileSystem(uri, true);
+            ret_fs->reset(z);
+          } else {
+            // DummyFSForward is forwarding implementation - I should be left in
+            // peace
+            class DummyFSForward *m = new DummyFSForward();
+            ret_fs->reset(m);
+          }
+          return ret_fs->get();
+        });
+}  // namespace ROCKSDB_NAMESPACE

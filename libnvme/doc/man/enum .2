@@ -1,451 +1,451 @@
 .TH "libnvme" 2 "enum " "February 2020" "LIBNVME API Manual" LINUX
 .SH NAME
-enum  \- 
+enum  \-
 .SH SYNOPSIS
 enum  {
 .br
 .BI "    NVME_SCT_GENERIC"
-, 
+,
 .br
 .br
 .BI "    NVME_SCT_CMD_SPECIFIC"
-, 
+,
 .br
 .br
 .BI "    NVME_SCT_MEDIA"
-, 
+,
 .br
 .br
 .BI "    NVME_SCT_PATH"
-, 
+,
 .br
 .br
 .BI "    NVME_SCT_VS"
-, 
+,
 .br
 .br
 .BI "    NVME_SCT_MASK"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_SUCCESS"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_INVALID_OPCODE"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_INVALID_FIELD"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_CMDID_CONFLICT"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_DATA_XFER_ERROR"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_POWER_LOSS"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_INTERNAL"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_ABORT_REQ"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_ABORT_QUEUE"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_FUSED_FAIL"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_FUSED_MISSING"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_INVALID_NS"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_CMD_SEQ_ERROR"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_SGL_INVALID_LAST"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_SGL_INVALID_COUNT"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_SGL_INVALID_DATA"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_SGL_INVALID_METADATA"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_SGL_INVALID_TYPE"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_CMB_INVALID_USE"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_PRP_INVALID_OFFSET"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_AWU_EXCEEDED"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_OP_DENIED"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_SGL_INVALID_OFFSET"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_HOSTID_FORMAT"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_KAT_EXPIRED"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_KAT_INVALID"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_CMD_ABORTED_PREMEPT"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_SANITIZE_FAILED"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_SANITIZE_IN_PROGRESS"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_SGL_INVALID_GRANULARITY"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_CMD_IN_CMBQ_NOT_SUPP"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_NS_WRITE_PROTECTED"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_CMD_INTERRUPTED"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_TRAN_TPORT_ERROR"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_LBA_RANGE"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_CAP_EXCEEDED"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_NS_NOT_READY"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_RESERVATION_CONFLICT"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_FORMAT_IN_PROGRESS"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_CQ_INVALID"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_QID_INVALID"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_QUEUE_SIZE"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_ABORT_LIMIT"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_ABORT_MISSING"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_ASYNC_LIMIT"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_FIRMWARE_SLOT"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_FIRMWARE_IMAGE"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_INVALID_VECTOR"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_INVALID_LOG_PAGE"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_INVALID_FORMAT"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_FW_NEEDS_CONV_RESET"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_INVALID_QUEUE"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_FEATURE_NOT_SAVEABLE"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_FEATURE_NOT_CHANGEABLE"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_FEATURE_NOT_PER_NS"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_FW_NEEDS_SUBSYS_RESET"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_FW_NEEDS_RESET"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_FW_NEEDS_MAX_TIME"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_FW_ACTIVATE_PROHIBITED"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_OVERLAPPING_RANGE"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_NS_INSUFFICIENT_CAP"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_NS_ID_UNAVAILABLE"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_NS_ALREADY_ATTACHED"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_NS_IS_PRIVATE"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_NS_NOT_ATTACHED"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_THIN_PROV_NOT_SUPP"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_CTRL_LIST_INVALID"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_SELF_TEST_IN_PROGRESS"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_BP_WRITE_PROHIBITED"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_INVALID_CTRL_ID"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_INVALID_SEC_CTRL_STATE"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_INVALID_CTRL_RESOURCES"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_INVALID_RESOURCE_ID"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_PMR_SAN_PROHIBITED"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_ANA_GROUP_ID_INVALID"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_ANA_ATTACH_FAILED"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_BAD_ATTRIBUTES"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_INVALID_PI"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_READ_ONLY"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_CONNECT_FORMAT"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_CONNECT_CTRL_BUSY"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_CONNECT_INVALID_PARAM"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_CONNECT_RESTART_DISC"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_CONNECT_INVALID_HOST"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_DISCONNECT_INVALID_QTYPE"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_DISCOVERY_RESTART"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_AUTH_REQUIRED"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_WRITE_FAULT"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_READ_ERROR"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_GUARD_CHECK"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_APPTAG_CHECK"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_REFTAG_CHECK"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_COMPARE_FAILED"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_ACCESS_DENIED"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_UNWRITTEN_BLOCK"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_ANA_INTERNAL_PATH_ERROR"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_ANA_PERSISTENT_LOSS"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_ANA_INACCESSIBLE"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_ANA_TRANSITION"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_CTRL_PATH_ERROR"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_HOST_PATH_ERROR"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_CMD_ABORTED_BY_HOST"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_MASK"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_CRD"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_MORE"
-, 
+,
 .br
 .br
 .BI "    NVME_SC_DNR"

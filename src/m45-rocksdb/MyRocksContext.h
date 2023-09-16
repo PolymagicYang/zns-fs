@@ -20,16 +20,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
  */
 
-
 #ifndef STOSYS_PROJECT_MYROCKSCONTEXT_H
 #define STOSYS_PROJECT_MYROCKSCONTEXT_H
 
 struct MyRocksContext {
-    std::string uri;
-    rocksdb::Options options;
-    rocksdb::DB *db;
-    rocksdb::ConfigOptions config_options;
-    std::shared_ptr<rocksdb::Env> env_guard;
+  std::string uri;
+  rocksdb::Options options;
+  rocksdb::DB *db;
+  rocksdb::ConfigOptions config_options;
+  std::shared_ptr<rocksdb::Env> env_guard;
 };
 
-#endif //STOSYS_PROJECT_MYROCKSCONTEXT_H
+#endif  // STOSYS_PROJECT_MYROCKSCONTEXT_H

@@ -22,11 +22,15 @@ SOFTWARE.
 
 #ifndef STOSYS_PROJECT_UTILS_H
 #define STOSYS_PROJECT_UTILS_H
+#pragma once
+
+#include <stdlib.h>
+#include <unistd.h>
 
 #include <cstdint>
 #include <string>
 
-#define ONE_BILLION  1000000000.0
+#define ONE_BILLION 1000000000.0
 
 extern "C" {
 void write_pattern(char *data, uint64_t len);
@@ -38,4 +42,4 @@ void match_pattern_with_start(char *data, uint64_t len, uint64_t s);
 
 uint64_t microseconds_since_epoch();
 std::string get_vm_stats();
-#endif //STOSYS_PROJECT_UTILS_H
+#endif  // STOSYS_PROJECT_UTILS_H

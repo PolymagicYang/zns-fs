@@ -1,0 +1,33 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+fail_fast: true
+exclude: '^CMakeFiles/'
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+    - id: trailing-whitespace
+    - id: end-of-file-fixer
+    - id: check-yaml
+    - id: check-added-large-files
+    - id: check-added-large-files
+    - id: check-symlinks
+  - repo: https://github.com/pocc/pre-commit-hooks
+    rev: v1.3.5
+    hooks:
+      - id: clang-format
+        args: [--style=Google, -i]
+        files: '^src/'
+      - id: clang-tidy
+        files: '^src/m23-ftl/'
+        exclude: '^src/m23-ftl/m3.cpp'
+      # - id: oclint
+      # - id: uncrustify
+      - id: cppcheck
+        files: '^src/m23-ftl/'
+        args: [--inline-suppr, --std=c++17]
+      - id: cpplint
+        files: '^src/m23-ftl/'
+        args: ['--filter=-readability/casting,,-build/header_guard,-build/include_subdir']
+      # - id: include-what-you-use
+      #   files: '^src/m23-ftl/m2.cpp'

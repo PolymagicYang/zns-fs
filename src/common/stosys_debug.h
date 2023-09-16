@@ -23,35 +23,38 @@ SOFTWARE.
 #ifndef STOSYS_PROJECT_STOSYS_DEBUG_H
 #define STOSYS_PROJECT_STOSYS_DEBUG_H
 
-#define DBG_ERR              0x00000001
-#define DBG_FTL             0x00000002
-#define DBG_FTL_LOG         0x00000004
-#define DBG_FTL_DATA        0x00000008
-#define DBG_XXX             0x00000010
-#define DBG_FTL_L3          0x00000020
-#define DBG_FTL_GC          0x00000040
-#define DBG_FS_1            0x00000080
-#define DBG_UZDEV_IO        0x00000100
-#define DBG_FS_INODE_1      0x00000200
-#define DBG_FS_ALLOCATOR    0x00000400
-#define DBG_FS_FIO          0x00000800
-#define DBG_WARN            0x00001000
-#define DBG_FTL_PERSIST     0x00002000
-#define DBG_ON              0x00004000
+#define DBG_ERR 0x00000001
+#define DBG_FTL 0x00000002
+#define DBG_FTL_LOG 0x00000004
+#define DBG_FTL_DATA 0x00000008
+#define DBG_XXX 0x00000010
+#define DBG_FTL_L3 0x00000020
+#define DBG_FTL_GC 0x00000040
+#define DBG_FS_1 0x00000080
+#define DBG_UZDEV_IO 0x00000100
+#define DBG_FS_INODE_1 0x00000200
+#define DBG_FS_ALLOCATOR 0x00000400
+#define DBG_FS_FIO 0x00000800
+#define DBG_WARN 0x00001000
+#define DBG_FTL_PERSIST 0x00002000
+#define DBG_ON 0x00004000
 
-#define DBG_ALL         (DBG_ERR|DBG_FTL|DBG_FTL_LOG|DBG_FTL_DATA|DBG_XXX|DBG_FTL_L3|DBG_FTL_GC|DBG_FS_1|DBG_UZDEV_IO|DBG_FS_INODE_1|DBG_FS_ALLOCATOR|DBG_FS_FIO|DBG_WARN|DBG_FTL_PERSIST)
+#define DBG_ALL                                                               \
+  (DBG_ERR | DBG_FTL | DBG_FTL_LOG | DBG_FTL_DATA | DBG_XXX | DBG_FTL_L3 |    \
+   DBG_FTL_GC | DBG_FS_1 | DBG_UZDEV_IO | DBG_FS_INODE_1 | DBG_FS_ALLOCATOR | \
+   DBG_FS_FIO | DBG_WARN | DBG_FTL_PERSIST)
 
-#define DPRINT_MASK     (DBG_ON|DBG_ERR)
+#define DPRINT_MASK (DBG_ON | DBG_ERR)
 
 #ifdef NODEBUG
 #define ss_dprintf(dbgcat, fmt, args...) void(0)
 #else
-#define ss_dprintf(dbgcat, fmt, args...)\
-        do {\
-                if ((dbgcat) & DPRINT_MASK) {\
-                    printf(fmt, args); \
-                }\
-        } while (0)
+#define ss_dprintf(dbgcat, fmt, args...) \
+  do {                                   \
+    if ((dbgcat)&DPRINT_MASK) {          \
+      printf(fmt, args);                 \
+    }                                    \
+  } while (0)
 #endif
 
-#endif //STOSYS_PROJECT_STOSYS_DEBUG_H
+#endif  // STOSYS_PROJECT_STOSYS_DEBUG_H

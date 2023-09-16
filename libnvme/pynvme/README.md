@@ -9,7 +9,7 @@ import sys
 from libnvme import nvme
 
 root = nvme.root()     # This is a singleton
-host = nvme.host(root) # This "may be" a singleton. 
+host = nvme.host(root) # This "may be" a singleton.
 ctrl = nvme.ctrl(subsysnqn=<nqn>, transport=<trtype>, traddr=<traddr>, trsvcid=<trsvcid>, host_traddr=<traddr or None>, host_iface=<iface or None>)
 
 try:
@@ -29,4 +29,3 @@ try:
 except Exception as e:
 	sys.exit(f'Failed to disconnect: {e}')
 ```
-

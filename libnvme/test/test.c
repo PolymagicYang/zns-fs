@@ -36,7 +36,7 @@ static int test_ctrl(nvme_ctrl_t c)
 
 	enum nvme_get_features_sel sel = NVME_GET_FEATURES_SEL_CURRENT;
 	int ret, temp, fd = nvme_ctrl_get_fd(c);
-	struct nvme_error_log_page error[64]; 
+	struct nvme_error_log_page error[64];
 	struct nvme_smart_log smart = { 0 };
 	struct nvme_firmware_slot fw =  { 0 };
 	struct nvme_ns_list ns_list = { 0 };

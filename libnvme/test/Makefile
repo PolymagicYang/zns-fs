@@ -14,7 +14,7 @@ c_targets += test register zns
 ifdef CONFIG_CPLUSPLUS
 cpp_targets += cpp
 else
-cpp_targets += 
+cpp_targets +=
 endif
 
 all_targets += $(c_targets) $(cpp_targets)

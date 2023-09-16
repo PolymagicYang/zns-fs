@@ -517,7 +517,7 @@ int nvme_zns_identify_ctrl(int fd, struct nvme_zns_id_ctrl *id)
 }
 
 
-int nvme_nvm_identify_ctrl(int fd, struct nvme_id_ctrl_nvm *id) 
+int nvme_nvm_identify_ctrl(int fd, struct nvme_id_ctrl_nvm *id)
 {
 	BUILD_ASSERT(sizeof(struct nvme_id_ctrl_nvm ) == 4096);
 	return nvme_identify_ctrl_csi(fd, NVME_CSI_NVM, id);

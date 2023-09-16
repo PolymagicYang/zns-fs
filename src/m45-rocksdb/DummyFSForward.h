@@ -24,111 +24,137 @@ SOFTWARE.
 #define STOSYS_PROJECT_DUMMYFSFORWARD_H
 
 #include "rocksdb/env.h"
-#include "rocksdb/io_status.h"
 #include "rocksdb/file_system.h"
+#include "rocksdb/io_status.h"
 #include "rocksdb/status.h"
 
 namespace ROCKSDB_NAMESPACE {
-    class DummyFSForward : public FileSystem {
-    public:
-        // No copying allowed
-        DummyFSForward();
-        DummyFSForward(const DummyFSForward&) = delete;
-        virtual ~DummyFSForward(){};
+class DummyFSForward : public FileSystem {
+ public:
+  // No copying allowed
+  DummyFSForward();
+  DummyFSForward(const DummyFSForward &) = delete;
+  virtual ~DummyFSForward(){};
 
-        IOStatus IsDirectory(const std::string &, const IOOptions &options, bool *is_dir, IODebugContext *) override;
+  IOStatus IsDirectory(const std::string &, const IOOptions &options,
+                       bool *is_dir, IODebugContext *) override;
 
-        IOStatus
-        NewSequentialFile(const std::string &fname, const FileOptions &file_opts,
-                          std::unique_ptr<FSSequentialFile> *result,
-                          __attribute__ ((unused)) IODebugContext *dbg);
+  IOStatus NewSequentialFile(const std::string &fname,
+                             const FileOptions &file_opts,
+                             std::unique_ptr<FSSequentialFile> *result,
+                             __attribute__((unused)) IODebugContext *dbg);
 
-        IOStatus
-        NewRandomAccessFile(const std::string &fname, const FileOptions &file_opts,
-                            std::unique_ptr<FSRandomAccessFile> *result,
-                            __attribute__ ((unused)) IODebugContext *dbg);
+  IOStatus NewRandomAccessFile(const std::string &fname,
+                               const FileOptions &file_opts,
+                               std::unique_ptr<FSRandomAccessFile> *result,
+                               __attribute__((unused)) IODebugContext *dbg);
 
-        IOStatus
-        NewWritableFile(const std::string &fname, const FileOptions &file_opts, std::unique_ptr<FSWritableFile> *result,
-                        __attribute__ ((unused)) IODebugContext *dbg);
+  IOStatus NewWritableFile(const std::string &fname,
+                           const FileOptions &file_opts,
+                           std::unique_ptr<FSWritableFile> *result,
+                           __attribute__((unused)) IODebugContext *dbg);
 
-        IOStatus
-        ReopenWritableFile(const std::string &, const FileOptions &, std::unique_ptr<FSWritableFile> *,
-                           IODebugContext *);
+  IOStatus ReopenWritableFile(const std::string &, const FileOptions &,
+                              std::unique_ptr<FSWritableFile> *,
+                              IODebugContext *);
 
-        IOStatus
-        NewRandomRWFile(const std::string &, const FileOptions &, std::unique_ptr<FSRandomRWFile> *, IODebugContext *);
+  IOStatus NewRandomRWFile(const std::string &, const FileOptions &,
+                           std::unique_ptr<FSRandomRWFile> *, IODebugContext *);
 
-        IOStatus NewMemoryMappedFileBuffer(const std::string &, std::unique_ptr<MemoryMappedFileBuffer> *);
+  IOStatus NewMemoryMappedFileBuffer(const std::string &,
+                                     std::unique_ptr<MemoryMappedFileBuffer> *);
 
-        IOStatus NewDirectory(const std::string &name, const IOOptions &io_opts, std::unique_ptr<FSDirectory> *result,
-                              __attribute__ ((unused)) IODebugContext *dbg);
+  IOStatus NewDirectory(const std::string &name, const IOOptions &io_opts,
+                        std::unique_ptr<FSDirectory> *result,
+                        __attribute__((unused)) IODebugContext *dbg);
 
-        const char *Name() const override;
+  const char *Name() const override;
 
-        IOStatus GetFreeSpace(const std::string &, const IOOptions &, uint64_t *, IODebugContext *);
+  IOStatus GetFreeSpace(const std::string &, const IOOptions &, uint64_t *,
+                        IODebugContext *);
 
-        IOStatus Truncate(const std::string &, size_t, const IOOptions &, IODebugContext *);
+  IOStatus Truncate(const std::string &, size_t, const IOOptions &,
+                    IODebugContext *);
 
-        IOStatus CreateDir(const std::string &dirname, const IOOptions &options, __attribute__ ((unused)) IODebugContext *dbg);
+  IOStatus CreateDir(const std::string &dirname, const IOOptions &options,
+                     __attribute__((unused)) IODebugContext *dbg);
 
-        IOStatus CreateDirIfMissing(const std::string &dirname, const IOOptions &options, __attribute__ ((unused)) IODebugContext *dbg);
+  IOStatus CreateDirIfMissing(const std::string &dirname,
+                              const IOOptions &options,
+                              __attribute__((unused)) IODebugContext *dbg);
 
-        IOStatus
-        GetFileSize(const std::string &fname, const IOOptions &options, uint64_t *file_size, __attribute__ ((unused)) IODebugContext *dbg);
+  IOStatus GetFileSize(const std::string &fname, const IOOptions &options,
+                       uint64_t *file_size,
+                       __attribute__((unused)) IODebugContext *dbg);
 
-        IOStatus DeleteDir(const std::string &dirname, const IOOptions &options, __attribute__ ((unused)) IODebugContext *dbg);
+  IOStatus DeleteDir(const std::string &dirname, const IOOptions &options,
+                     __attribute__((unused)) IODebugContext *dbg);
 
-        IOStatus
-        GetFileModificationTime(const std::string &fname, const IOOptions &options, uint64_t *file_mtime,
-                                __attribute__ ((unused)) IODebugContext *dbg);
+  IOStatus GetFileModificationTime(const std::string &fname,
+                                   const IOOptions &options,
+                                   uint64_t *file_mtime,
+                                   __attribute__((unused)) IODebugContext *dbg);
 
-        IOStatus
-        GetAbsolutePath(const std::string &db_path, const IOOptions &options, std::string *output_path,
-                        __attribute__ ((unused)) IODebugContext *dbg);
+  IOStatus GetAbsolutePath(const std::string &db_path, const IOOptions &options,
+                           std::string *output_path,
+                           __attribute__((unused)) IODebugContext *dbg);
 
-        IOStatus DeleteFile(const std::string& fname,
-                            const IOOptions& options,
-                            IODebugContext* dbg);
+  IOStatus DeleteFile(const std::string &fname, const IOOptions &options,
+                      IODebugContext *dbg);
 
-        IOStatus
-        NewLogger(const std::string &fname, const IOOptions &io_opts, std::shared_ptr<Logger> *result,
-                  __attribute__ ((unused)) IODebugContext *dbg);
+  IOStatus NewLogger(const std::string &fname, const IOOptions &io_opts,
+                     std::shared_ptr<Logger> *result,
+                     __attribute__((unused)) IODebugContext *dbg);
 
-        IOStatus GetTestDirectory(const IOOptions &options, std::string *path, __attribute__ ((unused)) IODebugContext *dbg);
+  IOStatus GetTestDirectory(const IOOptions &options, std::string *path,
+                            __attribute__((unused)) IODebugContext *dbg);
 
-        IOStatus UnlockFile(FileLock *lock, const IOOptions &options, __attribute__ ((unused)) IODebugContext *dbg);
+  IOStatus UnlockFile(FileLock *lock, const IOOptions &options,
+                      __attribute__((unused)) IODebugContext *dbg);
 
-        IOStatus LockFile(const std::string &fname, const IOOptions &options, FileLock **lock, __attribute__ ((unused)) IODebugContext *dbg);
+  IOStatus LockFile(const std::string &fname, const IOOptions &options,
+                    FileLock **lock,
+                    __attribute__((unused)) IODebugContext *dbg);
 
-        IOStatus AreFilesSame(const std::string &, const std::string &, const IOOptions &, bool *, IODebugContext *);
+  IOStatus AreFilesSame(const std::string &, const std::string &,
+                        const IOOptions &, bool *, IODebugContext *);
 
-        IOStatus NumFileLinks(const std::string &, const IOOptions &, uint64_t *, IODebugContext *);
+  IOStatus NumFileLinks(const std::string &, const IOOptions &, uint64_t *,
+                        IODebugContext *);
 
-        IOStatus LinkFile(const std::string &, const std::string &, const IOOptions &, IODebugContext *);
+  IOStatus LinkFile(const std::string &, const std::string &, const IOOptions &,
+                    IODebugContext *);
 
-        IOStatus
-        RenameFile(const std::string &src, const std::string &target, const IOOptions &options, __attribute__ ((unused)) IODebugContext *dbg);
+  IOStatus RenameFile(const std::string &src, const std::string &target,
+                      const IOOptions &options,
+                      __attribute__((unused)) IODebugContext *dbg);
 
-        IOStatus
-        GetChildrenFileAttributes(const std::string &dir, const IOOptions &options, std::vector<FileAttributes> *result,
-                                  __attribute__ ((unused)) IODebugContext *dbg);
+  IOStatus GetChildrenFileAttributes(const std::string &dir,
+                                     const IOOptions &options,
+                                     std::vector<FileAttributes> *result,
+                                     __attribute__((unused))
+                                     IODebugContext *dbg);
 
-        IOStatus
-        GetChildren(const std::string &dir, const IOOptions &options, std::vector<std::string> *result,
-                    __attribute__ ((unused)) IODebugContext *dbg);
+  IOStatus GetChildren(const std::string &dir, const IOOptions &options,
+                       std::vector<std::string> *result,
+                       __attribute__((unused)) IODebugContext *dbg);
 
-        IOStatus FileExists(const std::string &fname, const IOOptions &options, __attribute__ ((unused)) IODebugContext *dbg);
+  IOStatus FileExists(const std::string &fname, const IOOptions &options,
+                      __attribute__((unused)) IODebugContext *dbg);
 
-        IOStatus ReuseWritableFile(const std::string &fname, const std::string &old_fname, const FileOptions &file_opts,
-                                   std::unique_ptr<FSWritableFile> *result, __attribute__ ((unused)) IODebugContext *dbg);
-    private:
-        std::string get_seq_id();
-        std::shared_ptr<FileSystem> _private_fs;
-        std::atomic<int> _seq_id{};
-        std::string _name;
-        std::stringstream _ss;
-    };
-}
+  IOStatus ReuseWritableFile(const std::string &fname,
+                             const std::string &old_fname,
+                             const FileOptions &file_opts,
+                             std::unique_ptr<FSWritableFile> *result,
+                             __attribute__((unused)) IODebugContext *dbg);
 
-#endif //STOSYS_PROJECT_DUMMYFSFORWARD_H
+ private:
+  std::string get_seq_id();
+  std::shared_ptr<FileSystem> _private_fs;
+  std::atomic<int> _seq_id{};
+  std::string _name;
+  std::stringstream _ss;
+};
+}  // namespace ROCKSDB_NAMESPACE
+
+#endif  // STOSYS_PROJECT_DUMMYFSFORWARD_H
