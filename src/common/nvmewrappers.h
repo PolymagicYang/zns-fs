@@ -19,6 +19,11 @@ int ss_nvme_read(int fd, __u32 nsid, __u64 slba, __u16 nlb, __u16 control,
                  __u32 data_len, void *data, __u32 metadata_len,
                  void *metadata);
 
+int ss_nvme_zns_append(int fd, __u32 nsid, __u64 zslba, __u16 nlb,
+                       __u16 control, __u32 ilbrt, __u16 lbat, __u16 lbatm,
+                       __u32 data_len, void *data, __u32 metadata_len,
+                       void *metadata, __u64 *result);
+
 #ifdef __cplusplus
 }
 #endif
