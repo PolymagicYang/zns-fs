@@ -39,6 +39,7 @@ SOFTWARE.
 #include <variant>
 #include <vector>
 
+#include "../common/nvmewrappers.h"
 #include "../common/unused.h"
 #include "../common/utils.h"
 
@@ -87,9 +88,13 @@ int ss_zns_device_zone_reset(int fd, uint32_t nsid, uint64_t slba) {
   __u32 cdw11 = slba >> 32;
   __u32 cdw13 =
       1 << 2;  // 08 sets to 0, 04h as the reset zone, and others reserved.
-  return nvme_io_passthru(fd, nvme_zns_cmd_mgmt_send, 0, 0, nsid, 0, 0, cdw10,
-                          cdw11, 0, cdw13, 0, 0, 0, nullptr, 0, nullptr, 0,
-                          NULL);
+  int32_t ret =
+      nvme_io_passthru(fd, nvme_zns_cmd_mgmt_send, 0, 0, nsid, 0, 0, cdw10,
+                       cdw11, 0, cdw13, 0, 0, 0, nullptr, 0, nullptr, 0, NULL);
+  if (ret != 0) {
+    print_nvme_error(ret);
+  }
+  return ret;
 }
 /*
 one zone for meta data, others for data-zone.
@@ -188,7 +193,7 @@ class FTL {
 
     uint64_t curr_data_wp_lba = this->data_wp;
     for (auto it = base2lba.begin(); it != base2lba.end(); ++it) {
-      // because of sorted map, we can get the logical addresses seqentially.
+      // because of sorted map, we can get the logical addresses sequentially.
       uint64_t lba_base = it->first;
       std::vector<std::tuple<uint64_t, uint64_t>> lbas = it->second;
 
@@ -196,7 +201,7 @@ class FTL {
         uint64_t lba = std::get<0>(lbas[i]);
         uint64_t pba = std::get<1>(lbas[i]);
         uint32_t offset = lba % (this->zcap);
-        printf("%lx\n", lba);
+        printf("write lba %lx to pba %lx\n", lba, pba);
 
         auto exists = this->data_map.find(lba_base);
         if (exists != this->data_map.end()) {
@@ -204,17 +209,17 @@ class FTL {
         }
 
         void *rdata = calloc(1, bsize);
-        nvme_read(this->fd, this->nsid, pba, 0, 0, 0, 0, 0, 0, this->bsize,
-                  rdata, 0, nullptr);
+        ss_nvme_read(this->fd, this->nsid, pba, 0, 0, 0, 0, 0, 0, this->bsize,
+                     rdata, 0, nullptr);
 
         // Write invalid data until offset.
         for (; curr_data_wp_lba < this->data_wp + offset; curr_data_wp_lba++) {
-          nvme_write(this->fd, this->nsid, curr_data_wp_lba, 0, 0, 0, 0, 0, 0,
-                     0, 0, nullptr, 0, nullptr);
+          ss_nvme_write(this->fd, this->nsid, curr_data_wp_lba, 0, 0, 0, 0, 0,
+                        0, 0, 0, nullptr, 0, nullptr);
         }
-        nvme_write(this->fd, this->nsid, curr_data_wp_lba, 0, 0, 0, 0, 0, 0, 0,
-                   bsize, rdata, 0, nullptr);
-
+        ss_nvme_write(this->fd, this->nsid, curr_data_wp_lba, 0, 0, 0, 0, 0, 0,
+                      0, bsize, rdata, 0, nullptr);
+        puts("");
         free(rdata);
       }
 
@@ -257,10 +262,6 @@ class FTL {
 };
 
 extern "C" {
-
-inline void print_nvme_error(const int ret) {
-  printf("NVMe error: %s\n", nvme_status_to_string(ret, false));
-}
 
 // TODO(valentijn): Implement this function
 int deinit_ss_zns_device(struct user_zns_device *my_dev) {
@@ -390,11 +391,8 @@ int zns_udevice_read(struct user_zns_device *my_dev, uint64_t address,
     // should be optimized later.
     uint32_t block_size = my_dev->lba_size_bytes;
     void *data_ptr = (void *)(((uint64_t)buffer) + i * block_size);
-    int ret = nvme_read(flt->fd, flt->nsid, phas[i], 0, 0, 0, 0, 0, 0,
-                        block_size, data_ptr, 0, nullptr);
-    if (ret != 0) {
-      return ret;
-    }
+    ss_nvme_read(flt->fd, flt->nsid, phas[i], 0, 0, 0, 0, 0, 0, block_size,
+                 data_ptr, 0, nullptr);
   }
   return 0;
 }
@@ -429,8 +427,8 @@ int zns_udevice_write(struct user_zns_device *my_dev, uint64_t address,
 
   if (size == flt->zcap) {
     // fit perfectly in one data zone.
-    int ret = nvme_write(flt->fd, flt->nsid, flt->data_wp, total_nlb - 1, 0, 0,
-                         0, 0, 0, 0, size, buffer, 0, nullptr);
+    int ret = ss_nvme_write(flt->fd, flt->nsid, flt->data_wp, total_nlb - 1, 0,
+                            0, 0, 0, 0, 0, size, buffer, 0, nullptr);
     if (ret != 0) {
       return ret;
     }
@@ -438,8 +436,8 @@ int zns_udevice_write(struct user_zns_device *my_dev, uint64_t address,
   } else if (size <= flt->mdts_size) {
     // TODO(valentijn): Try multithreaded append.
     uint64_t wp = flt->log_wp;
-    int ret = nvme_write(flt->fd, flt->nsid, wp, total_nlb - 1, 0, 0, 0, 0, 0,
-                         0, size, buffer, 0, nullptr);
+    int ret = ss_nvme_write(flt->fd, flt->nsid, wp, total_nlb - 1, 0, 0, 0, 0,
+                            0, 0, size, buffer, 0, nullptr);
     if (ret != 0) {
       return ret;
     }
@@ -456,8 +454,8 @@ int zns_udevice_write(struct user_zns_device *my_dev, uint64_t address,
     for (i = 0; i < total_nlb; i += max_nlb_per_round) {
       buffer_ptr = (void *)((uint64_t)buffer + i * my_dev->lba_size_bytes);
       int ret =
-          nvme_write(flt->fd, flt->nsid, flt->log_wp, max_nlb_per_round - 1, 0,
-                     0, 0, 0, 0, 0, data_len, buffer_ptr, 0, nullptr);
+          ss_nvme_write(flt->fd, flt->nsid, flt->log_wp, max_nlb_per_round - 1,
+                        0, 0, 0, 0, 0, 0, data_len, buffer_ptr, 0, nullptr);
       if (ret != 0) {
         return ret;
       }
@@ -468,8 +466,9 @@ int zns_udevice_write(struct user_zns_device *my_dev, uint64_t address,
       uint64_t ream_blocks = (total_nlb - (i - max_nlb_per_round));
       buffer_ptr = (void *)((uint64_t)buffer + i * my_dev->lba_size_bytes);
       data_len = ream_blocks * my_dev->lba_size_bytes;
-      int ret = nvme_write(flt->fd, flt->nsid, flt->log_wp, ream_blocks - 1, 0,
-                           0, 0, 0, 0, 0, data_len, buffer_ptr, 0, nullptr);
+      int ret =
+          ss_nvme_write(flt->fd, flt->nsid, flt->log_wp, ream_blocks - 1, 0, 0,
+                        0, 0, 0, 0, data_len, buffer_ptr, 0, nullptr);
 
       if (ret != 0) {
         return ret;

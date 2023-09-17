@@ -26,6 +26,8 @@ SOFTWARE.
 #include <libnvme.h>
 #include <stdint.h>
 
+#include "../common/nvmewrappers.h"
+
 extern "C" {
 // https://github.com/mplulu/google-breakpad/issues/481 - taken from here
 #define typeof __typeof__

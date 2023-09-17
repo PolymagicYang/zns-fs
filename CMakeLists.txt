@@ -89,14 +89,17 @@ include_directories (${NVME_INCLUDE_DIRS})
 link_directories (${NVME_LIBRARY_DIRS} )
 add_executable(m1 src/m1/m1.cpp
 src/m1/device.h src/m1/device.cpp
+src/common/nvmewrappers.h src/common/nvmewrappers.cpp
 src/m1/m1_assignment.h src/m1/m1_assignment.cpp
 src/common/nvmeprint.cpp src/common/nvmeprint.h
 src/common/utils.cpp src/common/utils.h
-src/common/stosys_debug.h src/common/unused.h)
+src/common/stosys_debug.h src/common/unused.h
+)
 add_definitions (${NVME_CFLAGS})
 target_link_libraries(m1 ${NVME_LIBRARIES} pthread)
 
 add_library(stosys SHARED
+src/common/nvmewrappers.h src/common/nvmewrappers.cpp
 src/m23-ftl/zns_device.cpp src/m23-ftl/zns_device.h  src/m23-ftl/backup_zns_device_file.cpp
 src/common/nvmeprint.cpp src/common/nvmeprint.h src/common/utils.cpp src/common/utils.h src/common/stosys_debug.h src/common/unused.h)
 
