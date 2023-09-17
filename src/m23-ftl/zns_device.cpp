@@ -450,7 +450,7 @@ int zns_udevice_write(struct user_zns_device *my_dev, uint64_t address,
   address /= my_dev->lba_size_bytes;
 
   if ((flt->log_wp + total_nlb) > flt->log_end) {
-    flt->merge_zones();
+    // flt->merge_zones();
   }
 
   if (size == flt->zcap) {
