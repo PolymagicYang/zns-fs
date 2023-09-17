@@ -2,12 +2,14 @@
 // the human readable error messagea
 #include "nvmewrappers.h"
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 extern "C" {
 void print_nvme_error(const int ret) {
-  printf("NVMe error: %s\n", nvme_status_to_string(ret, false));
+  fprintf(stderr, "NVMe error: %s\n", nvme_status_to_string(ret, false));
 }
 
 int ss_nvme_write(int fd, __u32 nsid, __u64 slba, __u16 nlb, __u16 control,
@@ -18,7 +20,10 @@ int ss_nvme_write(int fd, __u32 nsid, __u64 slba, __u16 nlb, __u16 control,
       nvme_write(fd, nsid, slba, nlb, control, dsm, dspec, reftag, apptag,
                  appmask, data_len, data, metadata_len, metadata);
 
-  if (ret != 0) {
+  if (ret == -1) {
+    perror("ss_nvme_write() failed");
+  } else if (ret != 0) {
+    printf("%d\n", ret);
     print_nvme_error(ret);
 #ifdef EARLY_EXIT
     exit(ret);
@@ -34,7 +39,10 @@ int ss_nvme_read(int fd, __u32 nsid, __u64 slba, __u16 nlb, __u16 control,
                  void *metadata) {
   int32_t ret = nvme_read(fd, nsid, slba, nlb, control, dsm, reftag, apptag,
                           appmask, data_len, data, metadata_len, metadata);
-  if (ret != 0) {
+
+  if (ret == -1) {
+    perror("ss_nvme_write() failed");
+  } else if (ret != 0) {
     print_nvme_error(ret);
 #ifdef EARLY_EXIT
     exit(ret);

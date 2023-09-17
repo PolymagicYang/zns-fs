@@ -22,6 +22,7 @@ SOFTWARE.
 
 #include "zns_device.h"
 
+#include <fcntl.h>
 #include <libgen.h>
 #include <libnvme.h>
 #include <math.h>
@@ -32,6 +33,7 @@ SOFTWARE.
 
 #include <cerrno>
 #include <cstdint>
+#include <cstring>
 #include <map>
 #include <tuple>
 #include <unordered_map>
@@ -84,13 +86,9 @@ int get_zns_zone_info(int fd, int nsid, uint64_t *zcap, uint32_t *nr) {
 
 int ss_zns_device_zone_reset(int fd, uint32_t nsid, uint64_t slba) {
   // this is to supress gcc warnings, remove it when you complete this function
-  __u32 cdw10 = slba & 0xffffffff;
-  __u32 cdw11 = slba >> 32;
-  __u32 cdw13 =
-      1 << 2;  // 08 sets to 0, 04h as the reset zone, and others reserved.
   int32_t ret =
-      nvme_io_passthru(fd, nvme_zns_cmd_mgmt_send, 0, 0, nsid, 0, 0, cdw10,
-                       cdw11, 0, cdw13, 0, 0, 0, nullptr, 0, nullptr, 0, NULL);
+      nvme_zns_mgmt_send(fd, nsid, slba, false, NVME_ZNS_ZSA_RESET, 0, NULL);
+
   if (ret != 0) {
     print_nvme_error(ret);
   }
@@ -201,7 +199,6 @@ class FTL {
         uint64_t lba = std::get<0>(lbas[i]);
         uint64_t pba = std::get<1>(lbas[i]);
         uint32_t offset = lba % (this->zcap);
-        printf("write lba %lx to pba %lx\n", lba, pba);
 
         auto exists = this->data_map.find(lba_base);
         if (exists != this->data_map.end()) {
@@ -217,9 +214,9 @@ class FTL {
           ss_nvme_write(this->fd, this->nsid, curr_data_wp_lba, 0, 0, 0, 0, 0,
                         0, 0, 0, nullptr, 0, nullptr);
         }
-        ss_nvme_write(this->fd, this->nsid, curr_data_wp_lba, 0, 0, 0, 0, 0, 0,
-                      0, bsize, rdata, 0, nullptr);
-        puts("");
+        ss_nvme_write(this->fd, this->nsid, curr_data_wp_lba++, 0, 0, 0, 0, 0,
+                      0, 0, bsize, rdata, 0, nullptr);
+        // puts("");
         free(rdata);
       }
 
@@ -306,20 +303,51 @@ int init_ss_zns_device(struct zdev_init_params *params,
   uint32_t lba_size_in_use = 1 << ns.lbaf[(ns.flbas & 0xf)].ds;
 
   // Calculate MDTS_size for later use.
-  regs = mmap(NULL, getpagesize(), PROT_READ, MAP_SHARED, fd, 0);
+  // Copy the name of the target partition and strip the last numbers so
+  // we get the device
+  char *path;
+  char name[6];
+  strncpy(name, params->name, 6);
+  name[5] = '\0';
+
+  // Open the system file for reading to read the registers.
+  int aret = asprintf(&path, "/sys/class/nvme/%s/device/resource0", name);
+  if (aret < 0) return aret;
+
+  int sysfd = open(path, O_RDONLY | O_SYNC);
+  if (fd < 0) {
+    fprintf(stderr, "failed to open %s\n", path);
+    free(path);
+    return 1;
+  }
+
+  // Map a page from the device so we can read the registers as a
+  // pointer
+  regs = mmap(NULL, getpagesize(), PROT_READ, MAP_SHARED, sysfd, 0);
+  if (regs == MAP_FAILED) {
+    fprintf(stderr, "failed to map device BAR\n");
+    puts(path);
+    free(path);
+    close(fd);
+    return 1;
+  }
+
+  // Load the cap registers and extract the MPSMIN value.
   uint64_t cap = nvme_mmio_read64((void *)((uint64_t)regs + NVME_REG_CAP));
   uint64_t mpsmin_raw =
-      (cap & ((uint64_t)NVME_CAP_MPSMIN_SHIFT << NVME_CAP_MPSMIN_SHIFT)) >>
-      NVME_CAP_MPSMIN_SHIFT;
-  uint64_t MPSMIN = pow(2, 12 + mpsmin_raw);
+      NVME_CAP_MPSMIN(cap);  // hard code this since libnvme is being difficult
+  uint64_t MPSMIN = 1 << (12 + mpsmin_raw);
+
   nvme_identify_ctrl(fd, &ctrl);
   uint64_t MDTS = (uint64_t)ctrl.mdts - 1;
-  uint64_t MDTS_SIZE = pow(2, MDTS) * MPSMIN;
+  uint64_t MDTS_SIZE = (1 << MDTS) * MPSMIN;
 
   uint64_t zcap;
   uint32_t nr;
   get_zns_zone_info(fd, nsid, &zcap, &nr);
   FTL ftl = FTL(fd, MDTS_SIZE, nsid, zcap, params->log_zones, lba_size_in_use);
+  free(path);
+  close(sysfd);
 
   // reset all zones.
   uint64_t end = nr * zcap;
@@ -415,13 +443,13 @@ int zns_udevice_write(struct user_zns_device *my_dev, uint64_t address,
   FTL *flt = (FTL *)my_dev->_private;
 
   // unused
-  // uint32_t pages_num = size / my_dev->lba_size_bytes;
+  //  uint32_t pages_num = size / my_dev->lba_size_bytes;
   uint16_t total_nlb =
       size / my_dev->lba_size_bytes;  // size is the multiple of lba_size.
   uint16_t max_nlb_per_round = flt->mdts_size / my_dev->lba_size_bytes;
   address /= my_dev->lba_size_bytes;
 
-  if (size / my_dev->lba_size_bytes + flt->log_wp > flt->log_end) {
+  if ((flt->log_wp + total_nlb) > flt->log_end) {
     flt->merge_zones();
   }
 
