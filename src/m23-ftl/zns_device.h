@@ -45,33 +45,43 @@ struct zns_device_testing_params {
 
 struct user_zns_device {
   /* these are user visible properties */
-  uint32_t lba_size_bytes;  // LBA size
-  uint64_t
-      capacity_bytes;  // total cpacity of the device in bytes (this would be
-                       // the size of the data zones (excluding the log zones))
-  struct zns_device_testing_params
-      tparams;  // a few ZNS internal parameter used for testing
-  // device's own private pointer, not usable by the user
+  // LBA size
+  uint32_t lba_size_bytes;
+  // total capacity of the device in bytes (this would be the size of
+  // the data zones (excluding the log zones))
+  uint64_t capacity_bytes;
+  // a few ZNS internal parameter used for testing device's own
+  // private pointer, not usable by the user
+  struct zns_device_testing_params tparams;
   void *_private;
 };
 
 /* device initialization parameters
- * name: is the name of the device on which this FTL should run, so your
- * /dev/xxx device. log_zone: is the number of zones your FTL should use to
- * implement a Log. The remaining are for the Data zone. The default value is 3.
- * We will test with various possible values between 3-X (X is determined by the
- * number of total zones available on a device). gc_wmark: is the GC watermark,
- * the number of minimum free zones that the GC must maintain. You are free to
- * start GC before you get to this value, but at this value GC must be running
- * and cleaning zones. The default value is 1. So when the last zone is left
- * free (out of the 3), clean up some space from the Log by converting some
- * mapping from Log to Data. force_reset: If true, then always reset the whole
- * device before using. This is the default behavior. Changing this come in
- * handy for M5 when using persistency. You do not have to touch this variable
- * for M2-M3, but implement this behavior to reset the whole device. Setup: 0
- * -------------------------------------------------- total_device_zones |
- * <----- log_zones -------------> <---------- data_zones
- * ------------------------>
+ *
+ * name: is the name of the device on which this FTL should run, so
+ * your /dev/xxx device.
+ *
+ * log_zone: is the number of zones your FTL should use to implement a
+ * Log. The remaining are for the Data zone. The default value is 3.
+ * We will test with various possible values between 3-X (X is
+ * determined by the number of total zones available on a device).
+ *
+ * gc_wmark: is the GC watermark, the number of minimum free zones
+ * that the GC must maintain. You are free to start GC before you get
+ * to this value, but at this value GC must be running and cleaning
+ * zones. The default value is 1. So when the last zone is left free
+ * (out of the 3), clean up some space from the Log by converting some
+ * mapping from Log to Data.
+ *
+ * force_reset: If true, then always reset the whole device before
+ * using. This is the default behavior. Changing this come in handy
+ * for M5 when using persistency. You do not have to touch this
+ * variable for M2-M3, but implement this behavior to reset the whole
+ * device.
+ *
+ * Setup: 0 --------------------------------------------------
+ * total_device_zones | <----- log_zones -------------> <----------
+ * data_zones ------------------------>
  *
  *      ^^^                        copied-data from the log to convert it into
  * block-mapped new writes go here page-mapped

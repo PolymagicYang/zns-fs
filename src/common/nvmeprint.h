@@ -23,6 +23,8 @@ SOFTWARE.
 #ifndef STOSYS_PROJECT_NVMEPRINT_H
 #define STOSYS_PROJECT_NVMEPRINT_H
 
+#include <libnvme.h>
+
 #include <cinttypes>
 #include <cstdio>
 

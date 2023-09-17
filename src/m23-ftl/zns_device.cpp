@@ -40,6 +40,7 @@ SOFTWARE.
 #include <vector>
 
 #include "../common/unused.h"
+#include "../common/utils.h"
 
 using Ftlmap = std::map<uint64_t, uint64_t>;
 // TODO(valentijn): use lock to enable map thread-safe (e.g. rw-lock), maybe we
@@ -124,6 +125,11 @@ class FTL {
     this->next_empty_zone = -1;
   };
 
+  ~FTL() {
+    this->data_map.erase(this->data_map.begin(), this->data_map.end());
+    this->log_map.erase(this->log_map.begin(), this->log_map.end());
+  }
+
   bool get_pa(uint64_t addr, uint64_t *pa) {
     // search log map firstly, if no return then try data log.
     uint64_t ppa;
@@ -144,11 +150,11 @@ class FTL {
   }
 
   void insert_lba_log(uint64_t lpa, uint64_t ppa) {
-    this->log_map.insert(std::pair<uint64_t, uint64_t>{lpa, ppa});
+    this->log_map.insert({lpa, ppa});
   }
 
   void insert_lba_data(uint64_t lba, uint64_t pba) {
-    this->data_map.insert(std::pair<uint64_t, uint64_t>{lba, pba});
+    this->data_map.insert({lba, pba});
   }
 
   uint64_t get_wp() { return -1; }
@@ -211,7 +217,8 @@ class FTL {
 
         free(rdata);
       }
-      this->data_map.insert({lba_base, this->data_wp});
+
+      this->data_map[lba_base] = this->data_wp;
       this->data_wp += zcap;
     }
 
@@ -251,9 +258,17 @@ class FTL {
 
 extern "C" {
 
+inline void print_nvme_error(const int ret) {
+  printf("NVMe error: %s\n", nvme_status_to_string(ret, false));
+}
+
 // TODO(valentijn): Implement this function
 int deinit_ss_zns_device(struct user_zns_device *my_dev) {
   int ret = -ENOSYS;
+  // cppcheck-suppress cstyleCast
+  FTL *ftl = (FTL *)my_dev->_private;
+  ftl->~FTL();
+
   // this is to supress gcc warnings, remove it when you complete this function
   UNUSED(my_dev);
   return ret;
@@ -268,6 +283,7 @@ int init_ss_zns_device(struct zdev_init_params *params,
   struct nvme_id_ctrl ctrl;
 
   fd = nvme_open(params->name);
+
   if (fd < 0) {
     printf("device %s opening failed %d errno %d \n", params->name, fd, errno);
     return -fd;
@@ -276,12 +292,14 @@ int init_ss_zns_device(struct zdev_init_params *params,
   ret = nvme_get_nsid(fd, &nsid);
   if (ret != 0) {
     printf("ERROR: failed to retrieve the nsid %d \n", ret);
+    print_nvme_error(ret);
     return ret;
   }
 
   ret = nvme_identify_ns(fd, nsid, &ns);
   if (ret) {
     printf("ERROR: failed to retrieve the nsid %d \n", ret);
+    print_nvme_error(ret);
     return ret;
   }
   uint32_t lba_size_in_use = 1 << ns.lbaf[(ns.flbas & 0xf)].ds;
