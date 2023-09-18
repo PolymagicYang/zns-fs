@@ -388,7 +388,6 @@ int init_ss_zns_device(struct zdev_init_params *params,
   return 0;
 }
 
-#define kPageNum 2048
 int zns_udevice_read(struct user_zns_device *my_dev, uint64_t address,
                      void *buffer, uint32_t size) {
   // Check log map first because to check for fresh data, then check
@@ -401,40 +400,53 @@ int zns_udevice_read(struct user_zns_device *my_dev, uint64_t address,
   FTL *flt = (FTL *)my_dev->_private;
   uint32_t pages_num = size / my_dev->lba_size_bytes;
   address /= my_dev->lba_size_bytes;
+  // maximum reading mdts.
+  uint32_t mdts = flt->mdts_size / my_dev->lba_size_bytes;
+  // store <start address, nlb>.
+  std::pair<uint64_t, uint64_t> adjacent_phas = std::pair<uint64_t, uint64_t>();
+  std::vector<std::pair<uint64_t, uint32_t>> phas;
 
-  uint64_t phas[kPageNum];
   uint64_t pa;
+  uint64_t prev_addr = 0;
   for (uint64_t i = 0; i < pages_num; i++) {
     bool contains = flt->get_pa(address + i, &pa);
     if (contains) {
-      uint64_t addr = pa;
-      phas[i] = addr;
+      if (prev_addr == 0) {
+        // init.
+        adjacent_phas.first = pa;
+        adjacent_phas.second = 1;
+      } else if (pa - 1 == prev_addr && adjacent_phas.second < mdts) {
+        adjacent_phas.second += 1;
+      } else {
+        phas.push_back(adjacent_phas);
+        adjacent_phas = std::pair<uint64_t, uint64_t>();
+        adjacent_phas.first = pa;
+        adjacent_phas.second = 1;
+      }
+      prev_addr = pa;
     } else {
       // Invalid logical page address.
       return -1;
     }
   }
-  // find a algoritm that check all the sequential physical addresses to make it
-  // more effcient, try ordered key.
-
-  /*
-  if (size > flt->mdts_size) {
-      // make use of mdts_size, number of blocks: (maximum data we can tranfer)
-  / (zns logical block size). uint16_t nlb = flt->mdts_size /
-  my_dev->lba_size_bytes; nvme_read(flt->fd, flt->mdts_size, addr, nlb, 0, 0, 0,
-  0, 0, __u32 data_len, void *data, 0, 0); } else {
-
+  if (phas.size() < mdts) {
+    // Add the last phas.
+    phas.push_back(adjacent_phas);
   }
-  */
 
-  for (uint32_t i = 0; i < pages_num; i++) {
+  uint64_t data_ptr = (uint64_t)buffer;
+  for (uint32_t i = 0; i < phas.size(); i++) {
     // should be optimized later.
     // printf("Reading %x from %x\n", address+i, phas[i]);
     uint32_t block_size = my_dev->lba_size_bytes;
-    void *data_ptr = (void *)(((uint64_t)buffer) + i * block_size);
-
-    ss_nvme_read(flt->fd, flt->nsid, phas[i], 0, 0, 0, 0, 0, 0, block_size,
-                 data_ptr, 0, nullptr);
+    uint32_t nlb = phas[i].second;
+    uint64_t paf = phas[i].first;
+    int ret = ss_nvme_read(flt->fd, flt->nsid, paf, nlb - 1, 0, 0, 0, 0, 0,
+                           nlb * block_size, (void *)data_ptr, 0, nullptr);
+    if (ret != 0) {
+      return ret;
+    }
+    data_ptr = data_ptr + nlb * block_size;
   }
   return 0;
 }
