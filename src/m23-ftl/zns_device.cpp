@@ -391,7 +391,7 @@ int zns_udevice_read(struct user_zns_device *my_dev, uint64_t address,
   // maximum reading mdts.
   uint32_t mdts = flt->mdts_size / my_dev->lba_size_bytes;
   // store <start address, nlb>.
-  std::pair<uint64_t, uint64_t> adjacent_phas;
+  std::pair<uint64_t, uint64_t> adjacent_phas = std::pair<uint64_t, uint64_t>();
   std::vector<std::pair<uint64_t, uint32_t>> phas;
 
   uint64_t pa;
@@ -403,18 +403,23 @@ int zns_udevice_read(struct user_zns_device *my_dev, uint64_t address,
         // init.
         adjacent_phas.first = pa;
         adjacent_phas.second = 1;
-        phas.push_back(adjacent_phas);
-      } else if (pa - 1 == prev_addr && adjacent_phas.second <= mdts) {
-          phas.back().second += 1;
+      } else if (pa - 1 == prev_addr && adjacent_phas.second < mdts) {
+          adjacent_phas.second += 1;
       } else {
           phas.push_back(adjacent_phas);
           adjacent_phas = std::pair<uint64_t, uint64_t>();
+          adjacent_phas.first = pa;
+          adjacent_phas.second = 1;
       }
       prev_addr = pa;
     } else {
       // Invalid logical page address.
       return -1;
     }
+  }
+  if (phas.size() < mdts) {
+    // Add the last phas.
+    phas.push_back(adjacent_phas);
   }
 
   uint64_t data_ptr = (uint64_t) buffer;
@@ -426,7 +431,6 @@ int zns_udevice_read(struct user_zns_device *my_dev, uint64_t address,
     int ret = ss_nvme_read(flt->fd, flt->nsid, pa, nlb-1, 0, 0, 0, 0, 0, nlb * block_size,
                  (void*) data_ptr, 0, nullptr);
     if (ret != 0) {
-      print_nvme_error(ret);
       return ret;
     }
     data_ptr = data_ptr + nlb * block_size;
