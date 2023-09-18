@@ -84,16 +84,6 @@ int get_zns_zone_info(int fd, int nsid, uint64_t *zcap, uint32_t *nr) {
   return ret;
 }
 
-int ss_zns_device_zone_reset(int fd, uint32_t nsid, uint64_t slba) {
-  // this is to supress gcc warnings, remove it when you complete this function
-  int32_t ret =
-      nvme_zns_mgmt_send(fd, nsid, slba, false, NVME_ZNS_ZSA_RESET, 0, NULL);
-
-  if (ret != 0) {
-    print_nvme_error(ret);
-  }
-  return ret;
-}
 /*
 one zone for meta data, others for data-zone.
 */
@@ -225,9 +215,6 @@ class FTL {
     }
 
     // reset log zones.
-    for (int32_t i = 0; i < this->log_zones - 1; i++) {
-      ss_zns_device_zone_reset(this->fd, this->nsid, this->zcap + i * zcap);
-    }
     this->log_map.clear();
     this->log_wp = this->zcap;
   }
@@ -349,16 +336,6 @@ int init_ss_zns_device(struct zdev_init_params *params,
   free(path);
   close(sysfd);
 
-  // reset all zones.
-  uint64_t end = nr * zcap;
-  for (uint64_t i = 0; i < end; i += zcap) {
-    int r = ss_zns_device_zone_reset(fd, nsid, i);
-    if (r != 0) {
-      printf("failed to reset all zones.");
-      return r;
-    }
-  }
-
   struct zns_device_testing_params tparams {
     .zns_lba_size = lba_size_in_use,
     .zns_zone_capacity = (uint32_t)zcap * lba_size_in_use,
@@ -435,7 +412,7 @@ int zns_udevice_read(struct user_zns_device *my_dev, uint64_t address,
     }
     data_ptr = data_ptr + nlb * block_size;
   }
-  phas.clear();
+  phas.erase(phas.begin(), phas.end());
   return 0;
 }
 
