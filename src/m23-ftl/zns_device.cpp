@@ -349,16 +349,6 @@ int init_ss_zns_device(struct zdev_init_params *params,
   free(path);
   close(sysfd);
 
-  // reset all zones.
-  uint64_t end = nr * zcap;
-  for (uint64_t i = 0; i < end; i += zcap) {
-    int r = ss_zns_device_zone_reset(fd, nsid, i);
-    if (r != 0) {
-      printf("failed to reset all zones.");
-      return r;
-    }
-  }
-
   struct zns_device_testing_params tparams {
     .zns_lba_size = lba_size_in_use,
     .zns_zone_capacity = (uint32_t)zcap * lba_size_in_use,
