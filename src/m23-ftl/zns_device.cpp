@@ -26,6 +26,7 @@ SOFTWARE.
 #include <libgen.h>
 #include <libnvme.h>
 #include <math.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <sys/mman.h>
 #include <sys/types.h>
@@ -325,6 +326,23 @@ uint64_t _calculate_mdts(struct zdev_init_params *params, int fd) {
   return MDTS_SIZE;
 }
 
+volatile int running_reset_threads = 0;
+pthread_mutex_t reset_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+struct reset_info {
+  pthread_t thread_id;
+  int fd;
+  uint32_t nsid;
+  uint64_t id;
+};
+void *reset_zone(void *arg) {
+  struct reset_info *reset_info = (struct reset_info *)arg;
+  ss_zns_device_zone_reset(reset_info->fd, reset_info->nsid, reset_info->id);
+  pthread_mutex_lock(&reset_mutex);
+  running_reset_threads--;
+  pthread_mutex_unlock(&reset_mutex);
+}
+
 int init_ss_zns_device(struct zdev_init_params *params,
                        struct user_zns_device **my_dev) {
   int ret;
@@ -361,14 +379,28 @@ int init_ss_zns_device(struct zdev_init_params *params,
       FTL(fd, MDTS_SIZE, nsid, zcap, params->log_zones, lba_size_in_use, desc);
 
   // reset all zones.
-  uint64_t end = nr * zcap;
-  for (uint64_t i = 0; i < end; i += zcap) {
-    int r = ss_zns_device_zone_reset(fd, nsid, i);
+  pthread_attr_t attr;
+  int s = pthread_attr_init(&attr);
+  if (s != 0) perror("zone resetting failed");
+  struct reset_info *tinfo =
+      (struct reset_info *)malloc(sizeof(struct reset_info) * nr);
+
+  for (uint64_t i = 0; i < nr; i++) {
+    pthread_mutex_lock(&reset_mutex);
+    running_reset_threads++;
+    pthread_mutex_unlock(&reset_mutex);
+    tinfo[i].fd = fd;
+    tinfo[i].nsid = nsid;
+    tinfo[i].id = i * zcap;
+    int r = pthread_create(&tinfo[i].thread_id, &attr, &reset_zone, &tinfo[i]);
     if (r != 0) {
       printf("failed to reset all zones.");
       return r;
     }
   }
+
+  while (running_reset_threads > 0) usleep(10);
+  free(tinfo);
 
   struct zns_device_testing_params tparams {
     .zns_lba_size = lba_size_in_use,
@@ -386,6 +418,34 @@ int init_ss_zns_device(struct zdev_init_params *params,
 
   *my_dev = &device;
   return 0;
+}
+
+volatile int running_read_threads = 0;
+pthread_mutex_t read_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+struct read_info {
+  pthread_t thread_id;
+  FTL *ftl;
+  uint64_t nlb;
+  uint64_t paf;
+  uint32_t block_size;
+  void *data_ptr;
+};
+void *read_func(void *arg) {
+  struct read_info *info = (struct read_info *)arg;
+  FTL *flt = info->ftl;
+
+  int ret =
+      ss_nvme_read(flt->fd, flt->nsid, info->paf, info->nlb - 1, 0, 0, 0, 0, 0,
+                   info->nlb * info->block_size, info->data_ptr, 0, nullptr);
+  if (ret != 0) {
+    return NULL;
+  }
+
+  pthread_mutex_lock(&read_mutex);
+  running_read_threads--;
+  pthread_mutex_unlock(&read_mutex);
+  return NULL;
 }
 
 int zns_udevice_read(struct user_zns_device *my_dev, uint64_t address,
@@ -434,20 +494,55 @@ int zns_udevice_read(struct user_zns_device *my_dev, uint64_t address,
     phas.push_back(adjacent_phas);
   }
 
+  // Skip the creation of the threads if we only have one physical address
+  if (pages_num == 1) {
+    struct read_info info = {
+        .thread_id = 0,
+        .ftl = flt,
+        .nlb = phas[0].second,
+        .paf = phas[0].first,
+        .block_size = my_dev->lba_size_bytes,
+        .data_ptr = (void *)buffer,
+    };
+
+    int ret =
+        ss_nvme_read(flt->fd, flt->nsid, info.paf, info.nlb - 1, 0, 0, 0, 0, 0,
+                     info.nlb * info.block_size, info.data_ptr, 0, nullptr);
+    if (ret != 0) {
+      return ret;
+    }
+
+    return 0;
+  }
+
+  // Thread initialization
+  pthread_attr_t attr;
+  if (pthread_attr_init(&attr) != 0) perror("read nvme failed");
+  struct read_info *tinfo =
+      (struct read_info *)malloc(sizeof(struct read_info) * phas.size());
+
   uint64_t data_ptr = (uint64_t)buffer;
   for (uint32_t i = 0; i < phas.size(); i++) {
     // should be optimized later.
     // printf("Reading %x from %x\n", address+i, phas[i]);
-    uint32_t block_size = my_dev->lba_size_bytes;
-    uint32_t nlb = phas[i].second;
-    uint64_t paf = phas[i].first;
-    int ret = ss_nvme_read(flt->fd, flt->nsid, paf, nlb - 1, 0, 0, 0, 0, 0,
-                           nlb * block_size, (void *)data_ptr, 0, nullptr);
+    pthread_mutex_lock(&read_mutex);
+    running_read_threads++;
+    pthread_mutex_unlock(&read_mutex);
+
+    tinfo[i].ftl = flt;
+    tinfo[i].nlb = phas[i].second;
+    tinfo[i].paf = phas[i].first;
+    tinfo[i].block_size = my_dev->lba_size_bytes;
+    tinfo[i].data_ptr = (void *)data_ptr;
+    int ret = pthread_create(&tinfo[i].thread_id, &attr, &read_func, &tinfo[i]);
     if (ret != 0) {
       return ret;
     }
-    data_ptr = data_ptr + nlb * block_size;
+    data_ptr = data_ptr + tinfo[i].nlb * tinfo[i].block_size;
   }
+  while (running_read_threads > 0) usleep(1);
+  free(tinfo);
+
   return 0;
 }
 
