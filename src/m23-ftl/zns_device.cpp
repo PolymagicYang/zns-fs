@@ -143,11 +143,11 @@ class FTL {
   }
 
   void insert_lba_log(uint64_t lpa, uint64_t ppa) {
-    this->log_map.insert({lpa, ppa});
+    this->log_map[lpa] = ppa;
   }
 
   void insert_lba_data(uint64_t lba, uint64_t pba) {
-    this->data_map.insert({lba, pba});
+    this->data_map[lba] = pba;
   }
 
   uint64_t get_wp() { return -1; }
@@ -405,10 +405,29 @@ int zns_udevice_read(struct user_zns_device *my_dev, uint64_t address,
     uint32_t block_size = my_dev->lba_size_bytes;
     uint32_t nlb = phas[i].second;
     uint64_t pa = phas[i].first;
-    int ret = ss_nvme_read(flt->fd, flt->nsid, pa, nlb-1, 0, 0, 0, 0, 0, nlb * block_size,
-                 (void*) data_ptr, 0, nullptr);
-    if (ret != 0) {
-      return ret;
+    uint64_t slba = (pa / flt->zcap) * flt->zcap;
+    // zone boundary check:
+    if (pa + nlb > slba + flt->zcap) {
+      // divide nlb into two parts:
+      uint32_t fstpart_nlb = slba + flt->zcap - pa;
+      uint32_t secpart_nlb = nlb - fstpart_nlb;
+
+      int ret = ss_nvme_read(flt->fd, flt->nsid, pa, fstpart_nlb-1, 0, 0, 0, 0, 0, fstpart_nlb * block_size,
+                  (void*) data_ptr, 0, nullptr);
+      if (ret != 0) {
+        return ret;
+      }
+      ret = ss_nvme_read(flt->fd, flt->nsid, pa+fstpart_nlb, secpart_nlb-1, 0, 0, 0, 0, 0, secpart_nlb * block_size,
+                  (void*) (data_ptr + fstpart_nlb * block_size), 0, nullptr);
+      if (ret != 0) {
+        return ret;
+      }
+    } else {
+      int ret = ss_nvme_read(flt->fd, flt->nsid, pa, nlb-1, 0, 0, 0, 0, 0, nlb * block_size,
+                  (void*) data_ptr, 0, nullptr);
+      if (ret != 0) {
+        return ret;
+      }
     }
     data_ptr = data_ptr + nlb * block_size;
   }
@@ -497,7 +516,7 @@ int zns_udevice_write(struct user_zns_device *my_dev, uint64_t address,
     }
 
     for (uint64_t nlb = 0; nlb < total_nlb; nlb++) {
-      flt->insert_lba_data(address + nlb, wp + nlb);
+      flt->insert_lba_log(address + nlb, wp + nlb);
     }
   }
 
