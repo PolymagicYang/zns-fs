@@ -1725,7 +1725,7 @@ int nvme_set_features_lba_sts_interval(int fd, __u16 lsiri, __u16 lsipi,
  * nvme_set_features_host_behavior() -
  * @fd:		File descriptor of nvme device
  * @save:	Save value across power states
- * @data:	
+ * @data:
  *
  * Return: The nvme command status if a response was received (see
  * &enum nvme_status_field) or -1 with errno set otherwise.
@@ -1736,7 +1736,7 @@ int nvme_set_features_host_behavior(int fd, bool save,
 /**
  * nvme_set_features_sanitize() -
  * @fd:		File descriptor of nvme device
- * @nodrm:	
+ * @nodrm:
  * @save:	Save value across power states
  * @result:	The command completion result from CQE dword0
  *
@@ -1762,7 +1762,7 @@ int nvme_set_features_endurance_evt_cfg(int fd, __u16 endgid, __u8 egwarn,
 /**
  * nvme_set_features_sw_progress() -
  * @fd:		File descriptor of nvme device
- * @pbslc:	
+ * @pbslc:
  * @save:	Save value across power states
  * @result:	The command completion result from CQE dword0
  *
@@ -1776,7 +1776,7 @@ int nvme_set_features_sw_progress(int fd, __u8 pbslc, bool save,
 /**
  * nvme_set_features_host_id() -
  * @fd:		File descriptor of nvme device
- * @exhid:	
+ * @exhid:
  * @save:	Save value across power states
  * @result:	The command completion result from CQE dword0
  *
@@ -1797,7 +1797,7 @@ enum nvme_feat_resv_notify_flags {
 /**
  * nvme_set_features_resv_mask() -
  * @fd:		File descriptor of nvme device
- * @mask:	
+ * @mask:
  * @save:	Save value across power states
  * @result:	The command completion result from CQE dword0
  *
@@ -1809,7 +1809,7 @@ int nvme_set_features_resv_mask(int fd, __u32 mask, bool save, __u32 *result);
 /**
  * nvme_set_features_resv_persist() -
  * @fd:		File descriptor of nvme device
- * @ptpl:	
+ * @ptpl:
  * @save:	Save value across power states
  * @result:	The command completion result from CQE dword0
  *
@@ -1835,7 +1835,7 @@ enum nvme_feat_nswpcfg_state {
 /**
  * nvme_set_features_write_protect() -
  * @fd:		File descriptor of nvme device
- * @stat:	
+ * @stat:
  * @save:	Save value across power states
  * @result:	The command completion result from CQE dword0
  *

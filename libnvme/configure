@@ -229,7 +229,7 @@ print_config "cpp" "${cpp}"
 if test "$libuuid" = "yes"; then
   output_sym "CONFIG_LIBUUID"
   echo "override LIBS += -luuid" >> $config_host_mak
-  echo "override LIB_DEPENDS += uuid" >> $config_host_mak 
+  echo "override LIB_DEPENDS += uuid" >> $config_host_mak
 fi
 if test "$systemd" = "yes"; then
   output_sym "CONFIG_SYSTEMD"

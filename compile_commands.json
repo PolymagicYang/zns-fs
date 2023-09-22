@@ -1,0 +1,57 @@
+[
+{
+  "directory": "/home/valentijn/programs/2023-stosys-22/build",
+  "command": "g++     -g -O0  -ggdb -Wl,--no-as-needed -Wall -Wextra -Wundef  -frtti  -fsanitize=address -fsanitize=undefined -fno-sanitize-recover=all -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fno-sanitize=null -fno-sanitize=alignment -g   -std=c++14 -o CMakeFiles/m3.dir/src/m23-ftl/m3.cpp.o -c /home/valentijn/programs/2023-stosys-22/src/m23-ftl/m3.cpp",
+  "file": "/home/valentijn/programs/2023-stosys-22/src/m23-ftl/m3.cpp"
+},
+{
+  "directory": "/home/valentijn/programs/2023-stosys-22/build",
+  "command": "g++     -g -O0  -ggdb -Wl,--no-as-needed -Wall -Wextra -Wundef  -frtti  -fsanitize=address -fsanitize=undefined -fno-sanitize-recover=all -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fno-sanitize=null -fno-sanitize=alignment -g   -std=c++14 -o CMakeFiles/m2.dir/src/m23-ftl/m2.cpp.o -c /home/valentijn/programs/2023-stosys-22/src/m23-ftl/m2.cpp",
+  "file": "/home/valentijn/programs/2023-stosys-22/src/m23-ftl/m2.cpp"
+},
+{
+  "directory": "/home/valentijn/programs/2023-stosys-22/build",
+  "command": "g++  -Dstosys_EXPORTS   -g -O0  -ggdb -Wl,--no-as-needed -Wall -Wextra -Wundef  -frtti  -fsanitize=address -fsanitize=undefined -fno-sanitize-recover=all -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fno-sanitize=null -fno-sanitize=alignment -g -fPIC   -std=c++14 -o CMakeFiles/stosys.dir/src/m23-ftl/zns_device.cpp.o -c /home/valentijn/programs/2023-stosys-22/src/m23-ftl/zns_device.cpp",
+  "file": "/home/valentijn/programs/2023-stosys-22/src/m23-ftl/zns_device.cpp"
+},
+{
+  "directory": "/home/valentijn/programs/2023-stosys-22/build",
+  "command": "g++  -Dstosys_EXPORTS   -g -O0  -ggdb -Wl,--no-as-needed -Wall -Wextra -Wundef  -frtti  -fsanitize=address -fsanitize=undefined -fno-sanitize-recover=all -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fno-sanitize=null -fno-sanitize=alignment -g -fPIC   -std=c++14 -o CMakeFiles/stosys.dir/src/m23-ftl/backup_zns_device_file.cpp.o -c /home/valentijn/programs/2023-stosys-22/src/m23-ftl/backup_zns_device_file.cpp",
+  "file": "/home/valentijn/programs/2023-stosys-22/src/m23-ftl/backup_zns_device_file.cpp"
+},
+{
+  "directory": "/home/valentijn/programs/2023-stosys-22/build",
+  "command": "g++  -Dstosys_EXPORTS   -g -O0  -ggdb -Wl,--no-as-needed -Wall -Wextra -Wundef  -frtti  -fsanitize=address -fsanitize=undefined -fno-sanitize-recover=all -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fno-sanitize=null -fno-sanitize=alignment -g -fPIC   -std=c++14 -o CMakeFiles/stosys.dir/src/common/nvmeprint.cpp.o -c /home/valentijn/programs/2023-stosys-22/src/common/nvmeprint.cpp",
+  "file": "/home/valentijn/programs/2023-stosys-22/src/common/nvmeprint.cpp"
+},
+{
+  "directory": "/home/valentijn/programs/2023-stosys-22/build",
+  "command": "g++  -Dstosys_EXPORTS   -g -O0  -ggdb -Wl,--no-as-needed -Wall -Wextra -Wundef  -frtti  -fsanitize=address -fsanitize=undefined -fno-sanitize-recover=all -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fno-sanitize=null -fno-sanitize=alignment -g -fPIC   -std=c++14 -o CMakeFiles/stosys.dir/src/common/utils.cpp.o -c /home/valentijn/programs/2023-stosys-22/src/common/utils.cpp",
+  "file": "/home/valentijn/programs/2023-stosys-22/src/common/utils.cpp"
+},
+{
+  "directory": "/home/valentijn/programs/2023-stosys-22/build",
+  "command": "g++     -g -O0  -ggdb -Wl,--no-as-needed -Wall -Wextra -Wundef  -frtti  -fsanitize=address -fsanitize=undefined -fno-sanitize-recover=all -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fno-sanitize=null -fno-sanitize=alignment -g   -std=c++14 -o CMakeFiles/m1.dir/src/m1/m1.cpp.o -c /home/valentijn/programs/2023-stosys-22/src/m1/m1.cpp",
+  "file": "/home/valentijn/programs/2023-stosys-22/src/m1/m1.cpp"
+},
+{
+  "directory": "/home/valentijn/programs/2023-stosys-22/build",
+  "command": "g++     -g -O0  -ggdb -Wl,--no-as-needed -Wall -Wextra -Wundef  -frtti  -fsanitize=address -fsanitize=undefined -fno-sanitize-recover=all -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fno-sanitize=null -fno-sanitize=alignment -g   -std=c++14 -o CMakeFiles/m1.dir/src/m1/device.cpp.o -c /home/valentijn/programs/2023-stosys-22/src/m1/device.cpp",
+  "file": "/home/valentijn/programs/2023-stosys-22/src/m1/device.cpp"
+},
+{
+  "directory": "/home/valentijn/programs/2023-stosys-22/build",
+  "command": "g++     -g -O0  -ggdb -Wl,--no-as-needed -Wall -Wextra -Wundef  -frtti  -fsanitize=address -fsanitize=undefined -fno-sanitize-recover=all -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fno-sanitize=null -fno-sanitize=alignment -g   -std=c++14 -o CMakeFiles/m1.dir/src/m1/m1_assignment.cpp.o -c /home/valentijn/programs/2023-stosys-22/src/m1/m1_assignment.cpp",
+  "file": "/home/valentijn/programs/2023-stosys-22/src/m1/m1_assignment.cpp"
+},
+{
+  "directory": "/home/valentijn/programs/2023-stosys-22/build",
+  "command": "g++     -g -O0  -ggdb -Wl,--no-as-needed -Wall -Wextra -Wundef  -frtti  -fsanitize=address -fsanitize=undefined -fno-sanitize-recover=all -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fno-sanitize=null -fno-sanitize=alignment -g   -std=c++14 -o CMakeFiles/m1.dir/src/common/nvmeprint.cpp.o -c /home/valentijn/programs/2023-stosys-22/src/common/nvmeprint.cpp",
+  "file": "/home/valentijn/programs/2023-stosys-22/src/common/nvmeprint.cpp"
+},
+{
+  "directory": "/home/valentijn/programs/2023-stosys-22/build",
+  "command": "g++     -g -O0  -ggdb -Wl,--no-as-needed -Wall -Wextra -Wundef  -frtti  -fsanitize=address -fsanitize=undefined -fno-sanitize-recover=all -fsanitize=float-divide-by-zero -fsanitize=float-cast-overflow -fno-sanitize=null -fno-sanitize=alignment -g   -std=c++14 -o CMakeFiles/m1.dir/src/common/utils.cpp.o -c /home/valentijn/programs/2023-stosys-22/src/common/utils.cpp",
+  "file": "/home/valentijn/programs/2023-stosys-22/src/common/utils.cpp"
+}
+]

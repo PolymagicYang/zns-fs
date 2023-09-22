@@ -20,4 +20,3 @@ for h in r.hosts():
         print (s)
         for c in s.controllers():
             print (c)
-

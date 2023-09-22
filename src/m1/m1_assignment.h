@@ -21,7 +21,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
  */
 
-
 #ifndef STOSYS_PROJECT_M1_ASSIGNMENT_H
 #define STOSYS_PROJECT_M1_ASSIGNMENT_H
 
@@ -29,22 +28,28 @@ SOFTWARE.
 
 extern "C" {
 
-// these follow nvme specification I added ss_ prefix to avoid namespace collision with other lbnvme functions
-int ss_nvme_device_io_with_mdts(int fd, uint32_t nsid, uint64_t slba, uint16_t numbers, void *buffer, uint64_t buf_size,
-                                uint64_t lba_size, uint64_t mdts_size, bool read);
-int ss_nvme_device_read(int fd, uint32_t nsid, uint64_t slba, uint16_t numbers, void *buffer, uint64_t buf_size);
-int ss_nvme_device_write(int fd, uint32_t nsid, uint64_t slba, uint16_t numbers, void *buffer, uint64_t buf_size);
+// these follow nvme specification I added ss_ prefix to avoid namespace
+// collision with other lbnvme functions
+int ss_nvme_device_io_with_mdts(int fd, uint32_t nsid, uint64_t slba,
+                                uint16_t numbers, void *buffer,
+                                uint64_t buf_size, uint64_t lba_size,
+                                uint64_t mdts_size, bool read);
+int ss_nvme_device_read(int fd, uint32_t nsid, uint64_t slba, uint16_t numbers,
+                        void *buffer, uint64_t buf_size);
+int ss_nvme_device_write(int fd, uint32_t nsid, uint64_t slba, uint16_t numbers,
+                         void *buffer, uint64_t buf_size);
 
 // these are ZNS specific commands
 int ss_zns_device_zone_reset(int fd, uint32_t nsid, uint64_t slba);
-int ss_zns_device_zone_append(int fd, uint32_t nsid, uint64_t zslba, int numbers, void *buffer, uint32_t buf_size,
+int ss_zns_device_zone_append(int fd, uint32_t nsid, uint64_t zslba,
+                              int numbers, void *buffer, uint32_t buf_size,
                               uint64_t *written_slba);
 
 void update_lba(uint64_t &write_lba, const uint32_t lba_size, const int count);
 
-// see how to pass any number of variables in a C/C++ program https://stackoverflow.com/questions/1579719/variable-number-of-parameters-in-function-in-c
+// see how to pass any number of variables in a C/C++ program
+// https://stackoverflow.com/questions/1579719/variable-number-of-parameters-in-function-in-c
 uint64_t get_mdts_size(int count, ...);
-
 }
 
-#endif // STOSYS_PROJECT_M1_ASSIGNMENT_H
+#endif  // STOSYS_PROJECT_M1_ASSIGNMENT_H

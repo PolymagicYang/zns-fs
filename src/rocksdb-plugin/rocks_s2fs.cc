@@ -1,6 +1,6 @@
 /*
  * MIT License
-Copyright (c) 2021 - current 
+Copyright (c) 2021 - current
 Authors:  Animesh Trivedi
 This code is part of the Storage System Course at VU Amsterdam
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -20,21 +20,22 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
  */
 
-#include "rocksdb/utilities/object_registry.h"
 #include "rocksdb/file_system.h"
+#include "rocksdb/utilities/object_registry.h"
 
 using namespace std;
 
 namespace ROCKSDB_NAMESPACE {
-    IOStatus IOError(const std::string &context, const std::string &file_name,
-                     int err_number);
+IOStatus IOError(const std::string &context, const std::string &file_name,
+                 int err_number);
 
-    extern "C" FactoryFunc<FileSystem> stosys_s2fs_reg;
-    FactoryFunc<FileSystem> stosys_s2fs_reg =
-            ObjectLibrary::Default()->Register<FileSystem>(
-                    "s2fs:.*://.*", [](const std::string &uri, std::unique_ptr<FileSystem> *ret_fs,
-                                     std::string *errmsg) {
-                        ret_fs->reset(FileSystem::Default().get());
-                        return ret_fs->get();
-                    });
-}
+extern "C" FactoryFunc<FileSystem> stosys_s2fs_reg;
+FactoryFunc<FileSystem> stosys_s2fs_reg =
+    ObjectLibrary::Default()->Register<FileSystem>(
+        "s2fs:.*://.*",
+        [](const std::string &uri, std::unique_ptr<FileSystem> *ret_fs,
+           std::string *errmsg) {
+          ret_fs->reset(FileSystem::Default().get());
+          return ret_fs->get();
+        });
+}  // namespace ROCKSDB_NAMESPACE

@@ -37,3 +37,6 @@
 4kb
 8kb
 .\#
+build/
+lib/
+bin/

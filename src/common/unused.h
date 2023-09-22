@@ -1,7 +1,7 @@
 /*
  * MIT License
 Copyright (c) 2021 - current
-Authors:  Animesh Trivedi, 
+Authors:  Animesh Trivedi,
 This code is part of the Storage System Course at VU Amsterdam
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -25,4 +25,4 @@ SOFTWARE.
 
 #define UNUSED(x) (void)(x)
 
-#endif // STOSYS_PROJECT_UNUSED_H
+#endif  // STOSYS_PROJECT_UNUSED_H

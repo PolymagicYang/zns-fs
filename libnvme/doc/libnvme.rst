@@ -7228,7 +7228,7 @@ Returns true if given offset is 64bit register, otherwise it returns false.
 
 
 
-.. c:type:: enum 
+.. c:type:: enum
 
    Defines the required and maximum Completion Queue entry size when using the NVM Command Set.
 
@@ -8147,7 +8147,7 @@ Returns true if given offset is 64bit register, otherwise it returns false.
 
 
 
-.. c:type:: enum 
+.. c:type:: enum
 
 
 **Constants**
@@ -8328,7 +8328,7 @@ Returns true if given offset is 64bit register, otherwise it returns false.
 
 
 
-.. c:type:: enum 
+.. c:type:: enum
 
 
 **Constants**
@@ -8383,7 +8383,7 @@ Returns true if given offset is 64bit register, otherwise it returns false.
 
 
 
-.. c:type:: enum 
+.. c:type:: enum
 
 
 **Constants**
@@ -8409,7 +8409,7 @@ Returns true if given offset is 64bit register, otherwise it returns false.
 
 
 
-.. c:type:: enum 
+.. c:type:: enum
 
 
 **Constants**
@@ -8465,7 +8465,7 @@ Returns true if given offset is 64bit register, otherwise it returns false.
 
 
 
-.. c:type:: enum 
+.. c:type:: enum
 
 
 **Constants**
@@ -8520,7 +8520,7 @@ Returns true if given offset is 64bit register, otherwise it returns false.
 
 
 
-.. c:type:: enum 
+.. c:type:: enum
 
 
 **Constants**
@@ -8564,7 +8564,7 @@ Returns true if given offset is 64bit register, otherwise it returns false.
 
 
 
-.. c:type:: enum 
+.. c:type:: enum
 
 
 **Constants**
@@ -8587,7 +8587,7 @@ Returns true if given offset is 64bit register, otherwise it returns false.
 
 
 
-.. c:type:: enum 
+.. c:type:: enum
 
 
 **Constants**
@@ -8794,7 +8794,7 @@ bytes, in size. This log captures the controller’s internal state.
 
 
 
-.. c:type:: enum 
+.. c:type:: enum
 
 
 **Constants**
@@ -8811,7 +8811,7 @@ bytes, in size. This log captures the controller’s internal state.
 
 
 
-.. c:type:: enum 
+.. c:type:: enum
 
 
 **Constants**
@@ -9273,7 +9273,7 @@ bytes, in size. This log captures the controller’s internal state.
 
 
 
-.. c:type:: enum 
+.. c:type:: enum
 
 
 **Constants**
@@ -9360,7 +9360,7 @@ bytes, in size. This log captures the controller’s internal state.
 
 
 
-.. c:type:: enum 
+.. c:type:: enum
 
 
 **Constants**
@@ -9532,7 +9532,7 @@ bytes, in size. This log captures the controller’s internal state.
 
 
 
-.. c:type:: enum 
+.. c:type:: enum
 
 
 **Constants**
@@ -9737,7 +9737,7 @@ bytes, in size. This log captures the controller’s internal state.
 
 
 
-.. c:type:: enum 
+.. c:type:: enum
 
    Transport Type codes for Discovery Log Page entry TRTYPE field
 
@@ -9764,7 +9764,7 @@ bytes, in size. This log captures the controller’s internal state.
 
 
 
-.. c:type:: enum 
+.. c:type:: enum
 
    Address Family codes for Discovery Log Page entry ADRFAM field
 
@@ -9788,7 +9788,7 @@ bytes, in size. This log captures the controller’s internal state.
 
 
 
-.. c:type:: enum 
+.. c:type:: enum
 
    Transport Requirements codes for Discovery Log Page entry TREQ field
 
@@ -9809,7 +9809,7 @@ bytes, in size. This log captures the controller’s internal state.
 
 
 
-.. c:type:: enum 
+.. c:type:: enum
 
    RDMA QP Service Type codes for Discovery Log Page entry TSAS RDMA_QPTYPE field
 
@@ -9824,7 +9824,7 @@ bytes, in size. This log captures the controller’s internal state.
 
 
 
-.. c:type:: enum 
+.. c:type:: enum
 
    RDMA Provider Type codes for Discovery Log Page entry TSAS RDMA_PRTYPE field
 
@@ -9848,7 +9848,7 @@ bytes, in size. This log captures the controller’s internal state.
 
 
 
-.. c:type:: enum 
+.. c:type:: enum
 
    RDMA Connection Management Service Type codes for Discovery Log Page entry TSAS RDMA_CMS field
 
@@ -9860,7 +9860,7 @@ bytes, in size. This log captures the controller’s internal state.
 
 
 
-.. c:type:: enum 
+.. c:type:: enum
 
 
 **Constants**
@@ -10101,7 +10101,7 @@ bytes, in size. This log captures the controller’s internal state.
 
 
 
-.. c:type:: enum 
+.. c:type:: enum
 
 
 **Constants**
@@ -10168,7 +10168,7 @@ bytes, in size. This log captures the controller’s internal state.
 
 
 
-.. c:type:: enum 
+.. c:type:: enum
 
 
 **Constants**
@@ -10290,7 +10290,7 @@ bytes, in size. This log captures the controller’s internal state.
 
 
 
-.. c:type:: enum 
+.. c:type:: enum
 
 
 **Constants**
@@ -11579,6 +11579,4 @@ The host identifier, or NULL if unsuccessful. If found, the caller
 
 **Return**
 
-An 
-
-
+An

@@ -70,7 +70,7 @@ if (CMAKE_CXX_COMPILER STREQUAL "clang++")
 elseif (CMAKE_CXX_COMPILER STREQUAL "g++")
     # using GCC
     message("[info] compiler is gcc/g++")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  --rtti")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -frtti")
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
     # using Intel C++
     message("[info] Intel compiler? not sure which flags to pick up")
@@ -87,17 +87,20 @@ endif()
 include(GNUInstallDirs)
 include_directories (${NVME_INCLUDE_DIRS})
 link_directories (${NVME_LIBRARY_DIRS} )
-add_executable(m1 src/m1/m1.cpp 
-src/m1/device.h src/m1/device.cpp 
-src/m1/m1_assignment.h src/m1/m1_assignment.cpp 
-src/common/nvmeprint.cpp src/common/nvmeprint.h 
-src/common/utils.cpp src/common/utils.h 
-src/common/stosys_debug.h src/common/unused.h)
+add_executable(m1 src/m1/m1.cpp
+src/m1/device.h src/m1/device.cpp
+src/common/nvmewrappers.h src/common/nvmewrappers.cpp
+src/m1/m1_assignment.h src/m1/m1_assignment.cpp
+src/common/nvmeprint.cpp src/common/nvmeprint.h
+src/common/utils.cpp src/common/utils.h
+src/common/stosys_debug.h src/common/unused.h
+)
 add_definitions (${NVME_CFLAGS})
 target_link_libraries(m1 ${NVME_LIBRARIES} pthread)
 
-add_library(stosys SHARED 
-src/m23-ftl/zns_device.cpp src/m23-ftl/zns_device.h  src/m23-ftl/backup_zns_device_file.cpp 
+add_library(stosys SHARED
+src/common/nvmewrappers.h src/common/nvmewrappers.cpp
+src/m23-ftl/zns_device.cpp src/m23-ftl/zns_device.h  src/m23-ftl/backup_zns_device_file.cpp
 src/common/nvmeprint.cpp src/common/nvmeprint.h src/common/utils.cpp src/common/utils.h src/common/stosys_debug.h src/common/unused.h)
 
 target_link_libraries(stosys ${NVME_LIBRARIES})
@@ -136,17 +139,17 @@ if(STOSYS_M45)
     # TODO: I have no idea how to look up this package, life sometimes is just pain and misery - this does not have a .pc file
     #pkg_search_module(BZip2 REQUIRED IMPORTED_TARGET bzip2)
     find_package(BZip2)
-    # this is where librocksdb is 
+    # this is where librocksdb is
     link_directories(${CMAKE_LIBRARY_PATH})
-    
-    add_executable(m45 src/m45-rocksdb/m45_main.cc 
-    src/m45-rocksdb/rocksdb_s2fs.cc 
-    src/m45-rocksdb/DummyFSForward.cc src/m45-rocksdb/DummyFSForward.h 
-    src/m45-rocksdb/MyRocksContext.h 
+
+    add_executable(m45 src/m45-rocksdb/m45_main.cc
+    src/m45-rocksdb/rocksdb_s2fs.cc
+    src/m45-rocksdb/DummyFSForward.cc src/m45-rocksdb/DummyFSForward.h
+    src/m45-rocksdb/MyRocksContext.h
     src/m45-rocksdb/S2FileSystem.cc src/m45-rocksdb/S2FileSystem.h)
     # see all the defined variables here: https://cmake.org/cmake/help/latest/module/FindPkgConfig.html
     add_definitions (${NVME_CFLAGS} ${ROCKSDB_CFLAGS}  ${ROCKSDB_STATIC_CFLAGS} ${ROCKSDB_CFLAGS_OTHER})
-    target_link_libraries(m45 pthread stosys ${ROCKSDB_STATIC_LIBRARIES} ${SNAPPY_LIBRARIES} ${ZSTD_LIBRARIES} ${LZ4_LIBRARIES} ${BZIP2_LIBRARIES})    
+    target_link_libraries(m45 pthread stosys ${ROCKSDB_STATIC_LIBRARIES} ${SNAPPY_LIBRARIES} ${ZSTD_LIBRARIES} ${LZ4_LIBRARIES} ${BZIP2_LIBRARIES})
     # if we are not going to install the headers then we need to tell where they are
     target_include_directories(m45 PRIVATE ./src/m23-ftl/ ./src/common/)
 else()

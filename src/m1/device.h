@@ -20,31 +20,29 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
  */
 
-
 #ifndef STOSYS_PROJECT_DEVICE_H
 #define STOSYS_PROJECT_DEVICE_H
 
 #include <libnvme.h>
 
 extern "C" {
-// we will use an ss_ extension to differentiate our struct definitions from the standard library
-// In C++ we should use namespaces, but I am lazy
+// we will use an ss_ extension to differentiate our struct definitions from the
+// standard library In C++ we should use namespaces, but I am lazy
 struct ss_nvme_ns {
-    char *ctrl_name;
-    bool supports_zns;
-    uint32_t nsid;
+  char *ctrl_name;
+  bool supports_zns;
+  uint32_t nsid;
 };
 
 struct zone_to_test {
-    struct nvme_zns_desc desc;
-    uint64_t lba_size_in_use;
+  struct nvme_zns_desc desc;
+  uint64_t lba_size_in_use;
 };
 
 // these three function examples are given to you
 int count_and_show_all_nvme_devices();
 int scan_and_identify_zns_devices(struct ss_nvme_ns *list);
-int get_zns_zone_status(int fd, int nsid, char* &ptr);
-
+int get_zns_zone_status(int fd, int nsid, char *&ptr);
 }
 
-#endif //STOSYS_PROJECT_DEVICE_H
+#endif  // STOSYS_PROJECT_DEVICE_H

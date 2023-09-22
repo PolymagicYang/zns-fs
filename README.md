@@ -1,14 +1,14 @@
 # Storage System Course Project
 
-This framework code is used for the project development in the Storage Systems (XM_0092) course at VU Amsterdam. 
+This framework code is used for the project development in the Storage Systems (XM_0092) course at VU Amsterdam.
 
-https://animeshtrivedi.github.io/course-stosys/ 
+https://animeshtrivedi.github.io/course-stosys/
 
 
 # Authors
 Animesh Trivedi, Valentijn Dymphnus van de Beek & Zhiyang Wang
 
-# License 
+# License
 MIT License
 
 Copyright (c) 2021 - current
