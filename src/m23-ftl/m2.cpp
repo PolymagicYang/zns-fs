@@ -55,6 +55,7 @@ static int test_write_read_random_LBAs(struct user_zns_device *my_dev,
     write_pattern_with_start((char *)buf, buf_size, i);
     ret =
         zns_udevice_write(my_dev, (i * my_dev->lba_size_bytes), buf, buf_size);
+
     if (ret != 0) {
       printf("Error: writing the device failed at address 0x%lx [index %lu] \n",
              (i * my_dev->lba_size_bytes), (i - start_lba));
@@ -67,6 +68,7 @@ static int test_write_read_random_LBAs(struct user_zns_device *my_dev,
     // make a unique pattern for each write
     memset((char *)buf, 0x0, buf_size);
     ret = zns_udevice_read(my_dev, (i * my_dev->lba_size_bytes), buf, buf_size);
+
     if (ret != 0) {
       printf("Error: writing the device failed at address 0x%lx [index %lu] \n",
              (i * my_dev->lba_size_bytes), (i - start_lba));
@@ -93,6 +95,7 @@ static int test_write_read_LBA0(struct user_zns_device *dev, void *buf,
   // zero it out
   memset(buf, 0, buf_size);
   ret = zns_udevice_read(dev, test_lba, buf, buf_size);
+
   if (ret != 0) {
     printf("Error: reading the device failed at address 0x%lx \n", test_lba);
     return ret;

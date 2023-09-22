@@ -46,6 +46,9 @@ void write_pattern_with_start(char *data, uint64_t len, uint64_t s) {
 void match_pattern_with_start(char *data, uint64_t len, uint64_t s) {
   // 33 - 126 printable chars, 93
   for (uint64_t i = s, j = 0; i < len; i++, j++) {
+    if (data[j] != ((char)(33 + (i % 93)))) {
+      printf("differs at: %d\n", j);
+    }
     assert(data[j] == ((char)(33 + (i % 93))));
   }
 }
