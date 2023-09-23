@@ -1,12 +1,15 @@
 #ifndef FLT_H
 #define FLT_H
 
+#include <pthread.h>
+#include <sys/types.h>
+
 #include <cstdint>
 #include <map>
-#include <pthread.h>
 #include <unordered_map>
 #include <vector>
-#include "Zone.h"
+
+#include "zone.hpp"
 
 struct Addr {
   uint64_t addr;
@@ -17,7 +20,7 @@ using raw_map = std::map<uint64_t, struct Addr>;
 
 struct Ftlmap {
   pthread_rwlock_t lock;
-  std::map<uint64_t, struct Addr> map;
+  raw_map map;
 };
 
 class FTL {
@@ -30,9 +33,10 @@ class FTL {
   uint64_t mdts_size;
   uint16_t lba_size;
   int log_zones;
-  std::vector<Zone> zones;
+  std::vector<ZNSZone> zones;
 
-  FTL(int fd, uint64_t mdts, uint32_t nsid, uint32_t zcap, uint16_t lba_size, int gc_wmark, int zones_num, int log_num);
+  FTL(int fd, uint64_t mdts, uint32_t nsid, uint16_t lba_size, int gc_wmark,
+      int log_num);
 
   ~FTL() {
     this->zones.clear();
@@ -47,26 +51,28 @@ class FTL {
   }
 
   Addr get_pa(uint64_t);
+  int read(uint64_t addr, void* buffer, uint32_t size);
+  int write(uint64_t addr, void* buffer, uint32_t size);
 
-  int read(uint64_t addr, void *buffer, uint32_t size);
+  // return index of all the free log zones.
+  std::vector<int> get_free_logzones();
 
-  int write(uint64_t addr, void *buffer, uint32_t size);
+  // return index of all the free log zones.
+  std::vector<int> get_free_datazones();
 
-  std::vector<int> get_free_logzones(); // return index of all the free log zones.
+  ZNSZone* get_zone(int index);
+  ZNSZone* get_random_logzone();
+  ZNSZone* get_random_datazone();
 
-  std::vector<int> get_free_datazones(); // return index of all the free log zones.
+  void insert_logmap(uint64_t lba, uint64_t pa, uint16_t zone_num);
 
-  Zone* get_zone(int index);
-
-  Zone* get_random_logzone();
-
-  Zone* get_random_datazone();
+  void insert_datamap(uint64_t lba, uint64_t pa, uint16_t zone_num);
 
  private:
   struct Ftlmap log_map;
   struct Ftlmap data_map;
   // return physical page address from log map.
-  bool get_ppa(uint64_t, Addr *);
+  bool get_ppa(uint64_t, Addr*);
 
   // return physical block address from data map.
   Addr get_pba(uint64_t);

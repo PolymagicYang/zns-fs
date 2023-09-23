@@ -99,10 +99,12 @@ add_definitions (${NVME_CFLAGS})
 target_link_libraries(m1 ${NVME_LIBRARIES} pthread)
 
 add_library(stosys SHARED
-src/common/nvmewrappers.h src/common/nvmewrappers.cpp
-src/m23-ftl/zns_device.cpp src/m23-ftl/zns_device.h  src/m23-ftl/backup_zns_device_file.cpp
 src/m23-ftl/zone.hpp src/m23-ftl/zone.cpp src/m23-ftl/znsblock.hpp
-src/common/nvmeprint.cpp src/common/nvmeprint.h src/common/utils.cpp src/common/utils.h src/common/stosys_debug.h src/common/unused.h)
+src/common/nvmewrappers.h src/common/nvmewrappers.cpp
+src/m23-ftl/ftl.hpp src/m23-ftl/ftl.cpp
+src/m23-ftl/zns_device.cpp src/m23-ftl/zns_device.h  src/m23-ftl/backup_zns_device_file.cpp
+src/common/nvmeprint.cpp src/common/nvmeprint.h src/common/utils.cpp
+src/common/utils.h src/common/stosys_debug.h src/common/unused.h)
 
 target_link_libraries(stosys ${NVME_LIBRARIES})
 set_target_properties(stosys PROPERTIES VERSION ${PROJECT_VERSION})

@@ -11,7 +11,8 @@ ZNSZone::ZNSZone(const int zns_fd, const uint32_t nsid, const uint32_t zone_id,
                  const uint64_t size, const uint64_t capacity,
                  const enum ZoneState state, const enum ZoneZNSType zns_type,
                  const uint64_t slba, const enum ZoneFTLType ftl_type,
-                 const enum ZoneModel model, const uint64_t position) {
+                 const enum ZoneModel model, const uint64_t position,
+                 const uint64_t lba_size, const uint64_t mdts_size) {
   this->zns_fd = zns_fd;
   this->nsid = nsid;
   this->zone_id = zone_id;
@@ -21,36 +22,75 @@ ZNSZone::ZNSZone(const int zns_fd, const uint32_t nsid, const uint32_t zone_id,
   this->ftl_type = ftl_type;
   this->model = model;
   this->position = position;
+  this->base = position;
   this->slba = slba;
+  this->lba_size = lba_size;
+  this->mdts_size = mdts_size;
 }
 
 // TODO(valentijn) update so it throws exceptions
-inline void ZNSZone::send_management_command(
+inline int ZNSZone::send_management_command(
     const enum nvme_zns_send_action action) const {
   int ret = nvme_zns_mgmt_send(this->zns_fd, this->nsid, this->slba, false,
                                action, 0, NULL);
   if (ret != 0) {
     print_nvme_error(ret);
   }
+  return ret;
 }
 
-void ZNSZone::close_zone(void) const {
-  send_management_command(NVME_ZNS_ZSA_CLOSE);
+int ZNSZone::get_index() {
+  pthread_rwlock_rdlock(&this->lock);
+  int ret = this->zone_id;
+  pthread_rwlock_unlock(&this->lock);
+  return ret;
 }
 
-void ZNSZone::open_zone(void) const {
-  send_management_command(NVME_ZNS_ZSA_OPEN);
+int ZNSZone::reset() {
+  pthread_rwlock_wrlock(&this->lock);
+  this->position = this->base;
+  int ret = this->reset_zone();
+  pthread_rwlock_unlock(&this->lock);
+  return ret;
+};
+
+bool ZNSZone::is_full() {
+  pthread_rwlock_rdlock(&this->lock);
+  bool ret = this->get_current_capacity() == 0;
+  pthread_rwlock_unlock(&this->lock);
+  return ret;
 }
 
-void ZNSZone::finish_zone(void) const {
-  send_management_command(NVME_ZNS_ZSA_FINISH);
+/*
+WARN: unsafe function, read and write will call this function with their own
+lock. Use this method with a lock!
+*/
+uint32_t ZNSZone::get_current_capacity() const {
+  return this->capacity + this->base - this->position;
 }
 
-void ZNSZone::reset_zone(void) const {
-  send_management_command(NVME_ZNS_ZSA_RESET);
+uint64_t ZNSZone::get_wp() {
+  pthread_rwlock_rdlock(&this->lock);
+  uint64_t ret = this->position;
+  pthread_rwlock_unlock(&this->lock);
+  return ret;
 }
 
-uint64_t ZNSZone::get_current_capacity() const { return this->blocks.size(); }
+int ZNSZone::close_zone(void) const {
+  return send_management_command(NVME_ZNS_ZSA_CLOSE);
+}
+
+int ZNSZone::open_zone(void) const {
+  return send_management_command(NVME_ZNS_ZSA_OPEN);
+}
+
+int ZNSZone::finish_zone(void) const {
+  return send_management_command(NVME_ZNS_ZSA_FINISH);
+}
+
+int ZNSZone::reset_zone(void) const {
+  return send_management_command(NVME_ZNS_ZSA_RESET);
+}
 
 const char *get_state_text(const enum ZoneState state) {
   return (state == Empty)
@@ -102,6 +142,68 @@ std::ostream &operator<<(std::ostream &os, ZNSZone const &tc) {
             << "Metadata: " << state << " | " << ftl_type << " | " << model
             << std::endl;
 }
+
+int ZNSZone::ss_sequential_write(const void *buffer,
+                                 const uint16_t max_nlb_per_round,
+                                 const uint16_t total_nlb) {
+  uint64_t i;
+  uint64_t data_len = max_nlb_per_round * this->lba_size;
+  void *buffer_ptr;
+  for (i = 0; i < total_nlb; i += max_nlb_per_round) {
+    buffer_ptr = (void *)((uint64_t)buffer + i * this->lba_size);
+    int ret = ss_nvme_write(this->zns_fd, this->nsid, this->position,
+                            max_nlb_per_round - 1, 0, 0, 0, 0, 0, 0, data_len,
+                            buffer_ptr, 0, nullptr);
+    if (ret != 0) {
+      return ret;
+    }
+    this->position += max_nlb_per_round;
+  }
+  if (i > total_nlb) {
+    // write remaining blocks.
+    uint64_t ream_blocks = (total_nlb - (i - max_nlb_per_round));
+    buffer_ptr = (void *)((uint64_t)buffer + i * this->lba_size);
+    data_len = ream_blocks * this->lba_size;
+    int ret =
+        ss_nvme_write(this->zns_fd, this->nsid, this->position, ream_blocks - 1,
+                      0, 0, 0, 0, 0, 0, data_len, buffer_ptr, 0, nullptr);
+    if (ret != 0) {
+      return ret;
+    }
+    this->position += ream_blocks;
+  }
+
+  return 0;
+}
+
+/*
+return the size of the inserted buffer.
+*/
+uint32_t ZNSZone::write(void *buffer, uint32_t size) {
+  pthread_rwlock_wrlock(&this->lock);
+  uint32_t max_writes = this->get_current_capacity() * this->lba_size;
+  uint32_t ret = (size > max_writes) ? max_writes : size;
+
+  // size is the multiple of lba_size.
+  uint16_t total_nlb = size / this->lba_size;
+  uint16_t max_nlb_per_round = this->mdts_size / this->lba_size;
+
+  if (size <= this->mdts_size) {
+    int ret =
+        ss_nvme_write(this->zns_fd, this->nsid, this->position, total_nlb - 1,
+                      0, 0, 0, 0, 0, 0, size, buffer, 0, nullptr);
+    if (ret != 0) {
+      return ret;
+    }
+    this->position += total_nlb;
+  } else {
+    int ret = ss_sequential_write(buffer, max_nlb_per_round, total_nlb);
+    if (ret != 0) return ret;
+  }
+
+  pthread_rwlock_unlock(&this->lock);
+  return ret;
+};
 
 uint64_t ZNSZone::write_block(const uint16_t total_nlb,
                               const uint16_t max_nlb_per_round,
@@ -162,7 +264,30 @@ int get_zns_zone_info(const int fd, const int nsid, uint64_t *zcap,
   return ret;
 }
 
-std::vector<ZNSZone> create_zones(const int zns_fd, uint32_t nsid) {
+uint32_t ZNSZone::read(const uint64_t lba, const void *buffer, uint32_t size) {
+  pthread_rwlock_rdlock(&this->lock);
+  if (lba + size / this->lba_size > this->position + this->capacity) {
+    // cross boundary read.
+    size = (this->position + this->capacity - lba) * this->lba_size;
+  }
+  uint32_t nlb = size / this->lba_size;
+  uint32_t ret = size;
+
+  int read_ret =
+      ss_nvme_read(this->zns_fd, this->nsid, lba, nlb - 1, 0, 0, 0, 0, 0,
+                   nlb * this->lba_size, (void *)buffer, 0, nullptr);
+  if (read_ret != 0) {
+    return read_ret;
+  }
+
+  pthread_rwlock_unlock(&this->lock);
+  return ret;
+}
+
+extern "C" {
+std::vector<ZNSZone> create_zones(const int zns_fd, const uint32_t nsid,
+                                  const uint64_t lba_size,
+                                  const uint64_t mdts_size) {
   // TODO(valentijn): don't hard code this please
   struct nvme_zns_desc *desc =
       (struct nvme_zns_desc *)calloc(128, sizeof(struct nvme_zns_desc));
@@ -182,13 +307,14 @@ std::vector<ZNSZone> create_zones(const int zns_fd, uint32_t nsid) {
     const uint64_t zone_slba = le64_to_cpu(current.zslba);
     const uint64_t write_pointer = current.wp;
 
-    ZNSZone zone = ZNSZone(zns_fd, nsid, i, capacity, capacity, zstate, ztype,
-                           zone_slba, Data, HostManaged, write_pointer);
-
+    ZNSZone zone =
+        ZNSZone(zns_fd, nsid, i, capacity, capacity, zstate, ztype, zone_slba,
+                Data, HostManaged, write_pointer, lba_size, mdts_size);
     zone.reset_zone();
     zones.push_back(zone);
   }
 
   free(desc);
   return zones;
+}
 }

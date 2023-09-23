@@ -3,6 +3,7 @@
 #pragma once
 
 #include <libnvme.h>
+#include <pthread.h>
 
 #include <cstdint>
 #include <iostream>
@@ -53,7 +54,8 @@ class ZNSZone {
           const uint64_t size, const uint64_t capacity,
           const enum ZoneState state, const enum ZoneZNSType zns_type,
           const uint64_t slba, const enum ZoneFTLType ftl_type,
-          const enum ZoneModel model, const uint64_t position);
+          const enum ZoneModel model, const uint64_t position,
+          const uint64_t lba_size, const uint64_t mdts_size);
 
   /** Zone capacity is the total optimized number of blocks in the
           region. This is always less than the zone size. */
@@ -80,45 +82,64 @@ class ZNSZone {
   uint64_t remove_block(const ZNSBlock &block);
 
   /** Calculates the current capacity of the block. */
-  uint64_t get_current_capacity() const;
+  uint32_t get_current_capacity() const;
 
   /** Gets a block from the zone based on the block id. */
   ZNSBlock &get_block(const uint64_t block_id) const;
+  uint32_t read(const uint64_t lba, const void *buffer, uint32_t size);
+  uint32_t write(void *buffer, uint32_t size);
 
   /** Get victim block */
   ZNSBlock &get_victim(void);
 
   /** Reset the write pointer to the start. */
-  void reset_zone(void) const;
+  int reset_zone(void) const;
 
   /** Open the zone explicitely so more resources are allocated. */
-  void open_zone(void) const;
+  int open_zone(void) const;
 
   /** Explicitely close a zone and free the resources. */
-  void close_zone(void) const;
+  int close_zone(void) const;
 
   /** Close the zone so that writes cannot be performed until it is reset. */
-  void finish_zone(void) const;
+  int finish_zone(void) const;
 
   friend std::ostream &operator<<(std::ostream &os, ZNSZone const &tc);
 
+  // Fuck
+  int get_index();
+  int reset();
+  bool is_full();
+  uint32_t curr_capacity();
+  uint64_t get_wp();
+
   uint64_t position;
+  uint64_t base;
+  uint64_t lba_size;
+  uint64_t mdts_size;
+  pthread_rwlock_t lock;
 
  private:
-  uint64_t lba_size_bytes;
-  uint64_t mdts_size;
   int zns_fd;
 
   /** Number of blocks in the zone reserved for GC in percentages. */
   static const uint64_t overcapacity = 5;
 
+  int ss_sequential_write(const void *buffer, const uint16_t max_nlb_per_round,
+                          const uint16_t total_nlb);
+
   std::vector<ZNSBlock> blocks;
-  inline void send_management_command(
+  inline int send_management_command(
       const enum nvme_zns_send_action action) const;
 };
 
 std::ostream &operator<<(std::iostream &os, ZNSZone const &tc);
 int get_zns_zone_info(const int fd, const int nsid, uint64_t *zcap,
                       uint32_t *nr, struct nvme_zns_desc *desc[]);
-std::vector<ZNSZone> create_zones(const int zns_fd, uint32_t nsid);
+
+extern "C" {
+std::vector<ZNSZone> create_zones(const int zns_fd, const uint32_t nsid,
+                                  const uint64_t lba_size,
+                                  const uint64_t mdts_size);
+}
 #endif
