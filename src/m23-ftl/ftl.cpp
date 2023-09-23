@@ -8,11 +8,9 @@
 
 #include <cstdint>
 #include <vector>
-
 #include "zone.hpp"
 
-FTL::FTL(int fd, uint64_t mdts, uint32_t nsid, uint16_t lba_size, int gc_wmark,
-         int log_zones) {
+FTL::FTL(int fd, uint64_t mdts, uint32_t nsid, uint16_t lba_size, int gc_wmark, int log_zones) {
   this->fd = fd;
   this->mdts_size = mdts;
   this->nsid = nsid;
@@ -90,7 +88,11 @@ int FTL::read(uint64_t lba, void *buffer, uint32_t size) {
   for (uint64_t i = 0; i < pages_num; i++) {
     pa = this->get_pa(lba + i);
     ZNSZone *zone = this->get_zone(pa.zone_num);
-    zone->read(pa.addr, buffer, this->lba_size);
+    int ret = zone->read(pa.addr, buffer, this->lba_size);
+	if (ret != 0) {
+		return ret;
+	}
+	
     buffer = (void *)((uint64_t)buffer + this->lba_size);
   }
   return 0;
@@ -105,7 +107,12 @@ int FTL::write(uint64_t lba, void *buffer, uint32_t size) {
       continue;
     } else {
       uint64_t wp_starts = zone->get_wp();
-      uint32_t write_size = zone->write(buffer, size);
+	  uint32_t write_size; 
+      int ret = zone->write(buffer, size, write_size);
+	  if (ret != 0) {
+		  return ret; 
+	  }
+		  
       uint64_t wp_ends = zone->get_wp();
       for (; wp_starts < wp_ends; wp_starts++) {
         this->insert_logmap(lba, wp_starts, i);

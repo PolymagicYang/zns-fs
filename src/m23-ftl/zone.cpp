@@ -179,10 +179,10 @@ int ZNSZone::ss_sequential_write(const void *buffer,
 /*
 return the size of the inserted buffer.
 */
-uint32_t ZNSZone::write(void *buffer, uint32_t size) {
+uint32_t ZNSZone::write(void *buffer, uint32_t size, uint32_t &write_size) {
   pthread_rwlock_wrlock(&this->lock);
   uint32_t max_writes = this->get_current_capacity() * this->lba_size;
-  uint32_t ret = (size > max_writes) ? max_writes : size;
+  write_size = (size > max_writes) ? max_writes : size;
 
   // size is the multiple of lba_size.
   uint16_t total_nlb = size / this->lba_size;
@@ -202,7 +202,8 @@ uint32_t ZNSZone::write(void *buffer, uint32_t size) {
   }
 
   pthread_rwlock_unlock(&this->lock);
-  return ret;
+  
+  return 0;
 };
 
 uint64_t ZNSZone::write_block(const uint16_t total_nlb,

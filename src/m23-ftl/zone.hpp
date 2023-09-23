@@ -87,7 +87,7 @@ class ZNSZone {
   /** Gets a block from the zone based on the block id. */
   ZNSBlock &get_block(const uint64_t block_id) const;
   uint32_t read(const uint64_t lba, const void *buffer, uint32_t size);
-  uint32_t write(void *buffer, uint32_t size);
+  uint32_t write(void *buffer, uint32_t size, uint32_t &write_size);
 
   /** Get victim block */
   ZNSBlock &get_victim(void);
