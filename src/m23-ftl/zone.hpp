@@ -1,3 +1,24 @@
+/* MIT License
+Copyright (c) 2021 - current
+Authors:  Valentijn Dymphnus van de Beek & Zhiyang Wang
+This code is part of the Storage System Course at VU Amsterdam
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+ */
+
 #ifndef STOSYS_PROJECT_ZNS_ZONE_H
 #define STOSYS_PROJECT_ZNS_ZONE_H
 #pragma once
@@ -10,6 +31,7 @@
 #include <vector>
 
 #include "znsblock.hpp"
+#define RESET_ZONE true
 
 enum ZoneState {
   Empty = 0x0,
@@ -86,14 +108,15 @@ class ZNSZone {
 
   /** Gets a block from the zone based on the block id. */
   ZNSBlock &get_block(const uint64_t block_id) const;
-  uint32_t read(const uint64_t lba, const void *buffer, uint32_t size);
-  uint32_t write(void *buffer, uint32_t size, uint32_t &write_size);
+  uint32_t read(const uint64_t lba, const void *buffer, uint32_t size,
+                uint32_t *read_size);
+  uint32_t write(void *buffer, uint32_t size, uint32_t *write_size);
 
   /** Get victim block */
   ZNSBlock &get_victim(void);
 
   /** Reset the write pointer to the start. */
-  int reset_zone(void) const;
+  int reset_zone(void);
 
   /** Open the zone explicitely so more resources are allocated. */
   int open_zone(void) const;
@@ -105,6 +128,11 @@ class ZNSZone {
   int finish_zone(void) const;
 
   friend std::ostream &operator<<(std::ostream &os, ZNSZone const &tc);
+
+  friend std::vector<ZNSZone> create_zones(const int zns_fd,
+                                           const uint32_t nsid,
+                                           const uint64_t lba_size,
+                                           const uint64_t mdts_size);
 
   // Fuck
   int get_index();
@@ -131,15 +159,17 @@ class ZNSZone {
   std::vector<ZNSBlock> blocks;
   inline int send_management_command(
       const enum nvme_zns_send_action action) const;
+  inline int send_management_command(const enum nvme_zns_send_action action,
+                                     const bool select_all) const;
+  inline int reset_all_zones() const;
 };
 
 std::ostream &operator<<(std::iostream &os, ZNSZone const &tc);
 int get_zns_zone_info(const int fd, const int nsid, uint64_t *zcap,
-                      uint32_t *nr, struct nvme_zns_desc *desc[]);
+                      uint64_t *nr, struct nvme_zone_report *zns_report);
 
-extern "C" {
 std::vector<ZNSZone> create_zones(const int zns_fd, const uint32_t nsid,
                                   const uint64_t lba_size,
                                   const uint64_t mdts_size);
-}
+
 #endif

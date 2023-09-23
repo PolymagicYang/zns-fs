@@ -25,16 +25,16 @@ SOFTWARE.
 #include <libgen.h>
 #include <libnvme.h>
 #include <math.h>
-#include <mutex>
+#include <pthread.h>
 #include <stdio.h>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <pthread.h>
 
 #include <cerrno>
 #include <cstdint>
 #include <cstring>
+#include <mutex>
 #include <tuple>
 #include <unordered_map>
 #include <utility>
@@ -129,15 +129,15 @@ int init_ss_zns_device(struct zdev_init_params *params,
   nvme_identify_ctrl(fd, &ctrl);
   uint64_t MDTS = (uint64_t)ctrl.mdts - 1;
   uint64_t MDTS_SIZE = (1 << MDTS) * MPSMIN;
-  FTL *ftl = new FTL(fd, MDTS_SIZE, nsid, lba_size_in_use, params->gc_wmark, params->log_zones);
+  FTL *ftl = new FTL(fd, MDTS_SIZE, nsid, lba_size_in_use, params->gc_wmark,
+                     params->log_zones);
   free(path);
   close(sysfd);
 
   struct zns_device_testing_params tparams {
     .zns_lba_size = lba_size_in_use,
     .zns_zone_capacity = (uint32_t)ftl->zcap * lba_size_in_use,
-    // cppcheck-suppress unreadVariable
-	.zns_num_zones = ftl->zones.size(),
+    .zns_num_zones = static_cast<uint32_t>(ftl->zones.size()),
   };
   struct user_zns_device device {
     .lba_size_bytes = lba_size_in_use,
@@ -170,5 +170,4 @@ int zns_udevice_write(struct user_zns_device *my_dev, uint64_t address,
   FTL *flt = (FTL *)my_dev->_private;
   return flt->write(address, buffer, size);
 }
-
 }
