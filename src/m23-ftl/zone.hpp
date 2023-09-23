@@ -47,27 +47,30 @@ enum ZoneZNSType {
 class ZNSZone {
 public:
 	uint32_t zone_id;
-	ZNSZone(int zns_fd, uint32_t zone_id, uint64_t zone_size, uint64_t capacity,
-			enum ZoneState state, enum ZoneFTLType ftl_type, enum ZoneModel model,
-			uint64_t position);
+	ZNSZone(const int zns_fd, const uint32_t zone_id, const uint64_t size,
+			const uint64_t capacity, const enum ZoneState state,
+			const enum ZoneZNSType zns_type, const uint64_t slba,
+			const enum ZoneFTLType ftl_type, const enum ZoneModel model,
+			const uint64_t position);
 
 	/** Zone capacity is the total optimized number of blocks in the
 		region. This is always less than the zone size. */
-	const uint64_t capacity;
+	uint64_t capacity;
 
 	/** Zone size is the maximum amount of blocks that can be stored
 		in the zone. Typically not useful for our purposes. */
-	const uint64_t size;
+	uint64_t size;
 
 	/** Starting logical block address of the zone. Typically used for zone commands. */
-	const uint64_t slba;
+	uint64_t slba;
 	
 	enum ZoneState state;
 	enum ZoneFTLType ftl_type;
 	enum ZoneModel model;
 	
 	/** Writes a block to the zone and returns the updated write pointer. */
-	uint64_t write_block(const ZNSBlock &block);
+	uint32_t write_block(const uint16_t total_nlb, const uint16_t max_nlb_per_round,
+						 const uint64_t address, const void *buffer, const uint32_t size);
 	
 	/** Removes a block from the zone and returns the updated write pointer. */
 	uint64_t remove_block(const ZNSBlock &block);
@@ -97,15 +100,19 @@ public:
 	
 private:
 	uint64_t position;
+	uint64_t lba_size_bytes;
+	uint64_t mdts_size;
 	int zns_fd;
 	
 	/** Number of blocks in the zone reserved for GC in percentages. */
-	uint64_t overcapacity = 5;
+	const uint64_t overcapacity = 5;
 	
 	std::vector<ZNSBlock> blocks;
 	inline void send_management_command(const enum nvme_zns_send_action action) const;
 };
 	
 std::ostream &operator<<(std::iostream &os, ZNSZone const &tc);
+int get_zns_zone_info(const int fd, const int nsid, uint64_t *zcap, uint32_t *nr, struct nvme_zns_desc *desc[]);
+std::vector<ZNSZone&> create_zones(const int zns_fd, uint32_t nsid);
 
 

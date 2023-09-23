@@ -45,47 +45,11 @@ SOFTWARE.
 #include "../common/nvmewrappers.h"
 #include "../common/unused.h"
 #include "../common/utils.h"
+#include "zone.hpp"
 
 using Ftlmap = std::map<uint64_t, uint64_t>;
 // TODO(valentijn): use lock to enable map thread-safe (e.g. rw-lock), maybe we
 // should design a map with fined-grained parallelism.
-
-int get_zns_zone_info(int fd, int nsid, uint64_t *zcap, uint32_t *nr,
-                      struct nvme_zns_desc *desc[]) {
-  // copied from m1 to fetch zcap.
-  struct nvme_zone_report zns_report {};
-  int ret;
-  uint64_t num_zones;
-  ret = nvme_zns_mgmt_recv(fd, nsid, 0, NVME_ZNS_ZRA_REPORT_ZONES,
-                           NVME_ZNS_ZRAS_REPORT_ALL, 0, sizeof(zns_report),
-                           (void *)&zns_report);
-  if (ret != 0) {
-    fprintf(stderr, "failed to report zones, ret %d \n", ret);
-    return ret;
-  }
-  num_zones = le64_to_cpu(zns_report.nr_zones);
-  uint64_t total_size =
-      sizeof(zns_report) + (num_zones * sizeof(struct nvme_zns_desc));
-
-  struct nvme_zone_report *zone_reports =
-      (struct nvme_zone_report *)calloc(1, total_size);
-  ret = nvme_zns_mgmt_recv(fd, nsid, 0, NVME_ZNS_ZRA_REPORT_ZONES,
-                           NVME_ZNS_ZRAS_REPORT_ALL, 1, total_size,
-                           (void *)zone_reports);
-  if (ret != 0) {
-    fprintf(stderr, "failed to report zones, ret %d \n", ret);
-    return ret;
-  }
-
-  num_zones = le64_to_cpu(zone_reports->nr_zones);
-  memcpy(*desc, (const void *)&zone_reports->entries,
-         sizeof(struct nvme_zns_desc) * num_zones);
-  *zcap = (uint64_t)le64_to_cpu(zone_reports->entries[1].zcap);
-  *nr = num_zones;
-
-  free(zone_reports);
-  return ret;
-}
 
 /*
 one zone for meta data, others for data-zone.
@@ -102,12 +66,12 @@ class FTL {
   uint16_t bsize;
   uint64_t next_empty_zone;
   uint64_t current_zone;
-  struct nvme_zns_desc *zones;
   int log_zones;
   uint32_t zcount;
+  std::vector<ZNSZone&> zones;
 
   FTL(int fd, uint64_t mdts_size, uint32_t nsid, uint32_t zcap, int log_zones,
-      uint16_t bsize, struct nvme_zns_desc *zones) {
+      uint16_t bsize, std::vector<ZNSZone &> zones) {
     this->fd = fd;
     this->mdts_size = mdts_size;
     this->nsid = nsid;
@@ -117,7 +81,7 @@ class FTL {
     // upper bound of log logical block address.
     this->log_end = log_zones * zcap;
     this->bsize = bsize;
-    this->zones = zones;
+	this->zones = zones;
 
     this->log_map = std::map<uint64_t, uint64_t>();
     this->data_map = std::map<uint64_t, uint64_t>();
@@ -159,6 +123,10 @@ class FTL {
     this->data_map[lba] = pba;
   }
 
+  ZNSZone &get_current_zone() {
+    return this->zones.front();
+  }
+  
   uint64_t get_wp() { return -1; }
 
   uint64_t update_wp() { return -1; }
@@ -298,8 +266,7 @@ uint64_t _calculate_mdts(struct zdev_init_params *params, int fd) {
 
   // Load the cap registers and extract the MPSMIN value.
   uint64_t cap = nvme_mmio_read64((void *)((uint64_t)regs + NVME_REG_CAP));
-  uint64_t mpsmin_raw =
-      NVME_CAP_MPSMIN(cap);  // hard code this since libnvme is being difficult
+  uint64_t mpsmin_raw = NVME_CAP_MPSMIN(cap)
   uint64_t MPSMIN = 1 << (12 + mpsmin_raw);
 
   struct nvme_id_ctrl ctrl;
@@ -357,13 +324,10 @@ int init_ss_zns_device(struct zdev_init_params *params,
   uint32_t lba_size_in_use = 1 << ns.lbaf[(ns.flbas & 0xf)].ds;
   uint64_t MDTS_SIZE = _calculate_mdts(params, fd);
 
-  uint64_t zcap;
-  uint32_t nr;
-  struct nvme_zns_desc *desc =
-      (struct nvme_zns_desc *)calloc(128, sizeof(struct nvme_zns_desc));
-  get_zns_zone_info(fd, nsid, &zcap, &nr, (struct nvme_zns_desc **)&desc);
+  std::vector<ZNSZone &> zones = create_zones(fd, nsid);
+  uint64_t zcap = zones.at(0).capacity;
   FTL ftl =
-      FTL(fd, MDTS_SIZE, nsid, zcap, params->log_zones, lba_size_in_use, desc);
+    FTL(fd, MDTS_SIZE, nsid, zcap, params->log_zones, lba_size_in_use, zones);
 
   // reset all zones.
   pthread_attr_t attr;
@@ -499,6 +463,8 @@ int zns_udevice_read(struct user_zns_device *my_dev, uint64_t address,
       return ret;
     }
 
+	phas.erase(phas.begin(), phas.end());
+	  
     return 0;
   }
 
@@ -572,7 +538,6 @@ int ss_sequential_write(FTL *flt, const struct user_zns_device *my_dev,
     flt->insert_lba_data(address + nlb, wp + nlb);
   }
   
-  phas.erase(phas.begin(), phas.end());
   return 0;
 }
 
@@ -592,53 +557,25 @@ int zns_udevice_write(struct user_zns_device *my_dev, uint64_t address,
   // cppcheck-suppress cstyleCast
   FTL *flt = (FTL *)my_dev->_private;
 
+  
   // Size is the multiple of lba_size
-  uint16_t total_nlb = size / my_dev->lba_size_bytes;
-  uint16_t max_nlb_per_round = flt->mdts_size / my_dev->lba_size_bytes;
+  const uint16_t total_nlb = size / my_dev->lba_size_bytes;
+  const uint16_t max_nlb_per_round = flt->mdts_size / my_dev->lba_size_bytes;
   address /= my_dev->lba_size_bytes;
 
   if ((flt->log_wp + total_nlb) > flt->log_end) {
     flt->merge_zones();
   }
 
-  uint64_t zsla = le64_to_cpu(flt->zones[flt->current_zone].zslba);
-  __u64 written_slba;
-  if (size == flt->zcap) {
-    // fit perfectly in one data zone.
-    int ret = ss_nvme_zns_append(flt->fd, flt->nsid, zsla, total_nlb - 1, 0, 0,
-                                 0, 0, size, buffer, 0, nullptr, &written_slba);
-    if (ret != 0) {
-      return ret;
-    }
-    flt->zcount++;
-    flt->log_wp = written_slba + 1;
-    flt->insert_lba_data(address, flt->log_wp);
-  } else if (size <= flt->mdts_size) {
-    // TODO(valentijn): Try multithreaded append.
-    int ret = ss_nvme_zns_append(flt->fd, flt->nsid, zsla, total_nlb - 1, 0, 0,
-                                 0, 0, size, buffer, 0, nullptr, &written_slba);
-
-    if (ret != 0) {
-      return ret;
-    }
-
-    flt->log_wp = written_slba + 1;
-    flt->zcount++;
-    for (uint64_t i = 0; i < total_nlb; i++) {
-      flt->insert_lba_log(address + i, written_slba + i);
-    }
-  } else {
-    int ret = ss_sequential_write(flt, my_dev, address, buffer,
-                                  max_nlb_per_round, total_nlb);
-    if (ret != 0) return ret;
+  if (size > flt->mdts_size) {
+	  int ret = ss_sequential_write(flt, my_dev, address, buffer,
+									max_nlb_per_round, total_nlb);
+	  if (ret != 0) return ret;
+	  return ret;
   }
 
-  if (flt->zcount >= flt->zcap) {
-    flt->zcount = 0;
-    flt->current_zone++;
-    printf("moving to %lu\n", flt->current_zone);
-  }
-
+  ZNSZone &zone = flt->get_current_zone();  
+  zone.write_block(total_nlb, max_nlb_per_round, address, buffer, size);
   return 0;
 }
 }
