@@ -5,13 +5,16 @@
 typedef uint64_t physaddr_t;
 
 class ZNSBlock {
-public:
-	physaddr_t address;
-	uint64_t size;
-	void *buffer;
+ public:
+  physaddr_t address;
+  uint64_t size;
+  const void *buffer;
 
-	ZNSBlock(const physaddr_t address, const uint64_t size, const void *buffer);
+  ZNSBlock(const physaddr_t address, const uint64_t size, const void *buffer) {
+    this->address = address;
+    this->size = size;
+    this->buffer = buffer;
+  }
 };
 
-#endif 
-	
+#endif

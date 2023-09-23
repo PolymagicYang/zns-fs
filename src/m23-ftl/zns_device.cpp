@@ -68,10 +68,10 @@ class FTL {
   uint64_t current_zone;
   int log_zones;
   uint32_t zcount;
-  std::vector<ZNSZone&> zones;
+  std::vector<ZNSZone> zones;
 
   FTL(int fd, uint64_t mdts_size, uint32_t nsid, uint32_t zcap, int log_zones,
-      uint16_t bsize, std::vector<ZNSZone &> zones) {
+      uint16_t bsize, std::vector<ZNSZone> zones) {
     this->fd = fd;
     this->mdts_size = mdts_size;
     this->nsid = nsid;
@@ -81,7 +81,7 @@ class FTL {
     // upper bound of log logical block address.
     this->log_end = log_zones * zcap;
     this->bsize = bsize;
-	this->zones = zones;
+    this->zones = zones;
 
     this->log_map = std::map<uint64_t, uint64_t>();
     this->data_map = std::map<uint64_t, uint64_t>();
@@ -115,18 +115,26 @@ class FTL {
     }
   }
 
-  void insert_lba_log(uint64_t lpa, uint64_t ppa) {
-    this->log_map[lpa] = ppa;
-  }
+  void insert_lba_log(uint64_t lpa, uint64_t ppa) { this->log_map[lpa] = ppa; }
 
   void insert_lba_data(uint64_t lba, uint64_t pba) {
     this->data_map[lba] = pba;
   }
 
-  ZNSZone &get_current_zone() {
-    return this->zones.front();
+  ZNSZone &get_current_zone(const bool force) {
+    ZNSZone &zone = this->zones.at(this->current_zone);
+    // std::cout << zone.get_current_capacity() << " " << zone.capacity <<
+    // std::endl; std::cout << "Moving to the next zone" << std::endl;
+
+    if (zone.get_current_capacity() == zone.capacity - 5 || force) {
+      this->current_zone++;
+      std::cout << this->zones.at(this->current_zone) << std::endl;
+    }
+    return this->zones.at(this->current_zone);
   }
-  
+
+  ZNSZone &get_current_zone() { return this->get_current_zone(false); }
+
   uint64_t get_wp() { return -1; }
 
   uint64_t update_wp() { return -1; }
@@ -228,7 +236,7 @@ int deinit_ss_zns_device(struct user_zns_device *my_dev) {
   int ret = -ENOSYS;
   // cppcheck-suppress cstyleCast
   FTL *ftl = (FTL *)my_dev->_private;
-  ftl->~FTL();
+  // ftl->~FTL();
   close(ftl->fd);
   return ret;
 }
@@ -266,7 +274,7 @@ uint64_t _calculate_mdts(struct zdev_init_params *params, int fd) {
 
   // Load the cap registers and extract the MPSMIN value.
   uint64_t cap = nvme_mmio_read64((void *)((uint64_t)regs + NVME_REG_CAP));
-  uint64_t mpsmin_raw = NVME_CAP_MPSMIN(cap)
+  uint64_t mpsmin_raw = NVME_CAP_MPSMIN(cap);
   uint64_t MPSMIN = 1 << (12 + mpsmin_raw);
 
   struct nvme_id_ctrl ctrl;
@@ -289,13 +297,13 @@ struct reset_info {
   uint32_t nsid;
   uint64_t id;
 };
-void *reset_zone(void *arg) {
-  struct reset_info *reset_info = (struct reset_info *)arg;
-  ss_zns_device_zone_reset(reset_info->fd, reset_info->nsid, reset_info->id);
-  pthread_mutex_lock(&reset_mutex);
-  running_reset_threads--;
-  pthread_mutex_unlock(&reset_mutex);
-}
+// void *reset_zone(void *arg) {
+//   struct reset_info *reset_info = (struct reset_info *)arg;
+//   ss_zns_device_zone_reset(reset_info->fd, reset_info->nsid, reset_info->id);
+//   pthread_mutex_lock(&reset_mutex);
+//   running_reset_threads--;
+//   pthread_mutex_unlock(&reset_mutex);
+// }
 
 int init_ss_zns_device(struct zdev_init_params *params,
                        struct user_zns_device **my_dev) {
@@ -324,40 +332,40 @@ int init_ss_zns_device(struct zdev_init_params *params,
   uint32_t lba_size_in_use = 1 << ns.lbaf[(ns.flbas & 0xf)].ds;
   uint64_t MDTS_SIZE = _calculate_mdts(params, fd);
 
-  std::vector<ZNSZone &> zones = create_zones(fd, nsid);
+  std::vector<ZNSZone> zones = create_zones(fd, nsid);
   uint64_t zcap = zones.at(0).capacity;
   FTL ftl =
-    FTL(fd, MDTS_SIZE, nsid, zcap, params->log_zones, lba_size_in_use, zones);
+      FTL(fd, MDTS_SIZE, nsid, zcap, params->log_zones, lba_size_in_use, zones);
 
   // reset all zones.
-  pthread_attr_t attr;
-  int s = pthread_attr_init(&attr);
-  if (s != 0) perror("zone resetting failed");
-  struct reset_info *tinfo =
-      (struct reset_info *)malloc(sizeof(struct reset_info) * nr);
+  // pthread_attr_t attr;
+  // int s = pthread_attr_init(&attr);
+  // if (s != 0) perror("zone resetting failed");
+  // struct reset_info *tinfo =
+  //     (struct reset_info *)malloc(sizeof(struct reset_info) * nr);
 
-  for (uint64_t i = 0; i < nr; i++) {
-    pthread_mutex_lock(&reset_mutex);
-    running_reset_threads++;
-    pthread_mutex_unlock(&reset_mutex);
-    tinfo[i].fd = fd;
-    tinfo[i].nsid = nsid;
-    tinfo[i].id = i * zcap;
-    int r = pthread_create(&tinfo[i].thread_id, &attr, &reset_zone, &tinfo[i]);
-    if (r != 0) {
-      printf("failed to reset all zones.");
-      return r;
-    }
-  }
+  // for (uint64_t i = 0; i < nr; i++) {
+  //   pthread_mutex_lock(&reset_mutex);
+  //   running_reset_threads++;
+  //   pthread_mutex_unlock(&reset_mutex);
+  //   tinfo[i].fd = fd;
+  //   tinfo[i].nsid = nsid;
+  //   tinfo[i].id = i * zcap;
+  //   int r = pthread_create(&tinfo[i].thread_id, &attr, &reset_zone,
+  //   &tinfo[i]); if (r != 0) {
+  //     printf("failed to reset all zones.");
+  //     return r;
+  //   }
+  // }
 
-  while (running_reset_threads > 0) usleep(10);
-  free(tinfo);
+  // while (running_reset_threads > 0) usleep(10);
+  // free(tinfo);
 
   struct zns_device_testing_params tparams {
     .zns_lba_size = lba_size_in_use,
     .zns_zone_capacity = (uint32_t)zcap * lba_size_in_use,
     // cppcheck-suppress unreadVariable
-        .zns_num_zones = nr,
+        .zns_num_zones = zones.size(),
   };
   struct user_zns_device device {
     .lba_size_bytes = lba_size_in_use,
@@ -401,13 +409,11 @@ void *read_func(void *arg) {
 
 int zns_udevice_read(struct user_zns_device *my_dev, uint64_t address,
                      void *buffer, uint32_t size) {
-  // Check log map first because to check for fresh data, then check
-  // data map, one page size at a time (to avoid overwrite). e.g. full
-  // sequential writes on address 0x0 to make a data map entry, then 1
-  // page write on 0x2, the data in log map will be newer than data
-  // map
-
-  //  cppcheck-suppress cstyleCast
+  // Check log map firstly beacuse of fresh data, then check data map, one page
+  // size at a time (to avoid overwrite). e.g. full sequantially writes on
+  // address 0x0 to make a data map entry, then 1 page write on 0x2, the data in
+  // log map will be newer than data map.
+  // cppcheck-suppress cstyleCast
   FTL *flt = (FTL *)my_dev->_private;
   uint32_t pages_num = size / my_dev->lba_size_bytes;
   address /= my_dev->lba_size_bytes;
@@ -445,57 +451,42 @@ int zns_udevice_read(struct user_zns_device *my_dev, uint64_t address,
     phas.push_back(adjacent_phas);
   }
 
-  // Skip the creation of the threads if we only have one physical address
-  if (pages_num == 1) {
-    struct read_info info = {
-        .thread_id = 0,
-        .ftl = flt,
-        .nlb = phas[0].second,
-        .paf = phas[0].first,
-        .block_size = my_dev->lba_size_bytes,
-        .data_ptr = (void *)buffer,
-    };
-
-    int ret =
-        ss_nvme_read(flt->fd, flt->nsid, info.paf, info.nlb - 1, 0, 0, 0, 0, 0,
-                     info.nlb * info.block_size, info.data_ptr, 0, nullptr);
-    if (ret != 0) {
-      return ret;
-    }
-
-	phas.erase(phas.begin(), phas.end());
-	  
-    return 0;
-  }
-
-  // Thread initialization
-  pthread_attr_t attr;
-  if (pthread_attr_init(&attr) != 0) perror("read nvme failed");
-  struct read_info *tinfo =
-      (struct read_info *)malloc(sizeof(struct read_info) * phas.size());
-
   uint64_t data_ptr = (uint64_t)buffer;
   for (uint32_t i = 0; i < phas.size(); i++) {
     // should be optimized later.
-    // printf("Reading %x from %x\n", address+i, phas[i]);
-    pthread_mutex_lock(&read_mutex);
-    running_read_threads++;
-    pthread_mutex_unlock(&read_mutex);
+    uint32_t block_size = my_dev->lba_size_bytes;
+    uint32_t nlb = phas[i].second;
+    uint64_t pa = phas[i].first;
+    uint64_t slba = (pa / flt->zcap) * flt->zcap;
+    // zone boundary check:
+    if (pa + nlb > slba + flt->zcap) {
+      // divide nlb into two parts:
+      uint32_t fstpart_nlb = slba + flt->zcap - pa;
+      uint32_t secpart_nlb = nlb - fstpart_nlb;
 
-    tinfo[i].ftl = flt;
-    tinfo[i].nlb = phas[i].second;
-    tinfo[i].paf = phas[i].first;
-    tinfo[i].block_size = my_dev->lba_size_bytes;
-    tinfo[i].data_ptr = (void *)data_ptr;
-    int ret = pthread_create(&tinfo[i].thread_id, &attr, &read_func, &tinfo[i]);
-    if (ret != 0) {
-      return ret;
+      int ret =
+          ss_nvme_read(flt->fd, flt->nsid, pa, fstpart_nlb - 1, 0, 0, 0, 0, 0,
+                       fstpart_nlb * block_size, (void *)data_ptr, 0, nullptr);
+      if (ret != 0) {
+        return ret;
+      }
+      ret = ss_nvme_read(flt->fd, flt->nsid, pa + fstpart_nlb, secpart_nlb - 1,
+                         0, 0, 0, 0, 0, secpart_nlb * block_size,
+                         (void *)(data_ptr + fstpart_nlb * block_size), 0,
+                         nullptr);
+      if (ret != 0) {
+        return ret;
+      }
+    } else {
+      int ret = ss_nvme_read(flt->fd, flt->nsid, pa, nlb - 1, 0, 0, 0, 0, 0,
+                             nlb * block_size, (void *)data_ptr, 0, nullptr);
+      if (ret != 0) {
+        return ret;
+      }
     }
-    data_ptr = data_ptr + tinfo[i].nlb * tinfo[i].block_size;
+    data_ptr = data_ptr + nlb * block_size;
   }
-  while (running_read_threads > 0) usleep(1);
-  free(tinfo);
-
+  phas.erase(phas.begin(), phas.end());
   return 0;
 }
 
@@ -503,6 +494,7 @@ int ss_sequential_write(FTL *flt, const struct user_zns_device *my_dev,
                         const uint64_t address, const void *buffer,
                         const uint16_t max_nlb_per_round,
                         const uint16_t total_nlb) {
+  std::cout << "sequential write" << std::endl;
   // divide them into many writes in mdts_size.
   uint64_t wp = flt->log_wp;
   uint64_t i;
@@ -519,6 +511,8 @@ int ss_sequential_write(FTL *flt, const struct user_zns_device *my_dev,
     }
     flt->log_wp = flt->log_wp + max_nlb_per_round;
   }
+
+  std::cout << "next" << std::endl;
   if (i > total_nlb) {
     // write remaining blocks.
     uint64_t ream_blocks = (total_nlb - (i - max_nlb_per_round));
@@ -537,7 +531,7 @@ int ss_sequential_write(FTL *flt, const struct user_zns_device *my_dev,
   for (uint64_t nlb = 0; nlb < total_nlb; nlb++) {
     flt->insert_lba_data(address + nlb, wp + nlb);
   }
-  
+
   return 0;
 }
 
@@ -557,7 +551,6 @@ int zns_udevice_write(struct user_zns_device *my_dev, uint64_t address,
   // cppcheck-suppress cstyleCast
   FTL *flt = (FTL *)my_dev->_private;
 
-  
   // Size is the multiple of lba_size
   const uint16_t total_nlb = size / my_dev->lba_size_bytes;
   const uint16_t max_nlb_per_round = flt->mdts_size / my_dev->lba_size_bytes;
@@ -568,14 +561,18 @@ int zns_udevice_write(struct user_zns_device *my_dev, uint64_t address,
   }
 
   if (size > flt->mdts_size) {
-	  int ret = ss_sequential_write(flt, my_dev, address, buffer,
-									max_nlb_per_round, total_nlb);
-	  if (ret != 0) return ret;
-	  return ret;
+    ZNSZone &zone = flt->get_current_zone(true);
+    flt->log_wp = zone.position;
+    int ret = ss_sequential_write(flt, my_dev, address, buffer,
+                                  max_nlb_per_round, total_nlb);
+    if (ret != 0) return ret;
+    zone.position = flt->log_wp;
+    return ret;
   }
 
-  ZNSZone &zone = flt->get_current_zone();  
+  ZNSZone &zone = flt->get_current_zone();
   zone.write_block(total_nlb, max_nlb_per_round, address, buffer, size);
+
   return 0;
 }
 }

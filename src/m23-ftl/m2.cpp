@@ -53,6 +53,7 @@ static int test_write_read_random_LBAs(struct user_zns_device *my_dev,
   for (uint64_t i = start_lba; i < (start_lba + max_lbas_to_test); i++) {
     // make a unique pattern for each write - ith iteration
     write_pattern_with_start((char *)buf, buf_size, i);
+
     ret =
         zns_udevice_write(my_dev, (i * my_dev->lba_size_bytes), buf, buf_size);
 
