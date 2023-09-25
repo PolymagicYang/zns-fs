@@ -43,9 +43,11 @@ FTL::FTL(int fd, uint64_t mdts, uint32_t nsid, uint16_t lba_size, int gc_wmark,
   this->log_zones = log_zones;
   this->log_map = Ftlmap{.lock = PTHREAD_RWLOCK_INITIALIZER, .map = raw_map()};
   this->data_map = Ftlmap{.lock = PTHREAD_RWLOCK_INITIALIZER, .map = raw_map()};
+  this->zone_lock = PTHREAD_RWLOCK_INITIALIZER;
   this->zones = create_zones(fd, nsid, lba_size, mdts);
   this->zcap = zones.at(0).capacity;
   this->zones_num = zones.size();
+  this->free_zones = zones.size();
 
   Calliope *mori = new Calliope(this, 2);
   mori->initialize();
@@ -62,6 +64,12 @@ ZNSZone *FTL::get_random_datazone() {
 ZNSZone *FTL::get_random_logzone() {
   size_t randomIndex = std::rand() % this->log_zones;
   return &this->zones[randomIndex];
+}
+
+ZNSZone *FTL::get_free_zone() {
+  for (ZNSZone &zone : this->zones) {
+    if (!zone.is_full()) return &zone;
+  }
 }
 
 // unsafe.
@@ -133,7 +141,25 @@ int FTL::read(uint64_t lba, void *buffer, uint32_t size) {
   return 0;
 }
 
+int16_t FTL::get_free_regions() const {
+  uint16_t free_count = 0;
+
+  for (int i = 0; i < this->zones_num; i++) {
+    const ZNSZone *zone = &this->zones[i];
+    if (!(zone->get_current_capacity() == 0)) free_count++;
+  }
+  return free_count;
+}
+
 int FTL::write(uint64_t lba, void *buffer, uint32_t size) {
+  // Wait for our GC thread to cleanup
+
+  int16_t free_regions = this->get_free_regions();
+  while (free_regions < 3) {
+    // std::cerr << "Waiting for GC thread" << std::endl;
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+
   // write to the log zone.
   // TODO(valentijn): change zones_num to log_zone to enable GC.
   for (uint16_t i = 1; i < this->zones_num; i++) {
@@ -141,16 +167,19 @@ int FTL::write(uint64_t lba, void *buffer, uint32_t size) {
     if (zone->is_full()) {
       continue;
     } else {
+      pthread_rwlock_rdlock(&this->zone_lock);
       if (this->has_pa(lba)) {
-        std::cout << "Address is " << std::hex << lba << " already in FTL"
-                  << std::endl;
+        // std::cout << "Address is " << std::hex << lba << " already in FTL"
+        // << std::endl;
         Addr pa = this->get_pa(lba);
         pa.alive = false;
+        this->zones[pa.zone_num].invalidate_block(pa.addr);
       }
 
       uint64_t wp_starts = zone->get_wp();
       uint32_t write_size;
       int ret = zone->write(buffer, size, &write_size);
+      pthread_rwlock_unlock(&this->zone_lock);
       if (ret != 0) {
         return ret;
       }

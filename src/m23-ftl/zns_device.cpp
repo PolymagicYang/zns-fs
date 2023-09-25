@@ -78,14 +78,14 @@ int init_ss_zns_device(struct zdev_init_params *params,
   ret = nvme_get_nsid(fd, &nsid);
   if (ret != 0) {
     printf("ERROR: failed to retrieve the nsid %d \n", ret);
-    print_nvme_error(ret);
+    print_nvme_error("init", ret);
     return ret;
   }
 
   ret = nvme_identify_ns(fd, nsid, &ns);
   if (ret) {
     printf("ERROR: failed to retrieve the nsid %d \n", ret);
-    print_nvme_error(ret);
+    print_nvme_error("init", ret);
     return ret;
   }
   uint32_t lba_size_in_use = 1 << ns.lbaf[(ns.flbas & 0xf)].ds;
@@ -98,6 +98,7 @@ int init_ss_zns_device(struct zdev_init_params *params,
   strncpy(name, params->name, 6);
   name[5] = '\0';
 
+  std::cout << params->name << std::endl;
   // Open the system file for reading to read the registers.
   int aret = asprintf(&path, "/sys/class/nvme/%s/device/resource0", name);
   if (aret < 0) return aret;

@@ -23,14 +23,15 @@ SOFTWARE.
 #pragma once
 
 #include <thread>
+
 #include "ftl.hpp"
-#include "zone.hpp"
 #include "znsblock.hpp"
+#include "zone.hpp"
 
 class Calliope {
  public:
   FTL *ftl;
-  ZNSZone select_zone();
+  int select_zone();
   bool needs_reaping();
   void reap();
   void initialize();
@@ -39,6 +40,7 @@ class Calliope {
  private:
   uint16_t threshold;
   std::thread thread;
+  bool can_reap;
 };
 
 #endif

@@ -18,75 +18,108 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
  */
-#include <chrono>
-
 #include "ftlgc.hpp"
+
 #include <pthread.h>
 
+#include <chrono>
+
+#include "../common/nvmewrappers.h"
+
 Calliope::Calliope(FTL *ftl, const uint16_t threshold) {
-	this->ftl = ftl;
-	this->threshold = 3;
+  this->ftl = ftl;
+  this->threshold = 3;
+  this->can_reap = false;
 }
 
 bool Calliope::needs_reaping() {
-	uint16_t free_count = 0;
-	
-	for (int i = 0; i < ftl->zones_num; i++) {
-		ZNSZone zone = ftl->zones[i];
-		if (!zone.is_full())
-			free_count++;
-	}
-	
-	return free_count < this->threshold;	
+  pthread_rwlock_rdlock(&this->ftl->zone_lock);
+  uint16_t free_count = ftl->get_free_regions();
+  pthread_rwlock_unlock(&this->ftl->zone_lock);
+  return free_count < this->threshold;
 }
 
-ZNSZone Calliope::select_zone() {
-	ZNSZone min = ftl->zones[0];
-	float min_util = 1;
-	float util = 0;
-	
-	for (int i = 0; i < ftl->zones_num; i++) {
-		std::cout << i << " ";
-		ZNSZone current = ftl->zones[i];
-		if (!current.is_full()) continue;		
+int Calliope::select_zone() {
+  int max = 0;
+  float max_util = 0;
+  float util = 0;
 
-		if (min.get_alive_capacity() == 0)
-			min_util = 1;
-		else 
-			min_util = min.get_current_capacity() / min.get_alive_capacity();
-		if (current.get_alive_capacity() == 0)
-			util = 1;
-		else 
-			util = current.get_current_capacity() / current.get_alive_capacity();
-		
-		if (util < min_util)
-			min = current;
-	}
-	std::cout << std::endl;
-	return min;
+  for (int i = 0; i < ftl->zones_num; i++) {
+    // std::cout << "Zone " << i << std::endl;
+    ZNSZone &current = ftl->zones[i];
+    if (!current.is_full()) continue;
+
+    if (current.get_alive_capacity() == 0) {
+      util = 0;
+    } else {
+      util = 1.0 - ((float)current.get_alive_capacity() / current.capacity);
+    }
+    if (util > max_util) {
+      max = i;
+      max_util = util;
+    }
+  }
+
+  this->can_reap = max_util != 0.0f;
+  // std::cout << std::endl;
+  return max;
 }
 
 void Calliope::reap() {
-	std::cout << "Trapped in a stasis—I hate this! I haven't taken a life in like ages, okay" << std::endl;
-		
-	while(true) {
-		std::cout << "Test" << std::endl;
-		std::this_thread::sleep_for(std::chrono::milliseconds(100));
-		pthread_rwlock_rdlock(&this->ftl->log_map.lock);
-		if (!needs_reaping()) {
-			std::cout << "Reporting back to death-sama" << std::endl;
-			pthread_rwlock_unlock(&this->ftl->log_map.lock);
-			continue;
-		}
+  std::cout << "Trapped in a stasis—I hate this! I haven't taken a life in "
+               "like ages, okay"
+            << std::endl;
 
-		std::cout << "Finding a dead beat" << std::endl;
-		ZNSZone reapable = this->select_zone();
-		std::cout << "!!!REAP!!!" << std::endl << reapable << std::endl;
-		pthread_rwlock_unlock(&this->ftl->log_map.lock);
-	}	
+  while (true) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    uint16_t free_count = ftl->get_free_regions();
+
+    if (free_count > this->threshold) {
+      std::cout << "Reporting back to death-sama" << std::endl;
+      continue;
+    }
+
+    pthread_rwlock_rdlock(&this->ftl->zone_lock);
+    for (int i = 0; i < this->threshold + 1; i++) {
+      int zone_num = this->select_zone();
+      ZNSZone &reapable = this->ftl->zones[zone_num];
+      if (!this->can_reap) {
+        continue;
+      }
+      this->can_reap = false;
+      std::cout << "!!!REAP!!!" << std::endl << reapable << std::endl;
+      std::vector<ZNSBlock> blocks = reapable.get_nonfree_blocks();
+
+      // Get a free zone to store the blocks into
+      ZNSZone *zone = this->ftl->get_free_zone();
+      std::cout << "Writing to " << std::dec << zone->zone_id << " "
+                << blocks.size() << std::endl;
+
+      // Copy data to the new zone block by block
+      // TODO(valentijn): move by MDTS chunks instead
+      uint64_t wp = zone->position;
+      int j = 0;
+      for (ZNSBlock block : blocks) {
+        // struct nvme_copy_range range = ss_nvme_create_range(block.address,
+        // 0); fd, nsid, copy, sdlba, nr
+        // ss_nvme_copy(this->ftl->fd, this->ftl->nsid, &range, wp, 0);
+        // TODO(valentijn): we have a nice copy command which is not working
+        //   use it instead of this garbage
+        char buffer[this->ftl->lba_size];
+        uint32_t read_size;
+        reapable.read(block.address, &buffer, this->ftl->lba_size, &read_size);
+        zone->write(&buffer, this->ftl->lba_size, &read_size);
+        wp += this->ftl->lba_size;
+        std::cout << std::dec << j++ << " ";
+      }
+      std::cout << std::endl << "Done writing" << std::endl;
+      reapable.reset();
+    }
+    pthread_rwlock_unlock(&this->ftl->zone_lock);
+  }
 }
 
 void Calliope::initialize() {
-	std::cout << "Summons Mori from hell" << std::endl;
-	this->thread = std::thread(&Calliope::reap, this);
+  std::cout << "Summons Mori from hell" << std::endl;
+  this->thread = std::thread(&Calliope::reap, this);
 }

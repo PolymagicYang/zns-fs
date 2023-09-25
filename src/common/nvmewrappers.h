@@ -9,7 +9,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-void print_nvme_error(const int ret);
+void print_nvme_error(const char *type, const int ret);
 int ss_nvme_write(int fd, __u32 nsid, __u64 slba, __u16 nlb, __u16 control,
                   __u8 dsm, __u16 dspec, __u32 reftag, __u16 apptag,
                   __u16 appmask, __u32 data_len, void *data, __u32 metadata_len,
@@ -23,6 +23,11 @@ int ss_nvme_zns_append(int fd, __u32 nsid, __u64 zslba, __u16 nlb,
                        __u16 control, __u32 ilbrt, __u16 lbat, __u16 lbatm,
                        __u32 data_len, void *data, __u32 metadata_len,
                        void *metadata, __u64 *result);
+
+int ss_nvme_copy(int fd, uint32_t nsid, struct nvme_copy_range *copy,
+                 uint64_t sdlba, uint16_t nr);
+struct nvme_copy_range ss_nvme_create_range(const uint64_t slba,
+                                            const uint16_t nlb);
 
 #ifdef __cplusplus
 }

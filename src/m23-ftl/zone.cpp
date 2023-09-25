@@ -25,6 +25,8 @@ SOFTWARE.
 #include <string.h>
 #include <unistd.h>
 
+#include <cassert>
+
 #include "../common/nvmewrappers.h"
 
 ZNSZone::ZNSZone(const int zns_fd, const uint32_t nsid, const uint32_t zone_id,
@@ -57,7 +59,7 @@ inline int ZNSZone::send_management_command(
   int ret = nvme_zns_mgmt_send(this->zns_fd, this->nsid, this->slba, select_all,
                                action, 0, NULL);
   if (ret != 0) {
-    print_nvme_error(ret);
+    print_nvme_error("send_management_command", ret);
   }
   return ret;
 }
@@ -80,8 +82,13 @@ int ZNSZone::get_index() {
 
 int ZNSZone::reset() {
   pthread_rwlock_wrlock(&this->lock);
+  std::cout << std::dec << "Resetting zone " << this->zone_id << std::endl;
   this->position = this->base;
   int ret = this->reset_zone();
+
+  // Remove all blocks from the memory of this zone
+  this->block_map.map.clear();
+  std::cout << this->get_current_capacity() << std::endl;
   pthread_rwlock_unlock(&this->lock);
   return ret;
 }
@@ -230,6 +237,22 @@ void ZNSZone::copy_to(ZNSZone &other) {
   }
 }
 
+int ZNSZone::invalidate_block(const uint64_t pa) {
+  BlockMap map = this->block_map.map;
+
+  if (map.count(pa) != 1) {
+    std::cerr << "Error: Block " << pa << " does not exist in " << this->zone_id
+              << std::endl;
+    return -1;
+  }
+
+  // std::cout << "Invalidating block " << pa << std::endl;
+  ZNSBlock b = map[pa];
+  b.valid = false;
+  this->block_map.map[pa] = b;
+
+  return 0;
+}
 /*
 return the size of the inserted buffer.
 */
@@ -242,6 +265,7 @@ uint32_t ZNSZone::write(void *buffer, uint32_t size, uint32_t *write_size) {
   uint16_t total_nlb = size / this->lba_size;
   uint16_t max_nlb_per_round = this->mdts_size / this->lba_size;
 
+  uint64_t write_base = this->position;
   if (size <= this->mdts_size) {
     __u64 written_slba;
     int ret =
@@ -257,7 +281,7 @@ uint32_t ZNSZone::write(void *buffer, uint32_t size, uint32_t *write_size) {
   }
 
   // pthread_rwlock_wrlock(this->block_map.lock);
-  for (uint64_t i = 0, address = position; i < total_nlb; i++) {
+  for (uint64_t i = 0, address = write_base; i < total_nlb; i++) {
     uint64_t pa = address + i * this->lba_size;
     ZNSBlock b1 = {
         .address = pa, .logical_address = pa, .buffer = buffer, .valid = true};
@@ -364,4 +388,14 @@ std::vector<ZNSZone> create_zones(const int zns_fd, const uint32_t nsid,
   zones.at(0).reset_all_zones();
   free(zns_report);
   return zones;
+}
+
+std::vector<ZNSBlock> ZNSZone::get_nonfree_blocks() const {
+  BlockMap map = this->block_map.map;
+  std::vector<ZNSBlock> nonfree_blocks;
+
+  for (BlockMap::iterator it = map.begin(); it != map.end(); ++it) {
+    if (it->second.valid) nonfree_blocks.push_back(it->second);
+  }
+  return nonfree_blocks;
 }

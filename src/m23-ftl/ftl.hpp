@@ -69,6 +69,7 @@ class FTL {
     pthread_rwlock_destroy(&log_map.lock);
     pthread_rwlock_destroy(&data_map.lock);
 
+    pthread_rwlock_destroy(&zone_lock);
     data_map.map.clear();
     log_map.map.clear();
   }
@@ -87,13 +88,17 @@ class FTL {
   ZNSZone* get_zone(int index);
   ZNSZone* get_random_logzone();
   ZNSZone* get_random_datazone();
+  ZNSZone* get_free_zone();
 
   void insert_logmap(uint64_t lba, uint64_t pa, uint16_t zone_num);
+  int16_t get_free_regions() const;
 
   void insert_datamap(uint64_t lba, uint64_t pa, uint16_t zone_num);
 
   struct Ftlmap log_map;
   struct Ftlmap data_map;
+  pthread_rwlock_t zone_lock;
+  int free_zones;
 
  private:
   // return physical page address from log map.

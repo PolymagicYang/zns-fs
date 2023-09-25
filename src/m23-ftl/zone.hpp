@@ -160,6 +160,8 @@ class ZNSZone {
   pthread_rwlock_t lock;
 
   ZoneMap block_map;
+  int invalidate_block(const uint64_t pa);
+  std::vector<ZNSBlock> get_nonfree_blocks() const;
 
  private:
   int zns_fd;
