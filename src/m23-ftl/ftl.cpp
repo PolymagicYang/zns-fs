@@ -162,12 +162,13 @@ int FTL::write(uint64_t lba, void *buffer, uint32_t size) {
 
   // write to the log zone.
   // TODO(valentijn): change zones_num to log_zone to enable GC.
-  pthread_rwlock_rdlock(&this->zone_lock);
+  
   for (uint16_t i = 1; i < this->zones_num; i++) {
     ZNSZone *zone = this->get_zone(i);
     if (zone->is_full()) {
       continue;
     } else {
+	  pthread_rwlock_wrlock(&zone->lock);		
       std::cout << "Writing to " << i << std::endl;
       if (this->has_pa(lba)) {
         // std::cout << "Address is " << std::hex << lba << " already in FTL"
@@ -180,7 +181,8 @@ int FTL::write(uint64_t lba, void *buffer, uint32_t size) {
       uint64_t wp_starts = zone->get_wp();
       uint32_t write_size;
       int ret = zone->write(buffer, size, &write_size);
-
+	  pthread_rwlock_unlock(&zone->lock);
+	  	  
       if (ret != 0) {
         return ret;
       }
@@ -197,7 +199,7 @@ int FTL::write(uint64_t lba, void *buffer, uint32_t size) {
       }
     }
   }
-  pthread_rwlock_unlock(&this->zone_lock);
+  
   return 0;
 }
 

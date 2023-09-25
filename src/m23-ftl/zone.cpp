@@ -109,9 +109,9 @@ uint32_t ZNSZone::get_current_capacity() const {
 }
 
 uint64_t ZNSZone::get_wp() {
-  pthread_rwlock_rdlock(&this->lock);
+  // pthread_rwlock_rdlock(&this->lock);
   uint64_t ret = this->position;
-  pthread_rwlock_unlock(&this->lock);
+  // pthread_rwlock_unlock(&this->lock);
   return ret;
 }
 
@@ -249,7 +249,7 @@ int ZNSZone::invalidate_block(const uint64_t pa) {
 return the size of the inserted buffer.
 */
 uint32_t ZNSZone::write(void *buffer, uint32_t size, uint32_t *write_size) {
-  pthread_rwlock_wrlock(&this->lock);
+  // pthread_rwlock_wrlock(&this->lock);
   uint32_t max_writes = this->get_current_capacity() * this->lba_size;
   *write_size = (size > max_writes) ? max_writes : size;
 
@@ -281,7 +281,7 @@ uint32_t ZNSZone::write(void *buffer, uint32_t size, uint32_t *write_size) {
   }
 
   // pthread_rwlock_unlock(this->block_map.lock);
-  pthread_rwlock_unlock(&this->lock);
+  // pthread_rwlock_unlock(&this->lock);
 
   return 0;
 }
