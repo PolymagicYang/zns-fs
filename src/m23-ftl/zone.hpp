@@ -133,44 +133,73 @@ class ZNSZone {
                                            const uint32_t nsid,
                                            const uint64_t lba_size,
                                            const uint64_t mdts_size);
+
+  /** Returns the number of blocks which are still valid */
   uint64_t get_alive_capacity() const;
 
-  // Fuck
+  /** Gets the index or id of the zone*/
   int get_index();
+  
+  /** Resets the zone and performs additional checking compared to ZNSZone::reset_zone */
   int reset();
+
+  /** Checks if the zone is full*/
   bool is_full();
-  uint32_t curr_capacity();
+
+  /** Gets the write pointer of the zone */
   uint64_t get_wp();
 
+  /** Write pointer */
   uint64_t position;
+
+  /** Zone Logical Block Address or the lowest addressable point */
   uint64_t base;
+
+  /** Size of a block */
   uint64_t lba_size;
+  
+  /** Maximum transfer size */
   uint64_t mdts_size;
+
+  /** Lock of the region */
   pthread_rwlock_t lock;
 
+  /** Map of the physical addresses to the buffer and state */
   ZoneMap block_map;
+
+  /** Set the block to being free based on the physical address */  
   int invalidate_block(const uint64_t pa);
+
+  /** Gets the blocks that are still valid */
+  // TODO(someone): change name to get_valid_blocks
   std::vector<ZNSBlock> get_nonfree_blocks() const;
+
+  /** Zone mutex for the FTL::write and Calliope::reap methods */
   pthread_mutex_t zone_mutex = PTHREAD_MUTEX_INITIALIZER;
   
  private:
   int zns_fd;
-  
+
+  /** Write to the device in a sequential manner */
   int ss_sequential_write(const void *buffer, const uint16_t max_nlb_per_round,
                           const uint16_t total_nlb);
 
-  std::vector<ZNSBlock> blocks;
   inline int send_management_command(
       const enum nvme_zns_send_action action) const;
+  /** Convenience function to send a zone management command. */
   inline int send_management_command(const enum nvme_zns_send_action action,
                                      const bool select_all) const;
+  /** Resets all the zones in the device. */
   inline int reset_all_zones() const;
 };
 
 std::ostream &operator<<(std::iostream &os, ZNSZone const &tc);
+
+/** Get the information of the zone and return them as reports */
 int get_zns_zone_info(const int fd, const int nsid, uint64_t *zcap,
                       uint64_t *nr, struct nvme_zone_report *zns_report);
 
+/** Create a list of zones in the device */
 std::vector<ZNSZone> create_zones(const int zns_fd, const uint32_t nsid,
                                   const uint64_t lba_size,
                                   const uint64_t mdts_size);

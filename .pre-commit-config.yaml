@@ -28,6 +28,6 @@ repos:
         args: [--inline-suppr, --std=c++17]
       - id: cpplint
         files: '^src/m23-ftl/'
-        args: ['--filter=-readability/casting,,-build/header_guard,-build/include_subdir,-build/c++11']
+        args: ['--filter=-readability/casting,-build/header_guard,-build/include_subdir,-build/c++11,style/unusedStructMember']
       # - id: include-what-you-use
       #   files: '^src/m23-ftl/m2.cpp'

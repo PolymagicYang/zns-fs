@@ -47,8 +47,8 @@ FTL::FTL(int fd, uint64_t mdts, uint32_t nsid, uint16_t lba_size, int gc_wmark,
   this->zones = create_zones(fd, nsid, lba_size, mdts);
   this->zcap = zones.at(0).capacity;
   this->zones_num = zones.size();
-  this->free_zones = zones.size();
 
+  // Start our reaper rapper and store her as a void pointer in our FTL
   Calliope *mori = new Calliope(this, 2);
   mori->initialize();
   this->mori = &mori;
@@ -152,30 +152,30 @@ volatile int16_t FTL::get_free_regions() {
 }
 
 int FTL::write(uint64_t lba, void *buffer, uint32_t size) {
-  // Wait for our GC thread to cleanup
+  // If we don't have enough free regions we wait for our GC
+  // to clean our mess. Until that time we are locking the
+  // zone since we are reading to it. 
   pthread_rwlock_rdlock(&this->zone_lock);
   volatile int16_t free_regions = get_free_regions();
-
   while (free_regions < 3) {
-    // std::cerr << "Waiting for GC thread " << free_regions << std::endl;
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     free_regions = get_free_regions();
   }
   pthread_rwlock_unlock(&this->zone_lock);
 
   // write to the log zone.
-  // TODO(valentijn): change zones_num to log_zone to enable GC.
-
   for (uint16_t i = 1; i < this->zones_num; i++) {
     ZNSZone *zone = this->get_zone(i);
     if (zone->is_full()) {
       continue;
     } else {
+	  // We found a free region so we lock the zone mutex since
+	  // we are going to write to it
 	  pthread_mutex_lock(&zone->zone_mutex);
-      // std::cout << "Writing to " << i << std::endl;
+
+	  // Mark the LBA as invalid and inform the region to invalidate
+	  // each block.
       if (this->has_pa(lba)) {
-        // std::cout << "Address is " << std::hex << lba << " already in FTL"
-        // << std::endl;
         Addr pa = this->get_pa(lba);
         pa.alive = false;
         this->zones[pa.zone_num].invalidate_block(pa.addr);
@@ -184,6 +184,8 @@ int FTL::write(uint64_t lba, void *buffer, uint32_t size) {
       uint64_t wp_starts = zone->get_wp();
       uint32_t write_size;
       int ret = zone->write(buffer, size, &write_size);
+	  
+	  // We are done writing to the device so we can unlock it from here.	  
 	  pthread_mutex_unlock(&zone->zone_mutex);
 
       if (ret != 0) {

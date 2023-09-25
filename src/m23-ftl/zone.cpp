@@ -108,9 +108,7 @@ uint32_t ZNSZone::get_current_capacity() const {
 }
 
 uint64_t ZNSZone::get_wp() {
-  // pthread_rwlock_rdlock(&this->lock);
   uint64_t ret = this->position;
-  // pthread_rwlock_unlock(&this->lock);
   return ret;
 }
 
@@ -217,11 +215,12 @@ int ZNSZone::ss_sequential_write(const void *buffer,
   return 0;
 }
 
+// TODO(someone): this is copying the entire block map every time
 uint64_t ZNSZone::get_alive_capacity() const {
-  BlockMap map = this->block_map.map;
+  BlockMap *map = (BlockMap*) &this->block_map.map;
 
   uint64_t alive_count = 0;
-  for (BlockMap::iterator it = map.begin(); it != map.end(); ++it) {
+  for (BlockMap::iterator it = map->begin(); it != map->end(); ++it) {
     if (it->second.valid) alive_count++;
   }
 
@@ -229,18 +228,17 @@ uint64_t ZNSZone::get_alive_capacity() const {
 }
 
 int ZNSZone::invalidate_block(const uint64_t pa) {
-  BlockMap map = this->block_map.map;
-
-  if (map.count(pa) != 1) {
+  // See if the physical adress exists, else print an error and move on.
+  // This can happen if the cache at the FTL is invalid or if it has
+  // done a multiple region write.
+  if (this->block_map.map.count(pa) != 1) {
     std::cerr << "Error: Block " << pa << " does not exist in " << this->zone_id
               << std::endl;
     return -1;
   }
 
-  // std::cout << "Invalidating block " << pa << std::endl;
-  ZNSBlock b = map[pa];
-  b.valid = false;
-  this->block_map.map[pa] = b;
+  // Store the invalid zone in the system
+  this->block_map.map[pa].valid = false;
 
   return 0;
 }
@@ -248,7 +246,6 @@ int ZNSZone::invalidate_block(const uint64_t pa) {
 return the size of the inserted buffer.
 */
 uint32_t ZNSZone::write(void *buffer, uint32_t size, uint32_t *write_size) {
-  // pthread_rwlock_wrlock(&this->lock);
   uint32_t max_writes = this->get_current_capacity() * this->lba_size;
   *write_size = (size > max_writes) ? max_writes : size;
 
@@ -271,16 +268,12 @@ uint32_t ZNSZone::write(void *buffer, uint32_t size, uint32_t *write_size) {
     if (ret != 0) return ret;
   }
 
-  // pthread_rwlock_wrlock(this->block_map.lock);
   for (uint64_t i = 0, address = write_base; i < total_nlb; i++) {
     uint64_t pa = address + i * this->lba_size;
     ZNSBlock b1 = {
         .address = pa, .logical_address = pa, .buffer = buffer, .valid = true};
     this->block_map.map[pa] = b1;
   }
-
-  // pthread_rwlock_unlock(this->block_map.lock);
-  // pthread_rwlock_unlock(&this->lock);
 
   return 0;
 }
@@ -333,6 +326,7 @@ std::vector<ZNSZone> create_zones(const int zns_fd, const uint32_t nsid,
   uint64_t nr;
   get_zns_zone_info(zns_fd, nsid, &nr, &zcap, zns_report);
 
+  // Go through all the reprots and turn them into zones
   std::vector<ZNSZone> zones = std::vector<ZNSZone>();
   for (uint32_t i = 0; i < zns_report->nr_zones; i++) {
     struct nvme_zns_desc current = zns_report->entries[i];
@@ -354,16 +348,20 @@ std::vector<ZNSZone> create_zones(const int zns_fd, const uint32_t nsid,
     zones.push_back(zone);
   }
 
+  // Reset all the zones in one go so that we are in a valid initial state
   zones.at(0).reset_all_zones();
   free(zns_report);
   return zones;
 }
 
 std::vector<ZNSBlock> ZNSZone::get_nonfree_blocks() const {
-  BlockMap map = this->block_map.map;
+  BlockMap *map = (BlockMap*) &this->block_map.map;
+  // TODO(anyone): this can be faster if these are pointers instead
+  //  saves a lot of copying. Keep in mind that these are lost
+  //  after we reset the zone!
   std::vector<ZNSBlock> nonfree_blocks;
 
-  for (BlockMap::iterator it = map.begin(); it != map.end(); ++it) {
+  for (BlockMap::iterator it = map->begin(); it != map->end(); ++it) {
     if (it->second.valid) nonfree_blocks.push_back(it->second);
   }
   return nonfree_blocks;

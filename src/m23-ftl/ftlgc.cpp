@@ -32,18 +32,13 @@ Calliope::Calliope(FTL *ftl, const uint16_t threshold) {
   this->can_reap = false;
 }
 
-bool Calliope::needs_reaping() {
-  pthread_rwlock_rdlock(&this->ftl->zone_lock);
-  uint16_t free_count = ftl->get_free_regions();
-  pthread_rwlock_unlock(&this->ftl->zone_lock);
-  return free_count < this->threshold;
-}
-
 int Calliope::select_zone() {
   int max = 0;
   float max_util = 0;
   float util = 0;
 
+  // Select the region with the most undead blocks compared to the
+  // total capacity. This safes on the copies we need to do. 
   for (int i = 0; i < ftl->zones_num; i++) {
     ZNSZone &current = ftl->zones[i];
     if (!current.is_full()) continue;
@@ -59,8 +54,9 @@ int Calliope::select_zone() {
     }
   }
 
+  // If we cannot find something decent to do, we flag the thread to
+  // just keep going. 
   this->can_reap = max_util != 0.0f;
-  // std::cout << std::endl;
   return max;
 }
 
@@ -71,37 +67,39 @@ void Calliope::reap() {
 
   while (true) {
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+	// Lock the thread so we can look at the number of regions in the
+	// code if it is less than our threshold we wait until the next
+	// loop
     pthread_rwlock_rdlock(&this->ftl->zone_lock);
     int free_count = this->ftl->get_free_regions();
 
+	
     if (free_count > this->threshold) {
       pthread_rwlock_unlock(&this->ftl->zone_lock);
       std::cout << "Reporting back to death-sama: " << free_count << std::endl;
       continue;
     }
 	pthread_rwlock_unlock(&this->ftl->zone_lock);
-    // for (int i = 0; i < (this->threshold - free_count); i++) {
+
+	// Get the zone with the highest win of free blocks, if none is
+	// found we just wait until the next loop. This can happen if no
+	// data is overwritten
     int zone_num = this->select_zone();
     ZNSZone *reapable = &this->ftl->zones[zone_num];
     if (!this->can_reap) {
       std::cout << "cannot reap" << std::endl;
       continue;
     }
+
+
+    // Lock the zone since we are modifying it from this point
+    // onwards. We are using the 0th region as a scratch buffer
+	// where we copy data back and forth from. 
     pthread_mutex_lock(&reapable->zone_mutex);
     this->can_reap = false;
-    // std::cout << "!!!REAP!!!" << std::endl << reapable << std::endl;
-
-    // std::cout << "entering lock of " << reapable->zone_id << std::endl;
     std::vector<ZNSBlock> blocks = reapable->get_nonfree_blocks();
-
-    // Get a free zone to store the blocks into
-
-    // As a temporary fix we are using the zeroth zone as a scratch
-    // register
     ZNSZone *zone = &this->ftl->zones[0];
-    // std::cout << "Writing to " << std::dec << zone->zone_id << " "
-    //           << blocks.size() << " " << zone->get_current_capacity()
-    //           << std::endl;
 
     // Copy data to the new zone block by block
     // TODO(valentijn): move by MDTS chunks instead
@@ -113,8 +111,6 @@ void Calliope::reap() {
       reapable->read(block.address, &buffer, this->ftl->lba_size, &read_size);
       zone->write(&buffer, this->ftl->lba_size, &read_size);
     }
-    // std::cout << std::endl
-    //           << "Done writing " << zone->get_current_capacity() << std::endl;
     reapable->reset();
 
     // TODO(valentijn): Do this one round trip instead of N
@@ -126,13 +122,12 @@ void Calliope::reap() {
       reapable->write(&buffer, this->ftl->lba_size, &read_size);
       wp += this->ftl->lba_size;
     }
-    // std::cout << "exit lock of " << reapable->zone_id << std::endl;
-	pthread_mutex_unlock(&reapable->zone_mutex);
 
+	// Unlock the zone since we finished writing and reset our scratch
+	// region.
+	pthread_mutex_unlock(&reapable->zone_mutex);
     zone->reset();
   }
-
-  // }
 }
 
 void Calliope::initialize() {

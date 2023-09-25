@@ -55,7 +55,12 @@ class FTL {
   uint64_t mdts_size;
   uint16_t lba_size;
   int log_zones;
+
+  /** Store a list of all the zones in the system */
   std::vector<ZNSZone> zones;
+
+  // A variable to hold our GC object. We set to void so we don't
+  // get into a circulair dpeendency of header imports
   void* mori;
 
   FTL(int fd, uint64_t mdts, uint32_t nsid, uint16_t lba_size, int gc_wmark,
@@ -88,9 +93,13 @@ class FTL {
   ZNSZone* get_zone(int index);
   ZNSZone* get_random_logzone();
   ZNSZone* get_random_datazone();
+	
+  /** Get a free zone with enough space to hold a number of blocks. */
   ZNSZone* get_free_zone(const uint32_t needed);
 
   void insert_logmap(uint64_t lba, uint64_t pa, uint16_t zone_num);
+	
+  /** Get the number of free regions in our system */
   volatile int16_t get_free_regions();
 
   void insert_datamap(uint64_t lba, uint64_t pa, uint16_t zone_num);
@@ -98,7 +107,6 @@ class FTL {
   struct Ftlmap log_map;
   struct Ftlmap data_map;
   pthread_rwlock_t zone_lock;
-  int free_zones;
 
  private:
   // return physical page address from log map.
