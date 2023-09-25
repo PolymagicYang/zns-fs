@@ -91,7 +91,7 @@ class FTL {
   ZNSZone* get_free_zone(const uint32_t needed);
 
   void insert_logmap(uint64_t lba, uint64_t pa, uint16_t zone_num);
-  int16_t get_free_regions() const;
+  volatile int16_t get_free_regions();
 
   void insert_datamap(uint64_t lba, uint64_t pa, uint16_t zone_num);
 

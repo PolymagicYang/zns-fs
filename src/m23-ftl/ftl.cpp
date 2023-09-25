@@ -141,34 +141,37 @@ int FTL::read(uint64_t lba, void *buffer, uint32_t size) {
   return 0;
 }
 
-int16_t FTL::get_free_regions() const {
+volatile int16_t FTL::get_free_regions() {
   uint16_t free_count = 0;
-
   for (int i = 0; i < this->zones_num; i++) {
     const ZNSZone *zone = &this->zones[i];
     if (!(zone->get_current_capacity() == 0)) free_count++;
   }
+  // std::cout << std::endl;
   return free_count;
 }
 
 int FTL::write(uint64_t lba, void *buffer, uint32_t size) {
   // Wait for our GC thread to cleanup
+  pthread_rwlock_rdlock(&this->zone_lock);
+  volatile int16_t free_regions = get_free_regions();
 
-  int16_t free_regions = this->get_free_regions();
   while (free_regions < 3) {
-    std::cerr << "Waiting for GC thread" << std::endl;
+    std::cerr << "Waiting for GC thread " << free_regions << std::endl;
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    free_regions = get_free_regions();
   }
+  pthread_rwlock_unlock(&this->zone_lock);
 
   // write to the log zone.
   // TODO(valentijn): change zones_num to log_zone to enable GC.
-  
+
   for (uint16_t i = 1; i < this->zones_num; i++) {
     ZNSZone *zone = this->get_zone(i);
     if (zone->is_full()) {
       continue;
     } else {
-	  pthread_rwlock_wrlock(&zone->lock);		
+      pthread_rwlock_wrlock(&zone->lock);
       std::cout << "Writing to " << i << std::endl;
       if (this->has_pa(lba)) {
         // std::cout << "Address is " << std::hex << lba << " already in FTL"
@@ -181,8 +184,8 @@ int FTL::write(uint64_t lba, void *buffer, uint32_t size) {
       uint64_t wp_starts = zone->get_wp();
       uint32_t write_size;
       int ret = zone->write(buffer, size, &write_size);
-	  pthread_rwlock_unlock(&zone->lock);
-	  	  
+      pthread_rwlock_unlock(&zone->lock);
+
       if (ret != 0) {
         return ret;
       }
@@ -199,7 +202,7 @@ int FTL::write(uint64_t lba, void *buffer, uint32_t size) {
       }
     }
   }
-  
+
   return 0;
 }
 
