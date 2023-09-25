@@ -18,18 +18,27 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
  */
+#ifndef STOSYS_PROJECT_FTLGC_H
+#define STOSYS_PROJECT_FTLGC_H
+#pragma once
 
-#ifndef STOSYS_PROJECT_ZNSBLOCK_H
-#define STOSYS_PROJECT_ZNSBLOCK_H
-#include <cstdint>
+#include <thread>
+#include "ftl.hpp"
+#include "zone.hpp"
+#include "znsblock.hpp"
 
-typedef uint64_t physaddr_t;
+class Calliope {
+ public:
+  FTL *ftl;
+  ZNSZone select_zone();
+  bool needs_reaping();
+  void reap();
+  void initialize();
+  Calliope(FTL *ftl, const uint16_t threshold);
 
-struct ZNSBlock {
-  physaddr_t address;
-  physaddr_t logical_address;
-  const void *buffer;
-  bool valid;
+ private:
+  uint16_t threshold;
+  std::thread thread;
 };
 
 #endif

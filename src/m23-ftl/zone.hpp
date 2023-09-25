@@ -28,9 +28,18 @@ SOFTWARE.
 
 #include <cstdint>
 #include <iostream>
+#include <map>
 #include <vector>
 
 #include "znsblock.hpp"
+
+using BlockMap = std::map<uint64_t, ZNSBlock>;
+
+struct ZoneMap {
+  pthread_rwlock_t lock;
+  BlockMap map;
+};
+
 #define RESET_ZONE true
 
 enum ZoneState {
@@ -40,7 +49,9 @@ enum ZoneState {
   ExplicitOpen = 0x3,
   Closed = 0x4,
   ReadOnly = 0xD,
-  Offline = 0xF
+  Offline = 0xF,
+  Unknown = 16,
+  Bad = 224,
 };
 
 /** Type that this zone is allocated in our system. */
@@ -133,6 +144,7 @@ class ZNSZone {
                                            const uint32_t nsid,
                                            const uint64_t lba_size,
                                            const uint64_t mdts_size);
+  uint64_t get_alive_capacity() const;
 
   // Fuck
   int get_index();
@@ -146,6 +158,8 @@ class ZNSZone {
   uint64_t lba_size;
   uint64_t mdts_size;
   pthread_rwlock_t lock;
+
+  ZoneMap block_map;
 
  private:
   int zns_fd;
@@ -162,6 +176,7 @@ class ZNSZone {
   inline int send_management_command(const enum nvme_zns_send_action action,
                                      const bool select_all) const;
   inline int reset_all_zones() const;
+  void copy_to(ZNSZone &other);
 };
 
 std::ostream &operator<<(std::iostream &os, ZNSZone const &tc);

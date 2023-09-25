@@ -30,6 +30,7 @@ SOFTWARE.
 #include <cstdint>
 #include <vector>
 
+#include "ftlgc.hpp"
 #include "zone.hpp"
 
 FTL::FTL(int fd, uint64_t mdts, uint32_t nsid, uint16_t lba_size, int gc_wmark,
@@ -45,6 +46,10 @@ FTL::FTL(int fd, uint64_t mdts, uint32_t nsid, uint16_t lba_size, int gc_wmark,
   this->zones = create_zones(fd, nsid, lba_size, mdts);
   this->zcap = zones.at(0).capacity;
   this->zones_num = zones.size();
+
+  Calliope *mori = new Calliope(this, 2);
+  mori->initialize();
+  this->mori = &mori;
 }
 
 ZNSZone *FTL::get_random_datazone() {
@@ -91,24 +96,31 @@ Addr FTL::get_pa(uint64_t addr) {
   }
 }
 
+inline bool FTL::has_pa(uint64_t addr) {
+  bool in_log = this->log_map.map.count(addr) > 0;
+  bool in_data = this->data_map.map.count(addr) > 0;
+  return in_log || in_data;
+}
+
 void FTL::insert_logmap(uint64_t lba, uint64_t pa, uint16_t zone_num) {
   pthread_rwlock_wrlock(&this->log_map.lock);
-  this->log_map.map[lba] = Addr{.addr = pa, .zone_num = zone_num};
+  this->log_map.map[lba] =
+      Addr{.addr = pa, .zone_num = zone_num, .alive = true};
   pthread_rwlock_unlock(&this->log_map.lock);
 }
 
 void FTL::insert_datamap(uint64_t lba, uint64_t pa, uint16_t zone_num) {
   pthread_rwlock_wrlock(&this->data_map.lock);
-  this->data_map.map[lba] = Addr{.addr = pa, .zone_num = zone_num};
+  this->data_map.map[lba] =
+      Addr{.addr = pa, .zone_num = zone_num, .alive = true};
   pthread_rwlock_unlock(&this->data_map.lock);
 }
 
 int FTL::read(uint64_t lba, void *buffer, uint32_t size) {
   uint64_t pages_num = size / this->lba_size;
 
-  Addr pa;
   for (uint64_t i = 0; i < pages_num; i++) {
-    pa = this->get_pa(lba + i);
+    Addr pa = this->get_pa(lba + i);
     ZNSZone *zone = this->get_zone(pa.zone_num);
     uint32_t read_size;
     int ret = zone->read(pa.addr, buffer, this->lba_size, &read_size);
@@ -129,6 +141,13 @@ int FTL::write(uint64_t lba, void *buffer, uint32_t size) {
     if (zone->is_full()) {
       continue;
     } else {
+      if (this->has_pa(lba)) {
+        std::cout << "Address is " << std::hex << lba << " already in FTL"
+                  << std::endl;
+        Addr pa = this->get_pa(lba);
+        pa.alive = false;
+      }
+
       uint64_t wp_starts = zone->get_wp();
       uint32_t write_size;
       int ret = zone->write(buffer, size, &write_size);
@@ -136,8 +155,8 @@ int FTL::write(uint64_t lba, void *buffer, uint32_t size) {
         return ret;
       }
 
-      uint64_t wp_ends = zone->get_wp();
-      for (; wp_starts < wp_ends; wp_starts++) {
+      for (uint64_t wp_ends = zone->get_wp(); wp_starts < wp_ends;
+           wp_starts++) {
         this->insert_logmap(lba, wp_starts, i);
         lba++;
       }
@@ -148,6 +167,7 @@ int FTL::write(uint64_t lba, void *buffer, uint32_t size) {
       }
     }
   }
+  return 0;
 }
 
 #endif

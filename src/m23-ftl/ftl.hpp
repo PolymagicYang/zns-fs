@@ -35,6 +35,7 @@ SOFTWARE.
 struct Addr {
   uint64_t addr;
   uint16_t zone_num;
+  bool alive;
 };
 
 using raw_map = std::map<uint64_t, struct Addr>;
@@ -55,6 +56,7 @@ class FTL {
   uint16_t lba_size;
   int log_zones;
   std::vector<ZNSZone> zones;
+  void* mori;
 
   FTL(int fd, uint64_t mdts, uint32_t nsid, uint16_t lba_size, int gc_wmark,
       int log_num);
@@ -72,6 +74,7 @@ class FTL {
   }
 
   Addr get_pa(uint64_t);
+  inline bool has_pa(uint64_t);
   int read(uint64_t addr, void* buffer, uint32_t size);
   int write(uint64_t addr, void* buffer, uint32_t size);
 
@@ -89,9 +92,10 @@ class FTL {
 
   void insert_datamap(uint64_t lba, uint64_t pa, uint16_t zone_num);
 
- private:
   struct Ftlmap log_map;
   struct Ftlmap data_map;
+
+ private:
   // return physical page address from log map.
   bool get_ppa(uint64_t, Addr*);
 

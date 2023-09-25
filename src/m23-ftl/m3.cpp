@@ -335,10 +335,20 @@ int main(int argc, char **argv) {
       "capacity %lu , max total LBA %u to_hammer %u \n",
       params.name, my_dev->lba_size_bytes, my_dev->capacity_bytes,
       max_lba_entries, to_hammer_lba);
+  printf(
+      "\n=======================================\n\t\tTest "
+      "1\n=======================================\n");
   int t1 = wr_full_device_verify(my_dev, seq_addresses, max_lba_entries, 0);
+  printf(
+      "\n=======================================\n\t\tTest "
+      "2\n=======================================\n");
   int t2 = wr_full_device_verify(my_dev, random_addresses, max_lba_entries, 0);
+  printf(
+      "\n=======================================\n\t\tTest "
+      "3\n=======================================\n");
   int t3 = wr_full_device_verify(my_dev, random_addresses, max_lba_entries,
                                  to_hammer_lba);
+  printf("\n");
   // clean up
   ret = deinit_ss_zns_device(my_dev);
   // free all

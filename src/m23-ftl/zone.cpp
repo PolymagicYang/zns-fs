@@ -46,6 +46,9 @@ ZNSZone::ZNSZone(const int zns_fd, const uint32_t nsid, const uint32_t zone_id,
   this->slba = slba;
   this->lba_size = lba_size;
   this->mdts_size = mdts_size;
+
+  this->block_map =
+      ZoneMap{.lock = PTHREAD_RWLOCK_INITIALIZER, .map = BlockMap()};
 }
 
 // TODO(valentijn) update so it throws exceptions
@@ -208,6 +211,25 @@ int ZNSZone::ss_sequential_write(const void *buffer,
   return 0;
 }
 
+uint64_t ZNSZone::get_alive_capacity() const {
+  BlockMap map = this->block_map.map;
+
+  uint64_t alive_count = 0;
+  for (BlockMap::iterator it = map.begin(); it != map.end(); ++it) {
+    if (it->second.valid) alive_count++;
+  }
+
+  return alive_count;
+}
+
+// TODO(valentijn): Implement this!
+void ZNSZone::copy_to(ZNSZone &other) {
+  BlockMap map = this->block_map.map;
+  for (BlockMap::iterator it = map.begin(); it != map.end(); ++it) {
+    if (!it->second.valid) continue;
+  }
+}
+
 /*
 return the size of the inserted buffer.
 */
@@ -221,9 +243,10 @@ uint32_t ZNSZone::write(void *buffer, uint32_t size, uint32_t *write_size) {
   uint16_t max_nlb_per_round = this->mdts_size / this->lba_size;
 
   if (size <= this->mdts_size) {
+    __u64 written_slba;
     int ret =
         ss_nvme_write(this->zns_fd, this->nsid, this->position, total_nlb - 1,
-                      0, 0, 0, 0, 0, 0, size, buffer, 0, nullptr);
+                      0, 0, 0, 0, 0, 0, size, (void *)buffer, 0, nullptr);
     if (ret != 0) {
       return ret;
     }
@@ -233,6 +256,15 @@ uint32_t ZNSZone::write(void *buffer, uint32_t size, uint32_t *write_size) {
     if (ret != 0) return ret;
   }
 
+  // pthread_rwlock_wrlock(this->block_map.lock);
+  for (uint64_t i = 0, address = position; i < total_nlb; i++) {
+    uint64_t pa = address + i * this->lba_size;
+    ZNSBlock b1 = {
+        .address = pa, .logical_address = pa, .buffer = buffer, .valid = true};
+    this->block_map.map[pa] = b1;
+  }
+
+  // pthread_rwlock_unlock(this->block_map.lock);
   pthread_rwlock_unlock(&this->lock);
 
   return 0;
@@ -250,9 +282,9 @@ uint64_t ZNSZone::write_block(const uint16_t total_nlb,
 
   // Update the block address to the new address based on the LBA size.
   for (uint16_t i = 0; i < iterations; i++) {
-    ZNSBlock block = ZNSBlock(address + i, written_slba + 1, buffer);
-
-    this->blocks.push_back(block);
+    // ZNSBlock block = ZNSBlock(address + i, written_slba + 1, buffer);
+    1 + 1;
+    // this->blocks.push_back(block);
   }
 
   // Update the write pointer.
