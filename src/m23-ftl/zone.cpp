@@ -229,14 +229,6 @@ uint64_t ZNSZone::get_alive_capacity() const {
   return alive_count;
 }
 
-// TODO(valentijn): Implement this!
-void ZNSZone::copy_to(ZNSZone &other) {
-  BlockMap map = this->block_map.map;
-  for (BlockMap::iterator it = map.begin(); it != map.end(); ++it) {
-    if (!it->second.valid) continue;
-  }
-}
-
 int ZNSZone::invalidate_block(const uint64_t pa) {
   BlockMap map = this->block_map.map;
 
@@ -292,28 +284,6 @@ uint32_t ZNSZone::write(void *buffer, uint32_t size, uint32_t *write_size) {
   pthread_rwlock_unlock(&this->lock);
 
   return 0;
-}
-
-uint64_t ZNSZone::write_block(const uint16_t total_nlb,
-                              const uint16_t max_nlb_per_round,
-                              const uint64_t address, const void *buffer,
-                              const uint32_t size) {
-  __u64 written_slba;
-  ss_nvme_zns_append(this->zns_fd, this->nsid, this->slba, total_nlb - 1, 0, 0,
-                     0, 0, size, (void *)buffer, 0, nullptr, &written_slba);
-
-  const uint16_t iterations = (size != this->capacity) ? total_nlb : 1;
-
-  // Update the block address to the new address based on the LBA size.
-  for (uint16_t i = 0; i < iterations; i++) {
-    // ZNSBlock block = ZNSBlock(address + i, written_slba + 1, buffer);
-    1 + 1;
-    // this->blocks.push_back(block);
-  }
-
-  // Update the write pointer.
-  this->position = written_slba + 1;
-  return written_slba;
 }
 
 int get_zns_zone_info(const int fd, const int nsid, uint64_t *zcap,

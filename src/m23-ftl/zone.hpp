@@ -106,25 +106,13 @@ class ZNSZone {
   enum ZoneFTLType ftl_type;
   enum ZoneModel model;
 
-  /** Writes a block to the zone and returns the updated write pointer. */
-  uint64_t write_block(const uint16_t total_nlb,
-                       const uint16_t max_nlb_per_round, const uint64_t address,
-                       const void *buffer, const uint32_t size);
-
-  /** Removes a block from the zone and returns the updated write pointer. */
-  uint64_t remove_block(const ZNSBlock &block);
-
   /** Calculates the current capacity of the block. */
   uint32_t get_current_capacity() const;
 
   /** Gets a block from the zone based on the block id. */
-  ZNSBlock &get_block(const uint64_t block_id) const;
   uint32_t read(const uint64_t lba, const void *buffer, uint32_t size,
                 uint32_t *read_size);
   uint32_t write(void *buffer, uint32_t size, uint32_t *write_size);
-
-  /** Get victim block */
-  ZNSBlock &get_victim(void);
 
   /** Reset the write pointer to the start. */
   int reset_zone(void);
@@ -178,7 +166,6 @@ class ZNSZone {
   inline int send_management_command(const enum nvme_zns_send_action action,
                                      const bool select_all) const;
   inline int reset_all_zones() const;
-  void copy_to(ZNSZone &other);
 };
 
 std::ostream &operator<<(std::iostream &os, ZNSZone const &tc);

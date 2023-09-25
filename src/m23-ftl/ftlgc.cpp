@@ -45,7 +45,6 @@ int Calliope::select_zone() {
   float util = 0;
 
   for (int i = 0; i < ftl->zones_num; i++) {
-    // std::cout << "Zone " << i << std::endl;
     ZNSZone &current = ftl->zones[i];
     if (!current.is_full()) continue;
 
@@ -67,7 +66,7 @@ int Calliope::select_zone() {
 
 void Calliope::reap() {
   std::cout << "Trapped in a stasis—I hate this! I haven't taken a life in "
-               "like ages, okay"
+               "like ages"
             << std::endl;
 
   while (true) {
@@ -91,18 +90,16 @@ void Calliope::reap() {
       std::vector<ZNSBlock> blocks = reapable.get_nonfree_blocks();
 
       // Get a free zone to store the blocks into
-      ZNSZone *zone = this->ftl->get_free_zone();
+      ZNSZone *zone = this->ftl->get_free_zone(blocks.size());
       std::cout << "Writing to " << std::dec << zone->zone_id << " "
-                << blocks.size() << std::endl;
+                << blocks.size() << " " << zone->get_current_capacity()
+                << std::endl;
 
       // Copy data to the new zone block by block
       // TODO(valentijn): move by MDTS chunks instead
       uint64_t wp = zone->position;
       int j = 0;
       for (ZNSBlock block : blocks) {
-        // struct nvme_copy_range range = ss_nvme_create_range(block.address,
-        // 0); fd, nsid, copy, sdlba, nr
-        // ss_nvme_copy(this->ftl->fd, this->ftl->nsid, &range, wp, 0);
         // TODO(valentijn): we have a nice copy command which is not working
         //   use it instead of this garbage
         char buffer[this->ftl->lba_size];
@@ -112,7 +109,8 @@ void Calliope::reap() {
         wp += this->ftl->lba_size;
         std::cout << std::dec << j++ << " ";
       }
-      std::cout << std::endl << "Done writing" << std::endl;
+      std::cout << std::endl
+                << "Done writing " << zone->get_current_capacity() << std::endl;
       reapable.reset();
     }
     pthread_rwlock_unlock(&this->ftl->zone_lock);

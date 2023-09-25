@@ -66,9 +66,9 @@ ZNSZone *FTL::get_random_logzone() {
   return &this->zones[randomIndex];
 }
 
-ZNSZone *FTL::get_free_zone() {
+ZNSZone *FTL::get_free_zone(const uint32_t needed) {
   for (ZNSZone &zone : this->zones) {
-    if (!zone.is_full()) return &zone;
+    if (zone.get_current_capacity() >= needed) return &zone;
   }
 }
 
@@ -156,7 +156,7 @@ int FTL::write(uint64_t lba, void *buffer, uint32_t size) {
 
   int16_t free_regions = this->get_free_regions();
   while (free_regions < 3) {
-    // std::cerr << "Waiting for GC thread" << std::endl;
+    std::cerr << "Waiting for GC thread" << std::endl;
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
 
