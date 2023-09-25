@@ -30,6 +30,7 @@ SOFTWARE.
 #include <iostream>
 #include <map>
 #include <vector>
+#include <mutex>
 
 #include "znsblock.hpp"
 
@@ -150,13 +151,11 @@ class ZNSZone {
   ZoneMap block_map;
   int invalidate_block(const uint64_t pa);
   std::vector<ZNSBlock> get_nonfree_blocks() const;
-
+  pthread_mutex_t zone_mutex = PTHREAD_MUTEX_INITIALIZER;
+  
  private:
   int zns_fd;
-
-  /** Number of blocks in the zone reserved for GC in percentages. */
-  static const uint64_t overcapacity = 5;
-
+  
   int ss_sequential_write(const void *buffer, const uint16_t max_nlb_per_round,
                           const uint16_t total_nlb);
 

@@ -70,7 +70,7 @@ void Calliope::reap() {
             << std::endl;
 
   while (true) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
     pthread_rwlock_rdlock(&this->ftl->zone_lock);
     int free_count = this->ftl->get_free_regions();
 
@@ -79,22 +79,19 @@ void Calliope::reap() {
       std::cout << "Reporting back to death-sama: " << free_count << std::endl;
       continue;
     }
-    pthread_rwlock_unlock(&this->ftl->zone_lock);
-
+	pthread_rwlock_unlock(&this->ftl->zone_lock);
     // for (int i = 0; i < (this->threshold - free_count); i++) {
-    pthread_rwlock_rdlock(&this->ftl->zone_lock);
     int zone_num = this->select_zone();
-    pthread_rwlock_unlock(&this->ftl->zone_lock);
     ZNSZone *reapable = &this->ftl->zones[zone_num];
     if (!this->can_reap) {
       std::cout << "cannot reap" << std::endl;
       continue;
     }
-    pthread_rwlock_wrlock(&reapable->lock);
+    pthread_mutex_lock(&reapable->zone_mutex);
     this->can_reap = false;
-    std::cout << "!!!REAP!!!" << std::endl << reapable << std::endl;
+    // std::cout << "!!!REAP!!!" << std::endl << reapable << std::endl;
 
-    std::cout << "entering lock" << std::endl;
+    // std::cout << "entering lock of " << reapable->zone_id << std::endl;
     std::vector<ZNSBlock> blocks = reapable->get_nonfree_blocks();
 
     // Get a free zone to store the blocks into
@@ -102,9 +99,9 @@ void Calliope::reap() {
     // As a temporary fix we are using the zeroth zone as a scratch
     // register
     ZNSZone *zone = &this->ftl->zones[0];
-    std::cout << "Writing to " << std::dec << zone->zone_id << " "
-              << blocks.size() << " " << zone->get_current_capacity()
-              << std::endl;
+    // std::cout << "Writing to " << std::dec << zone->zone_id << " "
+    //           << blocks.size() << " " << zone->get_current_capacity()
+    //           << std::endl;
 
     // Copy data to the new zone block by block
     // TODO(valentijn): move by MDTS chunks instead
@@ -116,8 +113,8 @@ void Calliope::reap() {
       reapable->read(block.address, &buffer, this->ftl->lba_size, &read_size);
       zone->write(&buffer, this->ftl->lba_size, &read_size);
     }
-    std::cout << std::endl
-              << "Done writing " << zone->get_current_capacity() << std::endl;
+    // std::cout << std::endl
+    //           << "Done writing " << zone->get_current_capacity() << std::endl;
     reapable->reset();
 
     // TODO(valentijn): Do this one round trip instead of N
@@ -129,8 +126,8 @@ void Calliope::reap() {
       reapable->write(&buffer, this->ftl->lba_size, &read_size);
       wp += this->ftl->lba_size;
     }
-    std::cout << "exit lock" << std::endl;
-    pthread_rwlock_unlock(&reapable->lock);
+    // std::cout << "exit lock of " << reapable->zone_id << std::endl;
+	pthread_mutex_unlock(&reapable->zone_mutex);
 
     zone->reset();
   }

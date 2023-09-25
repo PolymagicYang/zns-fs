@@ -157,7 +157,7 @@ int FTL::write(uint64_t lba, void *buffer, uint32_t size) {
   volatile int16_t free_regions = get_free_regions();
 
   while (free_regions < 3) {
-    std::cerr << "Waiting for GC thread " << free_regions << std::endl;
+    // std::cerr << "Waiting for GC thread " << free_regions << std::endl;
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     free_regions = get_free_regions();
   }
@@ -171,8 +171,8 @@ int FTL::write(uint64_t lba, void *buffer, uint32_t size) {
     if (zone->is_full()) {
       continue;
     } else {
-      pthread_rwlock_wrlock(&zone->lock);
-      std::cout << "Writing to " << i << std::endl;
+	  pthread_mutex_lock(&zone->zone_mutex);
+      // std::cout << "Writing to " << i << std::endl;
       if (this->has_pa(lba)) {
         // std::cout << "Address is " << std::hex << lba << " already in FTL"
         // << std::endl;
@@ -184,7 +184,7 @@ int FTL::write(uint64_t lba, void *buffer, uint32_t size) {
       uint64_t wp_starts = zone->get_wp();
       uint32_t write_size;
       int ret = zone->write(buffer, size, &write_size);
-      pthread_rwlock_unlock(&zone->lock);
+	  pthread_mutex_unlock(&zone->zone_mutex);
 
       if (ret != 0) {
         return ret;

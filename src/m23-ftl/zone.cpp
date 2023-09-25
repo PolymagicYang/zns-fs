@@ -82,13 +82,12 @@ int ZNSZone::get_index() {
 
 int ZNSZone::reset() {
   pthread_rwlock_wrlock(&this->lock);
-  std::cout << std::dec << "Resetting zone " << this->zone_id << std::endl;
+  // std::cout << std::dec << "Resetting zone " << this->zone_id << std::endl;
   this->position = this->base;
   int ret = this->reset_zone();
 
   // Remove all blocks from the memory of this zone
   this->block_map.map.clear();
-  std::cout << this->get_current_capacity() << std::endl;
   pthread_rwlock_unlock(&this->lock);
   return ret;
 }
