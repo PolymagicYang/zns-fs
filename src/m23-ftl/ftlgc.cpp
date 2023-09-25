@@ -25,6 +25,7 @@ SOFTWARE.
 #include <chrono>
 
 #include "../common/nvmewrappers.h"
+#include "znsblock.hpp"
 
 Calliope::Calliope(FTL *ftl, const uint16_t threshold) {
   this->ftl = ftl;
@@ -92,33 +93,32 @@ void Calliope::reap() {
       continue;
     }
 
-
     // Lock the zone since we are modifying it from this point
     // onwards. We are using the 0th region as a scratch buffer
 	// where we copy data back and forth from. 
     pthread_mutex_lock(&reapable->zone_mutex);
     this->can_reap = false;
-    std::vector<ZNSBlock> blocks = reapable->get_nonfree_blocks();
+    std::vector<physaddr_t> blocks = reapable->get_nonfree_blocks();
     ZNSZone *zone = &this->ftl->zones[0];
 
     // Copy data to the new zone block by block
     // TODO(valentijn): move by MDTS chunks instead
-    for (ZNSBlock block : blocks) {
+    for (physaddr_t address : blocks) {
       // TODO(valentijn): we have a nice copy command which is not working
       //   use it instead of this garbage
       char buffer[this->ftl->lba_size];
       uint32_t read_size;
-      reapable->read(block.address, &buffer, this->ftl->lba_size, &read_size);
+      reapable->read(address, &buffer, this->ftl->lba_size, &read_size);
       zone->write(&buffer, this->ftl->lba_size, &read_size);
     }
     reapable->reset();
 
     // TODO(valentijn): Do this one round trip instead of N
     uint64_t wp = zone->position;
-    for (ZNSBlock block : zone->get_nonfree_blocks()) {
+    for (physaddr_t address: zone->get_nonfree_blocks()) {
       char buffer[this->ftl->lba_size];
       uint32_t read_size;
-      zone->read(block.address, &buffer, this->ftl->lba_size, &read_size);
+      zone->read(address, &buffer, this->ftl->lba_size, &read_size);
       reapable->write(&buffer, this->ftl->lba_size, &read_size);
       wp += this->ftl->lba_size;
     }

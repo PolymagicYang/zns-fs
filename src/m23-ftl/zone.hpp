@@ -172,7 +172,7 @@ class ZNSZone {
 
   /** Gets the blocks that are still valid */
   // TODO(someone): change name to get_valid_blocks
-  std::vector<ZNSBlock> get_nonfree_blocks() const;
+  std::vector<physaddr_t> get_nonfree_blocks() const;
 
   /** Zone mutex for the FTL::write and Calliope::reap methods */
   pthread_mutex_t zone_mutex = PTHREAD_MUTEX_INITIALIZER;

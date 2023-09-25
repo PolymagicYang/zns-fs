@@ -28,6 +28,7 @@ SOFTWARE.
 #include <cassert>
 
 #include "../common/nvmewrappers.h"
+#include "znsblock.hpp"
 
 ZNSZone::ZNSZone(const int zns_fd, const uint32_t nsid, const uint32_t zone_id,
                  const uint64_t size, const uint64_t capacity,
@@ -354,15 +355,15 @@ std::vector<ZNSZone> create_zones(const int zns_fd, const uint32_t nsid,
   return zones;
 }
 
-std::vector<ZNSBlock> ZNSZone::get_nonfree_blocks() const {
+std::vector<physaddr_t> ZNSZone::get_nonfree_blocks() const {
   BlockMap *map = (BlockMap*) &this->block_map.map;
   // TODO(anyone): this can be faster if these are pointers instead
   //  saves a lot of copying. Keep in mind that these are lost
   //  after we reset the zone!
-  std::vector<ZNSBlock> nonfree_blocks;
+  std::vector<physaddr_t> nonfree_blocks;
 
   for (BlockMap::iterator it = map->begin(); it != map->end(); ++it) {
-    if (it->second.valid) nonfree_blocks.push_back(it->second);
+    if (it->second.valid) nonfree_blocks.push_back(it->second.address);
   }
   return nonfree_blocks;
 }
