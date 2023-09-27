@@ -54,6 +54,8 @@ class FTL {
   uint32_t nsid;
   uint64_t mdts_size;
   uint16_t lba_size;
+  pthread_cond_t cond;
+  pthread_mutex_t cond_lock;
   int log_zones;
 
   /** Store a list of all the zones in the system */
@@ -100,7 +102,7 @@ class FTL {
   void insert_logmap(uint64_t lba, uint64_t pa, uint16_t zone_num);
 	
   /** Get the number of free regions in our system */
-  volatile int16_t get_free_regions();
+  int16_t get_free_regions();
 
   void insert_datamap(uint64_t lba, uint64_t pa, uint16_t zone_num);
 
@@ -113,7 +115,7 @@ class FTL {
   bool get_ppa(uint64_t, Addr*);
 
   // return physical block address from data map.
-  Addr get_pba(uint64_t);
+  bool get_pba(uint64_t, Addr*);
 };
 
 #endif

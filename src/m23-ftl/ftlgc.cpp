@@ -27,10 +27,11 @@ SOFTWARE.
 #include "../common/nvmewrappers.h"
 #include "znsblock.hpp"
 
-Calliope::Calliope(FTL *ftl, const uint16_t threshold) {
+Calliope::Calliope(FTL *ftl, pthread_cond_t *cond, pthread_mutex_t *mutex) {
   this->ftl = ftl;
-  this->threshold = 3;
   this->can_reap = false;
+  this->cond = cond;
+  this->condmutex = mutex;
 }
 
 int Calliope::select_zone() {
@@ -62,19 +63,14 @@ int Calliope::select_zone() {
 }
 
 void Calliope::reap() {
-  std::cout << "Trapped in a stasis—I hate this! I haven't taken a life in "
-               "like ages"
-            << std::endl;
 
   while (true) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+  pthread_mutex_lock(this->condmutex);
+    pthread_cond_wait(this->cond, this->condmutex);
+  pthread_mutex_unlock(this->condmutex);
 
-	// Lock the thread so we can look at the number of regions in the
-	// code if it is less than our threshold we wait until the next
-	// loop
     pthread_rwlock_rdlock(&this->ftl->zone_lock);
     int free_count = this->ftl->get_free_regions();
-
 	
     if (free_count > this->threshold) {
       pthread_rwlock_unlock(&this->ftl->zone_lock);
@@ -95,7 +91,7 @@ void Calliope::reap() {
 
     // Lock the zone since we are modifying it from this point
     // onwards. We are using the 0th region as a scratch buffer
-	// where we copy data back and forth from. 
+  	// where we copy data back and forth from. 
     pthread_mutex_lock(&reapable->zone_mutex);
     this->can_reap = false;
     std::vector<physaddr_t> blocks = reapable->get_nonfree_blocks();

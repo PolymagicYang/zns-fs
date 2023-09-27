@@ -21,6 +21,7 @@ SOFTWARE.
 
 #include "zone.hpp"
 
+#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -256,7 +257,6 @@ uint32_t ZNSZone::write(void *buffer, uint32_t size, uint32_t *write_size) {
 
   uint64_t write_base = this->position;
   if (size <= this->mdts_size) {
-    __u64 written_slba;
     int ret =
         ss_nvme_write(this->zns_fd, this->nsid, this->position, total_nlb - 1,
                       0, 0, 0, 0, 0, 0, size, (void *)buffer, 0, nullptr);

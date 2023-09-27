@@ -49,7 +49,9 @@ FTL::FTL(int fd, uint64_t mdts, uint32_t nsid, uint16_t lba_size, int gc_wmark,
   this->zones_num = zones.size();
 
   // Start our reaper rapper and store her as a void pointer in our FTL
-  Calliope *mori = new Calliope(this, 2);
+  this->cond = PTHREAD_COND_INITIALIZER;
+  this->cond_lock = PTHREAD_MUTEX_INITIALIZER;
+  Calliope *mori = new Calliope(this, &this->cond, &this->cond_lock);
   mori->initialize();
   this->mori = &mori;
 }
@@ -78,20 +80,27 @@ ZNSZone *FTL::get_zone(int i) { return &this->zones[i]; }
 bool FTL::get_ppa(uint64_t lba, Addr *addr) {
   pthread_rwlock_rdlock(&this->log_map.lock);
   auto ret = this->log_map.map.find(lba);
-  pthread_rwlock_unlock(&this->log_map.lock);
   if (ret == this->log_map.map.end()) {
+    pthread_rwlock_unlock(&this->log_map.lock);
     return false;
   } else {
+    pthread_rwlock_unlock(&this->log_map.lock);
     *addr = ret->second;
     return true;
   }
 }
 
-Addr FTL::get_pba(u_int64_t lba) {
+bool FTL::get_pba(u_int64_t lba, Addr *addr) {
   pthread_rwlock_rdlock(&this->data_map.lock);
-  Addr ret = this->data_map.map.find(lba)->second;
-  pthread_rwlock_unlock(&this->data_map.lock);
-  return ret;
+  auto ret = this->data_map.map.find(lba);
+  if (ret == this->data_map.map.end()) {
+    pthread_rwlock_unlock(&this->data_map.lock);
+    return false;
+  } else {
+    pthread_rwlock_unlock(&this->data_map.lock);
+    *addr = ret->second;
+    return true;
+  }
 }
 
 Addr FTL::get_pa(uint64_t addr) {
@@ -99,8 +108,14 @@ Addr FTL::get_pa(uint64_t addr) {
   bool has_ppa = this->get_ppa(addr, &ppa);
   if (has_ppa) {
     return ppa;
+  }
+  Addr pba;
+  bool has_pba = this->get_pba(addr, &pba);
+  if (has_pba) {
+    return pba;
   } else {
-    return this->get_pba(addr);
+    // return random addr.
+    return Addr { .addr = 0, .zone_num = 0, .alive = true };
   }
 }
 
@@ -141,7 +156,7 @@ int FTL::read(uint64_t lba, void *buffer, uint32_t size) {
   return 0;
 }
 
-volatile int16_t FTL::get_free_regions() {
+int16_t FTL::get_free_regions() {
   uint16_t free_count = 0;
   for (int i = 0; i < this->zones_num; i++) {
     const ZNSZone *zone = &this->zones[i];
@@ -155,10 +170,16 @@ int FTL::write(uint64_t lba, void *buffer, uint32_t size) {
   // If we don't have enough free regions we wait for our GC
   // to clean our mess. Until that time we are locking the
   // zone since we are reading to it. 
+
   pthread_rwlock_rdlock(&this->zone_lock);
-  volatile int16_t free_regions = get_free_regions();
-  while (free_regions < 3) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  // why use volitile here? 
+  // We have a lock to sync and data dependency, compiler won't reorder this.
+  int16_t free_regions = get_free_regions();
+  while (free_regions <= this->gc_wmark) {
+    // wake up the gc thread.
+    pthread_mutex_lock(&this->cond_lock);
+    pthread_cond_signal(&this->cond);
+    pthread_mutex_unlock(&this->cond_lock);
     free_regions = get_free_regions();
   }
   pthread_rwlock_unlock(&this->zone_lock);
@@ -166,6 +187,7 @@ int FTL::write(uint64_t lba, void *buffer, uint32_t size) {
   // write to the log zone.
   for (uint16_t i = 1; i < this->zones_num; i++) {
     ZNSZone *zone = this->get_zone(i);
+
     if (zone->is_full()) {
       continue;
     } else {

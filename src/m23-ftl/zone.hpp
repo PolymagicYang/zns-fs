@@ -162,7 +162,7 @@ class ZNSZone {
   uint64_t mdts_size;
 
   /** Lock of the region */
-  pthread_rwlock_t lock;
+  pthread_rwlock_t lock = PTHREAD_RWLOCK_INITIALIZER;
 
   /** Map of the physical addresses to the buffer and state */
   ZoneMap block_map;
