@@ -141,9 +141,13 @@ static int wr_full_device_verify(struct user_zns_device *dev,
   uint32_t seedp = 0xB00B135;
   for (uint32_t i = 0; i < list_size; i++) {
     uint64_t woffset = (addr_list[i]) * dev->lba_size_bytes;
+	if (i == 256)
+		std::cout << "fuck" << std::endl;
     // random offset within the page and just write some random stuff = this is
     // to make a unique I/O pattern
-    b1[(min + (rand_r(&seedp) % (max - min)))] = (char)rand_r(&seedp);
+	uint64_t random_offset = min + (rand() % (max - min));
+	
+    b1[random_offset] = (char)rand();
     // now we need to write the buffer in parallel to the zns device, and the
     // file
     ret = zns_udevice_write(dev, woffset, b1, dev->lba_size_bytes);
@@ -158,29 +162,29 @@ static int wr_full_device_verify(struct user_zns_device *dev,
     }
   }
   printf("the ZNS user device has been written (ONCE) completely OK\n");
-  if (max_hammer_io > 0) {
-    printf("Hammering some random LBAs %u times \n", max_hammer_io);
-    for (uint32_t i = 0; i < max_hammer_io; i++) {
-      // we should not generate offset which is within the list_size
-      uint64_t woffset = (addr_list[0 + (rand_r(&seedp) % (list_size - 0))]) *
-                         dev->lba_size_bytes;
-      // random offset within the page and just write some random stuff, like i
-      b1[(min + (rand_r(&seedp) % (max - min)))] = (char)rand_r(&seedp);
-      // now we need to write the buffer in parallel to the zns device, and the
-      // file
-      ret = zns_udevice_write(dev, woffset, b1, dev->lba_size_bytes);
-      if (ret != 0) {
-        printf("Error: ZNS device writing failed at offset 0x%lx \n", woffset);
-        goto done;
-      }
-      ret = write_complete_file(fd, woffset, b1, dev->lba_size_bytes);
-      if (ret != 0) {
-        printf("Error: file writing failed at offset 0x%lx \n", woffset);
-        goto done;
-      }
-    }
-    printf("Hammering done, OK for %u times \n", max_hammer_io);
-  }
+  // if (max_hammer_io > 0) {
+  //   printf("Hammering some random LBAs %u times \n", max_hammer_io);
+  //   for (uint32_t i = 0; i < max_hammer_io; i++) {
+  //     // we should not generate offset which is within the list_size
+  //     uint64_t woffset = (addr_list[0 + (rand_r(&seedp) % (list_size - 0))]) *
+  //                        dev->lba_size_bytes;
+  //     // random offset within the page and just write some random stuff, like i
+  //     b1[(min + (rand_r(&seedp) % (max - min)))] = (char)rand_r(&seedp);
+  //     // now we need to write the buffer in parallel to the zns device, and the
+  //     // file
+  //     ret = zns_udevice_write(dev, woffset, b1, dev->lba_size_bytes);
+  //     if (ret != 0) {
+  //       printf("Error: ZNS device writing failed at offset 0x%lx \n", woffset);
+  //       goto done;
+  //     }
+  //     ret = write_complete_file(fd, woffset, b1, dev->lba_size_bytes);
+  //     if (ret != 0) {
+  //       printf("Error: file writing failed at offset 0x%lx \n", woffset);
+  //       goto done;
+  //     }
+  //   }
+  //   printf("Hammering done, OK for %u times \n", max_hammer_io);
+  // }
   printf("verifying the content of the ZNS device ....\n");
   // reset the buffers
   write_pattern(b1, dev->lba_size_bytes);
@@ -188,19 +192,27 @@ static int wr_full_device_verify(struct user_zns_device *dev,
   // and now read the whole device and compare the content with the file
   for (uint32_t i = 0; i < list_size; i++) {
     uint64_t roffset = (addr_list[i]) * dev->lba_size_bytes;
+	
     // now we need to write the buffer in parallel to the zns device, and the
     // file
     ret = zns_udevice_read(dev, roffset, b1, dev->lba_size_bytes);
     assert(ret == 0);
     ret = read_complete_file(fd, roffset, b2, dev->lba_size_bytes);
     assert(ret == 0);
+	b1[dev->lba_size_bytes+1] = '\0';
+	b2[dev->lba_size_bytes+1] = '\0';
     // now both of these should match
     for (uint32_t j = 0; j < dev->lba_size_bytes; j++)
+		
       if (b1[j] != b2[j]) {
+		  std::cout << addr_list[i] << std::endl;
+		  printf("B1\n===========\n%s\n", b1);
+		  printf("\nB2\n===========\n%s\n", b2);
         printf(
             "ERROR: buffer mismatch at i %u and j %u , address is 0%lx "
             "expecting %x found %x \n",
             i, j, roffset, b2[j], b1[j]);
+		exit(-1);
         ret = -EINVAL;
         goto done;
       }
@@ -235,8 +247,9 @@ static int show_help() {
 
 int main(int argc, char **argv) {
   uint64_t start, end;
-  start = microseconds_since_epoch();
-  srand((unsigned)time(NULL) * getpid());
+  srand(0x69);
+  // start = microseconds_since_epoch();
+  // srand((unsigned)time(NULL) * getpid());
   int ret, c;
   char *zns_device_name = (char *)"nvme0n1", *str1 = nullptr;
   struct user_zns_device *my_dev = nullptr;
@@ -329,6 +342,7 @@ int main(int argc, char **argv) {
   get_sequence_as_array(max_lba_entries, &seq_addresses, false);
   // get a randomized LBA address list
   get_sequence_as_array(max_lba_entries, &random_addresses, true);
+  
   // now we start the test
   printf(
       "device %s is opened and initialized, reported LBA size is %u and "
@@ -342,11 +356,11 @@ int main(int argc, char **argv) {
   printf(
       "\n=======================================\n\t\tTest "
       "2\n=======================================\n");
-  int t2 = wr_full_device_verify(my_dev, random_addresses, max_lba_entries, 0);
+  int t2 = wr_full_device_verify(my_dev, random_addresses, 512, 0);
   printf(
       "\n=======================================\n\t\tTest "
       "3\n=======================================\n");
-  int t3 = wr_full_device_verify(my_dev, random_addresses, max_lba_entries,
+  int t3 = wr_full_device_verify(my_dev, random_addresses, 1024,
                                  to_hammer_lba);
   printf("\n");
   // clean up

@@ -51,7 +51,7 @@ FTL::FTL(int fd, uint64_t mdts, uint32_t nsid, uint16_t lba_size, int gc_wmark,
   // Start our reaper rapper and store her as a void pointer in our FTL
   Calliope *mori = new Calliope(this, 2);
   mori->initialize();
-  this->mori = &mori;
+  this->mori = &mori;			
 }
 
 ZNSZone *FTL::get_random_datazone() {
@@ -132,6 +132,7 @@ int FTL::read(uint64_t lba, void *buffer, uint32_t size) {
     ZNSZone *zone = this->get_zone(pa.zone_num);
     uint32_t read_size;
     int ret = zone->read(pa.addr, buffer, this->lba_size, &read_size);
+	std::cout << "Zone " << zone->zone_id << " " << (zone->deadbeat ? "true" : "false") << std::endl;
     if (ret != 0) {
       return ret;
     }
@@ -147,7 +148,6 @@ volatile int16_t FTL::get_free_regions() {
     const ZNSZone *zone = &this->zones[i];
     if (!(zone->get_current_capacity() == 0)) free_count++;
   }
-  // std::cout << std::endl;
   return free_count;
 }
 
@@ -173,6 +173,8 @@ int FTL::write(uint64_t lba, void *buffer, uint32_t size) {
 	  // we are going to write to it
 	  pthread_mutex_lock(&zone->zone_mutex);
 
+	  if (zone->zone_id == 14)
+		  printf("overwrite: %s\n", buffer);
 	  // Mark the LBA as invalid and inform the region to invalidate
 	  // each block.
       if (this->has_pa(lba)) {
@@ -183,11 +185,11 @@ int FTL::write(uint64_t lba, void *buffer, uint32_t size) {
 
       uint64_t wp_starts = zone->get_wp();
       uint32_t write_size;
-      int ret = zone->write(buffer, size, &write_size);
-	  
+      int ret = zone->write(lba, buffer, size, &write_size);
+
 	  // We are done writing to the device so we can unlock it from here.	  
 	  pthread_mutex_unlock(&zone->zone_mutex);
-
+	  
       if (ret != 0) {
         return ret;
       }
@@ -197,6 +199,10 @@ int FTL::write(uint64_t lba, void *buffer, uint32_t size) {
         this->insert_logmap(lba, wp_starts, i);
         lba++;
       }
+	  char buf[size+1];
+	  uint32_t read_size;
+	  zone->read(this->get_pa(lba-1).addr, buf, size, &read_size);
+	  
       size -= write_size;
       buffer = (void *)((uint64_t)buffer + write_size);
       if (size == 0) {

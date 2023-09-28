@@ -89,7 +89,6 @@ void Calliope::reap() {
     int zone_num = this->select_zone();
     ZNSZone *reapable = &this->ftl->zones[zone_num];
     if (!this->can_reap) {
-      std::cout << "cannot reap" << std::endl;
       continue;
     }
 
@@ -100,33 +99,44 @@ void Calliope::reap() {
     this->can_reap = false;
     std::vector<physaddr_t> blocks = reapable->get_nonfree_blocks();
     ZNSZone *zone = &this->ftl->zones[0];
+	std::vector<physaddr_t> lbas;
 
     // Copy data to the new zone block by block
     // TODO(valentijn): move by MDTS chunks instead
-    for (physaddr_t address : blocks) {
+    for (size_t i = 0; i < blocks.size(); i++) {
+	  physaddr_t address = blocks.at(i);
       // TODO(valentijn): we have a nice copy command which is not working
-      //   use it instead of this garbage
+      //   use it instead of this garbage	  
       char buffer[this->ftl->lba_size];
       uint32_t read_size;
+	  physaddr_t lba = reapable->block_map.map[address].logical_address;
       reapable->read(address, &buffer, this->ftl->lba_size, &read_size);
-      zone->write(&buffer, this->ftl->lba_size, &read_size);
+      zone->write(address, &buffer, this->ftl->lba_size, &read_size);
+	  lbas.push_back(lba);	  
     }
+	reapable->deadbeat = true;
     reapable->reset();
-
+	
     // TODO(valentijn): Do this one round trip instead of N
     uint64_t wp = zone->position;
-    for (physaddr_t address: zone->get_nonfree_blocks()) {
+	std::vector<physaddr_t> nonzero_blocks = zone->get_nonfree_blocks();
+	for (size_t i = 0; i < nonzero_blocks.size(); i++) {
+	  physaddr_t address = nonzero_blocks.at(i);
       char buffer[this->ftl->lba_size];
       uint32_t read_size;
+	  uint64_t wp_starts = reapable->get_wp();
       zone->read(address, &buffer, this->ftl->lba_size, &read_size);
-      reapable->write(&buffer, this->ftl->lba_size, &read_size);
+      reapable->write(address, &buffer, this->ftl->lba_size, &read_size);
       wp += this->ftl->lba_size;
+	  this->ftl->insert_logmap(lbas.at(i), wp_starts, reapable->zone_id);
     }
 
 	// Unlock the zone since we finished writing and reset our scratch
 	// region.
 	pthread_mutex_unlock(&reapable->zone_mutex);
     zone->reset();
+	
+	
   }
 }
 

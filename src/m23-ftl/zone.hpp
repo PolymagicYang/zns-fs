@@ -113,7 +113,7 @@ class ZNSZone {
   /** Gets a block from the zone based on the block id. */
   uint32_t read(const uint64_t lba, const void *buffer, uint32_t size,
                 uint32_t *read_size);
-  uint32_t write(void *buffer, uint32_t size, uint32_t *write_size);
+  uint32_t write(const uint64_t lba, void *buffer, uint32_t size, uint32_t *write_size);
 
   /** Reset the write pointer to the start. */
   int reset_zone(void);
@@ -176,6 +176,8 @@ class ZNSZone {
 
   /** Zone mutex for the FTL::write and Calliope::reap methods */
   pthread_mutex_t zone_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+	bool deadbeat = false;
   
  private:
   int zns_fd;

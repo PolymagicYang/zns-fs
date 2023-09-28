@@ -56,7 +56,7 @@ class FTL {
   uint16_t lba_size;
   int log_zones;
 
-  /** Store a list of all the zones in the system */
+   /** Store a list of all the zones in the system */
   std::vector<ZNSZone> zones;
 
   // A variable to hold our GC object. We set to void so we don't
