@@ -111,7 +111,7 @@ class ZNSZone {
   uint32_t get_current_capacity() const;
 
   /** Gets a block from the zone based on the block id. */
-  uint32_t read(const uint64_t lba, const void *buffer, uint32_t size,
+  uint32_t read(const uint64_t pa, const void *buffer, uint32_t size,
                 uint32_t *read_size);
   uint32_t write(const uint64_t lba, void *buffer, uint32_t size, uint32_t *write_size);
 
@@ -162,7 +162,7 @@ class ZNSZone {
   uint64_t mdts_size;
 
   /** Lock of the region */
-  pthread_rwlock_t lock;
+  pthread_rwlock_t lock = PTHREAD_RWLOCK_INITIALIZER;
 
   /** Map of the physical addresses to the buffer and state */
   ZoneMap block_map;

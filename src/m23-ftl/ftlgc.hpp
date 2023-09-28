@@ -20,6 +20,7 @@ SOFTWARE.
  */
 #ifndef STOSYS_PROJECT_FTLGC_H
 #define STOSYS_PROJECT_FTLGC_H
+#include <pthread.h>
 #pragma once
 
 #include <thread>
@@ -41,7 +42,7 @@ class Calliope {
   /** Initialize the thread with the GC*/  
   void initialize();
   
-  Calliope(FTL *ftl, const uint16_t threshold);
+  Calliope(FTL *ftl, pthread_cond_t *cond, pthread_mutex_t *mutex);
 
  private:
   // Number of regions we ought to keep clean
@@ -53,6 +54,12 @@ class Calliope {
   // Flag to see if we found something useful in our sweep could be
   // replaced using a NULL value. 
   bool can_reap;
+
+  // Cond used to wake up the GC.
+  pthread_cond_t *cond;
+
+  // Coupled with cond.
+  pthread_mutex_t *condmutex;
 };
 
 #endif

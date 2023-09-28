@@ -100,6 +100,7 @@ target_link_libraries(m1 ${NVME_LIBRARIES} pthread)
 
 add_library(stosys SHARED
 src/m23-ftl/zone.hpp src/m23-ftl/zone.cpp src/m23-ftl/znsblock.hpp
+src/m23-ftl/ftlgc.hpp src/m23-ftl/ftlgc.cpp
 src/common/nvmewrappers.h src/common/nvmewrappers.cpp
 src/m23-ftl/ftl.hpp src/m23-ftl/ftl.cpp src/m23-ftl/ftlgc.hpp src/m23-ftl/ftlgc.cpp
 src/m23-ftl/zns_device.cpp src/m23-ftl/zns_device.h  src/m23-ftl/backup_zns_device_file.cpp

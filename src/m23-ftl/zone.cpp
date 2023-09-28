@@ -21,6 +21,7 @@ SOFTWARE.
 
 #include "zone.hpp"
 
+#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -256,8 +257,7 @@ uint32_t ZNSZone::write(const uint64_t lba, void *buffer, uint32_t size, uint32_
   uint16_t max_nlb_per_round = this->mdts_size / this->lba_size;
 
   uint64_t write_base = this->position;
-   if (size <= this->mdts_size) {
-    __u64 written_slba;
+  if (size <= this->mdts_size) {
     int ret =
         ss_nvme_write(this->zns_fd, this->nsid, this->position, total_nlb - 1,
                       0, 0, 0, 0, 0, 0, size, (void *)buffer, 0, nullptr);
@@ -297,19 +297,19 @@ int get_zns_zone_info(const int fd, const int nsid, uint64_t *zcap,
   return ret;
 }
 
-uint32_t ZNSZone::read(const uint64_t lba, const void *buffer, uint32_t size,
+uint32_t ZNSZone::read(const uint64_t pa, const void *buffer, uint32_t size,
                        uint32_t *read_size) {
   pthread_rwlock_rdlock(&this->lock);
   
-  if (lba + size / this->lba_size > this->base + this->capacity) {
+  if (pa + size / this->lba_size > this->base + this->capacity) {
     // cross boundary read.
-    size = (this->base + this->capacity - lba) * this->lba_size;
+    size = (this->base + this->capacity - pa) * this->lba_size;
   }
   uint32_t nlb = size / this->lba_size;
   *read_size = size;
 
   int read_ret =
-      ss_nvme_read(this->zns_fd, this->nsid, lba, nlb - 1, 0, 0, 0, 0, 0,
+      ss_nvme_read(this->zns_fd, this->nsid, pa, nlb - 1, 0, 0, 0, 0, 0,
                    nlb * this->lba_size, (void *)buffer, 0, nullptr);
   if (read_ret != 0) {
     return read_ret;
@@ -361,7 +361,7 @@ std::vector<physaddr_t> ZNSZone::get_nonfree_blocks() const {
   BlockMap *map = (BlockMap*) &this->block_map.map;
   // TODO(anyone): this can be faster if these are pointers instead
   //  saves a lot of copying. Keep in mind that these are lost
-  //  after we reset the zone!
+  //  after we reset the zone! 
   std::vector<physaddr_t> nonfree_blocks;
 
   for (BlockMap::iterator it = map->begin(); it != map->end(); ++it) {
@@ -369,6 +369,6 @@ std::vector<physaddr_t> ZNSZone::get_nonfree_blocks() const {
 		  nonfree_blocks.push_back(it->second.address);
 	  }
   }
-  std::sort(nonfree_blocks.begin(), nonfree_blocks.end(), std::greater<int>());
+  
   return nonfree_blocks;
 }
