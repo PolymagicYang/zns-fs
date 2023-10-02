@@ -32,9 +32,9 @@ set(CMAKE_LIBRARY_PATH "/home/$ENV{USER}/local/lib/")
 set(CMAKE_INSTALL_PREFIX "/home/$ENV{USER}/local/")
 
 # Project configuration specific parameters
-set(STOSYS_M45 OFF)
+set(STOSYS_M45 ON)
 set(STOSYS_CMAKE_DEBUG OFF)
-set(STOSYS_ASAN OFF)
+set(STOSYS_ASAN ON)
 
 find_package(PkgConfig REQUIRED)
 if(NOT PKG_CONFIG_FOUND)
@@ -66,11 +66,11 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0  -ggdb -Wl,--no-as-needed -Wall -
 if (CMAKE_CXX_COMPILER STREQUAL "clang++")
     # using Clang
     message("[info] compiler is clang")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -frtti")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -fno-rtti")
 elseif (CMAKE_CXX_COMPILER STREQUAL "g++")
     # using GCC
     message("[info] compiler is gcc/g++")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -frtti")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -fno-rtti")
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
     # using Intel C++
     message("[info] Intel compiler? not sure which flags to pick up")
