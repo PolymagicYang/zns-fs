@@ -150,6 +150,7 @@ if(STOSYS_M45)
     src/m45-rocksdb/rocksdb_s2fs.cc
     src/m45-rocksdb/DummyFSForward.cc src/m45-rocksdb/DummyFSForward.h
     src/m45-rocksdb/MyRocksContext.h
+	src/m45-rocksdb/directory.cc src/m45-rocksdb/inode.cc
     src/m45-rocksdb/S2FileSystem.cc src/m45-rocksdb/S2FileSystem.h)
     # see all the defined variables here: https://cmake.org/cmake/help/latest/module/FindPkgConfig.html
     add_definitions (${NVME_CFLAGS} ${ROCKSDB_CFLAGS}  ${ROCKSDB_STATIC_CFLAGS} ${ROCKSDB_CFLAGS_OTHER})

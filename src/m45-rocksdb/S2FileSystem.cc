@@ -28,6 +28,7 @@ SOFTWARE.
 
 #include <iostream>
 #include <string>
+#include "directory.hpp"
 
 namespace ROCKSDB_NAMESPACE {
 S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
@@ -52,6 +53,24 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
               << device.c_str() << "\n";
     std::cout << "Error: ret " << ret << "\n";
   }
+
+  // Setup the inode and dnode maps
+  this->inodes = {
+	  .lock = PTHREAD_RWLOCK_INITIALIZER,
+	  .inodes = __inode_map()
+  };
+  this->dnodes = {
+	  .lock = PTHREAD_RWLOCK_INITIALIZER,
+	  .dnodes = __dir_map()
+  };
+
+  // Create the root directory node
+  StoDir root = StoDir("/", 2);
+  root.add_entry(4, 2, "foo/bar");
+  root.add_entry(5, 3, "foo/baz");
+  root.add_entry(6, 2, "queef");
+  find_file(root, "foo/baz");
+  	  
   assert(ret == 0);
   assert(this->_zns_dev->lba_size_bytes != 0);
   assert(this->_zns_dev->capacity_bytes != 0);
@@ -170,6 +189,7 @@ IOStatus S2FileSystem::CreateDirIfMissing(const std::string &dirname,
                                           const IOOptions &options,
                                           __attribute__((unused))
                                           IODebugContext *dbg) {
+  std::cout << dirname << std::endl;
   return IOStatus::IOError(__FUNCTION__);
 }
 

@@ -31,6 +31,7 @@ SOFTWARE.
 #include "rocksdb/file_system.h"
 #include "rocksdb/io_status.h"
 #include "rocksdb/status.h"
+#include "structures.h"
 
 namespace ROCKSDB_NAMESPACE {
 
@@ -157,6 +158,9 @@ class S2FileSystem : public FileSystem {
   struct user_zns_device *_zns_dev;
   std::string _uri;
   const std::string _fs_delimiter = "/";
+  struct InodeMap inodes;
+  struct DirMap dnodes;
+  
 };
 }  // namespace ROCKSDB_NAMESPACE
 
