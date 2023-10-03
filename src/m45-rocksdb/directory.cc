@@ -4,8 +4,9 @@
 
 #include "inode.hpp"
 
-StoDir::StoDir(char *name) {
+StoDir::StoDir(char *name, const uint64_t parent_inode) {
   this->inode_number = 0;
+  this->parent_inode = parent_inode;
   size_t length = strlen(name);
   this->namelen = length;
   strncpy(this->name, name, length);
@@ -13,11 +14,18 @@ StoDir::StoDir(char *name) {
   this->records = std::array<struct ss_dnode_record, DIRSIZE>();
 }
 
+StoDir::StoDir(const uint64_t inum, const struct ss_dnode *node) {
+	this->inode_number = inum;
+	this->namelen = node->strlen;
+	strncpy(this->name, node->dirname, node->strlen);
+	std::copy(std::begin(node->entries), std::end(node->entries), std::begin(this->records));
+}
+
 struct ss_dnode StoDir::create_dnode() {
   struct ss_dnode node;
   strncpy(node.dirname, this->name, this->namelen);
   node.strlen = this->namelen;
-  // Unsafe casting to the 32 entries
+  // Unsafe casting to the 32 entriesb
   std::copy(std::begin(this->records), std::end(this->records),
             std::begin(node.entries));
   return node;
@@ -30,10 +38,16 @@ void StoDir::write_to_disk() {
     // Add our dnode to the system with a fresh inode
     StoInode sinode = StoInode(DIRSIZE, name);
     sinode.flags |= FLAG_DIRECTORY;
+
+	this->inode_number = sinode.inode_number;	
+    // Add the parent and self referential files to our system
+	this->add_entry(this->inode_number, 12, ".");
+	this->add_entry(this->parent_inode, 12, "..");
+
     const uint64_t lba =
-        add_dnode_to_storage(sinode.inode_number, this->create_dnode());
-    sinode.add_segment(lba, 1);
-    this->inode_number = sinode.inode_number;
+        add_dnode_to_storage(this->inode_number, this->create_dnode());
+	
+    sinode.add_segment(lba, 1);    
     sinode.write_to_disk();
     return;
   }
@@ -59,9 +73,13 @@ int StoDir::add_entry(const uint16_t inode_number, const uint16_t reclen,
 }
 
 struct ss_dnode_record *StoDir::find_entry(const char *name) {
+  size_t needle_size = strlen(name);
   for (auto &entry : this->records) {
     // Weird C++ behaviour, we force it to be boolean.
-    bool condition = strncmp(entry.name, name, entry.namelen) == 0;
+	// We want to check whether they have the same length and if the entry
+	// is still valid. 
+    bool condition = needle_size == entry.namelen && entry.reclen != 0 && \
+		(strncmp(entry.name, name, entry.namelen) == 0);
 
     if (condition) {
       return &entry;
@@ -79,7 +97,7 @@ int StoDir::remove_entry(const char *name) {
   dnode->namelen = 0;
 }
 
-struct ss_inode *find_file(StoDir &directory, std::string name) {
+enum DirectoryError find_inode(StoDir &directory, std::string name, struct ss_inode *found) {
   std::string delimiter = "/";
 
   auto location = name.find(delimiter);
@@ -90,12 +108,32 @@ struct ss_inode *find_file(StoDir &directory, std::string name) {
   // Iterate to the next level in our directory hierarchy
   if (location != std::string::npos) {
     auto next = name.substr(location + 1, name.size());
+	if (entry == NULL) {
+		return DirectoryError::Directory_not_found;
+	}
     struct ss_dnode *next_dir_inode = get_dnode_by_id(entry->inum);
+	if (next_dir_inode == NULL) {
+		return DirectoryError::Dnode_not_found;
+	}
+	
     // StoDir next_dir = load_directory(next_dir_inode);
+	StoDir next_dir = StoDir(entry->inum, next_dir_inode);
     std::cout << current << " " << next << std::endl;
+	return find_inode(next_dir, next, found);
   }
 
-  return get_inode_by_id(entry->inum);
+  // If we reach the end of the hierarchy and we found something,
+  // then we can just return our inode directly, no harm done. 
+  if (entry != NULL) {
+	  *found = *get_inode_by_id(entry->inum);
+	  return DirectoryError::Found_inode;
+  }
+  
+  StoInode inode = StoInode(0, (char*) current.c_str());
+  directory.add_entry(inode.inode_number, 12, current.c_str());
+  *found = inode.get_inode_struct();
+  return DirectoryError::Created_inode;
+  
 }
 
 StoDir::~StoDir() {}

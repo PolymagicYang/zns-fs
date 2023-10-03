@@ -61,20 +61,37 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
   this->dnodes = {.lock = PTHREAD_RWLOCK_INITIALIZER, .dnodes = __dir_map()};
 
   setup_test_system();
+  
   // Create the root directory node
-  StoDir root = StoDir("/");
-  StoDir foo = StoDir("foo");
+
+  // Be aware that the behaviour here is a bit subtle, the inode is
+  // not generated until the directory is written to disk. So you can
+  // only rely on the inode number being there after the write_to_disk
+  // is called
+  StoDir root = StoDir("/", 2);
+  StoDir foo = StoDir("foo", 2);
 
   root.write_to_disk();
   foo.write_to_disk();
-  root.add_entry(foo.inode_number, 0, "foo");
+  root.add_entry(foo.inode_number, 1, "foo");
   root.write_to_disk();
 
   // root.add_entry(4, 2, "foo/bar");
   // root.add_entry(5, 3, "foo/baz");
   root.add_entry(6, 2, "queef");
   std::cout << "Added all the entries" << std::endl;
-  find_file(root, "foo/baz");
+  struct ss_inode new_inode;
+  enum DirectoryError err = find_inode(root, "foo/../foo/./baz", &new_inode);
+  if (err == DirectoryError::Dnode_not_found) {
+	  std::cerr << "Cannot find dnode" << std::endl;
+  } else if (err == DirectoryError::Directory_not_found) {
+	  std::cerr << "Cannot find parent directory" << std::endl;
+  } else if (err == DirectoryError::Created_inode) {
+	  std::cerr << "Created a new inode for the file" << std::endl;
+  } else if (err == DirectoryError::Found_inode) {
+	  std::cerr << "Found the inode" << std::endl;
+  }
+  
   std::cout << "Find file in root" << std::endl;
 
   assert(ret == 0);
