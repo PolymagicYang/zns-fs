@@ -16,7 +16,6 @@ class StoDir {
   uint64_t parent_inode;
   uint16_t namelen;
   char name[NAMELEN];
-  
 
   StoDir(char *name, const uint64_t parent_inode);
   StoDir(const uint64_t inum, const struct ss_dnode *node);
@@ -34,17 +33,27 @@ class StoDir {
   uint8_t entry_index = 0;
 };
 
+struct find_inode_callbacks {
+  struct ss_dnode_record *(*missing_directory_cb)(const char *name,
+                                                  StoDir &parent);
+  struct ss_inode *(*missing_file_cb)(const char *name, StoDir &parent);
+  void (*found_file_cb)(const char *name, StoDir &parent,
+                        const ss_inode *inode);
+};
+
 enum DirectoryError {
   Dnode_not_found = -1,
   Found_inode = 0,
   Created_inode = 1,
-  Directory_not_found = -2
+  Directory_not_found = -2,
+  Inode_not_found = -3
 };
 
 // We copy data here because it is easier, but you might want to do
 // it by reference instead. This does make the logic a lot more
 // complex though. Maybe a good use case for smart pointers?
-enum DirectoryError find_inode(StoDir &directory, std::string name, struct ss_inode *found);
-
+enum DirectoryError find_inode(StoDir &directory, std::string name,
+                               struct ss_inode *found,
+                               struct find_inode_callbacks *cbs);
 
 #endif

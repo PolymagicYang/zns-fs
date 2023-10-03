@@ -61,7 +61,7 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
   this->dnodes = {.lock = PTHREAD_RWLOCK_INITIALIZER, .dnodes = __dir_map()};
 
   setup_test_system();
-  
+
   // Create the root directory node
 
   // Be aware that the behaviour here is a bit subtle, the inode is
@@ -81,17 +81,20 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
   root.add_entry(6, 2, "queef");
   std::cout << "Added all the entries" << std::endl;
   struct ss_inode new_inode;
-  enum DirectoryError err = find_inode(root, "foo/../foo/./baz", &new_inode);
+  enum DirectoryError err =
+      find_inode(root, "foo/../foo/./baz", &new_inode, NULL);
   if (err == DirectoryError::Dnode_not_found) {
-	  std::cerr << "Cannot find dnode" << std::endl;
+    std::cerr << "Cannot find dnode" << std::endl;
   } else if (err == DirectoryError::Directory_not_found) {
-	  std::cerr << "Cannot find parent directory" << std::endl;
+    std::cerr << "Cannot find parent directory" << std::endl;
   } else if (err == DirectoryError::Created_inode) {
-	  std::cerr << "Created a new inode for the file" << std::endl;
+    std::cerr << "Created a new inode for the file" << std::endl;
   } else if (err == DirectoryError::Found_inode) {
-	  std::cerr << "Found the inode" << std::endl;
+    std::cerr << "Found the inode" << std::endl;
+  } else if (err == DirectoryError::Inode_not_found) {
+    std::cerr << "Did not find the inode" << std::endl;
   }
-  
+
   std::cout << "Find file in root" << std::endl;
 
   assert(ret == 0);
@@ -206,14 +209,62 @@ IOStatus S2FileSystem::CreateDir(const std::string &dirname,
   return IOStatus::IOError(__FUNCTION__);
 }
 
+// If we cannot find the directory, we will create one and return the entry
+// for it
+struct ss_dnode_record *callback_missing_directory(const char *name,
+                                                   StoDir &parent) {
+  std::cerr << "Create missing directory " << name << " in " << parent.name
+            << std::endl;
+  StoDir directory = StoDir((char *)name, parent.inode_number);
+  directory.write_to_disk();
+  parent.add_entry(directory.inode_number, 12, name);
+  parent.write_to_disk();
+  return parent.find_entry(name);
+}
+
+// Create a new directory if we cannot find it, we could also pass
+// the same function as missing directory.
+struct ss_inode *callback_missing_file_create_dir(const char *name,
+                                                  StoDir &parent) {
+  std::cerr << "Create the target directory " << name << " in " << parent.name
+            << std::endl;
+  StoDir directory = StoDir((char *)name, parent.inode_number);
+  directory.write_to_disk();
+  parent.add_entry(directory.inode_number, 12, name);
+  parent.write_to_disk();
+  return get_inode_by_id(directory.inode_number);
+}
+
+void callback_found_file_print(const char *name, StoDir &parent,
+                               const struct ss_inode *inode) {
+  std::cerr << "Found file " << name << " in " << parent.name << std::endl;
+}
+
 // Creates directory if missing. Return Ok if it exists, or successful in
 // Creating.
 IOStatus S2FileSystem::CreateDirIfMissing(const std::string &dirname,
                                           const IOOptions &options,
                                           __attribute__((unused))
                                           IODebugContext *dbg) {
-  std::cout << dirname << std::endl;
-  return IOStatus::IOError(__FUNCTION__);
+  // Remove the starting and trailing /
+  std::string cut = dirname.substr(1, dirname.size() - 1);
+
+  // Setup the callbacks so we create the string of directories
+  struct find_inode_callbacks cbs = {
+      .missing_directory_cb = callback_missing_directory,
+      .missing_file_cb = callback_missing_file_create_dir,
+      .found_file_cb = callback_found_file_print,
+  };
+  StoDir root = StoDir(2, get_dnode_by_id(2));
+  struct ss_inode found_inode;
+  enum DirectoryError error = find_inode(root, cut, &found_inode, &cbs);
+
+  // Check if our inode is actually a directory, otherwise it is okay.
+  if (!(found_inode.flags & FLAG_DIRECTORY)) {
+    return IOStatus::InvalidArgument("File not a directory!");
+  }
+
+  return IOStatus::OK();
 }
 
 IOStatus S2FileSystem::GetFileSize(const std::string &fname,
