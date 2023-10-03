@@ -29,8 +29,8 @@ SOFTWARE.
 #include <cstdint>
 #include <iostream>
 #include <map>
-#include <vector>
 #include <mutex>
+#include <vector>
 
 #include "znsblock.hpp"
 
@@ -113,7 +113,8 @@ class ZNSZone {
   /** Gets a block from the zone based on the block id. */
   uint32_t read(const uint64_t pa, const void *buffer, uint32_t size,
                 uint32_t *read_size);
-  uint32_t write(const uint64_t lba, void *buffer, uint32_t size, uint32_t *write_size);
+  uint32_t write(const uint64_t lba, void *buffer, uint32_t size,
+                 uint32_t *write_size);
 
   /** Reset the write pointer to the start. */
   int reset_zone(void);
@@ -139,8 +140,9 @@ class ZNSZone {
 
   /** Gets the index or id of the zone*/
   int get_index();
-  
-  /** Resets the zone and performs additional checking compared to ZNSZone::reset_zone */
+
+  /** Resets the zone and performs additional checking compared to
+   * ZNSZone::reset_zone */
   int reset();
 
   /** Checks if the zone is full*/
@@ -157,7 +159,7 @@ class ZNSZone {
 
   /** Size of a block */
   uint64_t lba_size;
-  
+
   /** Maximum transfer size */
   uint64_t mdts_size;
 
@@ -167,7 +169,7 @@ class ZNSZone {
   /** Map of the physical addresses to the buffer and state */
   ZoneMap block_map;
 
-  /** Set the block to being free based on the physical address */  
+  /** Set the block to being free based on the physical address */
   int invalidate_block(const uint64_t pa);
 
   /** Gets the blocks that are still valid */
@@ -177,8 +179,8 @@ class ZNSZone {
   /** Zone mutex for the FTL::write and Calliope::reap methods */
   pthread_mutex_t zone_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-	bool deadbeat = false;
-  
+  bool deadbeat = false;
+
  private:
   int zns_fd;
 

@@ -58,7 +58,7 @@ class FTL {
   pthread_mutex_t cond_lock;
   int log_zones;
 
-   /** Store a list of all the zones in the system */
+  /** Store a list of all the zones in the system */
   std::vector<ZNSZone> zones;
 
   // A variable to hold our GC object. We set to void so we don't
@@ -95,12 +95,12 @@ class FTL {
   ZNSZone* get_zone(int index);
   ZNSZone* get_random_logzone();
   ZNSZone* get_random_datazone();
-	
+
   /** Get a free zone with enough space to hold a number of blocks. */
   ZNSZone* get_free_zone(const uint32_t needed);
 
   void insert_logmap(uint64_t lba, uint64_t pa, uint16_t zone_num);
-	
+
   /** Get the number of free regions in our system */
   int16_t get_free_regions();
 

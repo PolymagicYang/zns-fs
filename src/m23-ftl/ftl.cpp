@@ -53,7 +53,7 @@ FTL::FTL(int fd, uint64_t mdts, uint32_t nsid, uint16_t lba_size, int gc_wmark,
   this->cond_lock = PTHREAD_MUTEX_INITIALIZER;
   Calliope *mori = new Calliope(this, &this->cond, &this->cond_lock);
   mori->initialize();
-  this->mori = &mori;			
+  this->mori = &mori;
 }
 
 ZNSZone *FTL::get_random_datazone() {
@@ -115,7 +115,7 @@ Addr FTL::get_pa(uint64_t addr) {
     return pba;
   } else {
     // return random addr.
-    return Addr { .addr = 0, .zone_num = 0, .alive = true };
+    return Addr{.addr = 0, .zone_num = 0, .alive = true};
   }
 }
 
@@ -147,7 +147,7 @@ int FTL::read(uint64_t lba, void *buffer, uint32_t size) {
     ZNSZone *zone = this->get_zone(pa.zone_num);
     uint32_t read_size;
     int ret = zone->read(pa.addr, buffer, this->lba_size, &read_size);
-	
+
     if (ret != 0) {
       return ret;
     }
@@ -169,10 +169,10 @@ int16_t FTL::get_free_regions() {
 int FTL::write(uint64_t lba, void *buffer, uint32_t size) {
   // If we don't have enough free regions we wait for our GC
   // to clean our mess. Until that time we are locking the
-  // zone since we are reading to it. 
+  // zone since we are reading to it.
 
   pthread_rwlock_rdlock(&this->zone_lock);
-  // why use volitile here? 
+  // why use volitile here?
   // We have a lock to sync and data dependency, compiler won't reorder this.
   int16_t free_regions = get_free_regions();
   while (free_regions <= this->gc_wmark) {
@@ -191,14 +191,14 @@ int FTL::write(uint64_t lba, void *buffer, uint32_t size) {
     if (zone->is_full()) {
       continue;
     } else {
-	  // We found a free region so we lock the zone mutex since
-	  // we are going to write to it
-	  pthread_mutex_lock(&zone->zone_mutex);
+      // We found a free region so we lock the zone mutex since
+      // we are going to write to it
+      pthread_mutex_lock(&zone->zone_mutex);
 
-	  // if (zone->zone_id == 14)
-		  // printf("[%d in %d] overwrite: %s\n", lba, zone->zone_id, buffer);
-	  // Mark the LBA as invalid and inform the region to invalidate
-	  // each block.
+      // if (zone->zone_id == 14)
+      // printf("[%d in %d] overwrite: %s\n", lba, zone->zone_id, buffer);
+      // Mark the LBA as invalid and inform the region to invalidate
+      // each block.
       if (this->has_pa(lba)) {
         Addr pa = this->get_pa(lba);
         pa.alive = false;
@@ -209,9 +209,9 @@ int FTL::write(uint64_t lba, void *buffer, uint32_t size) {
       uint32_t write_size;
       int ret = zone->write(lba, buffer, size, &write_size);
 
-	  // We are done writing to the device so we can unlock it from here.	  
-	  pthread_mutex_unlock(&zone->zone_mutex);
-	  
+      // We are done writing to the device so we can unlock it from here.
+      pthread_mutex_unlock(&zone->zone_mutex);
+
       if (ret != 0) {
         return ret;
       }
@@ -221,7 +221,7 @@ int FTL::write(uint64_t lba, void *buffer, uint32_t size) {
         this->insert_logmap(lba, wp_starts, i);
         lba++;
       }
-	  
+
       size -= write_size;
       buffer = (void *)((uint64_t)buffer + write_size);
       if (size <= 0) {

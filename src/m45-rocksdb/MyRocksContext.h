@@ -22,8 +22,8 @@ SOFTWARE.
 
 #ifndef STOSYS_PROJECT_MYROCKSCONTEXT_H
 #define STOSYS_PROJECT_MYROCKSCONTEXT_H
-#include "rocksdb/db.h"
 #include "rocksdb/convenience.h"
+#include "rocksdb/db.h"
 
 struct MyRocksContext {
   std::string uri;

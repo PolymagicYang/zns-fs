@@ -36,12 +36,12 @@ class Calliope {
   /** Select the zone that we want to free form memory */
   int select_zone();
 
-/** Main method of the GC */
+  /** Main method of the GC */
   void reap();
-  
-  /** Initialize the thread with the GC*/  
+
+  /** Initialize the thread with the GC*/
   void initialize();
-  
+
   Calliope(FTL *ftl, pthread_cond_t *cond, pthread_mutex_t *mutex);
 
  private:
@@ -50,9 +50,9 @@ class Calliope {
 
   // Our thread
   std::thread thread;
-  
+
   // Flag to see if we found something useful in our sweep could be
-  // replaced using a NULL value. 
+  // replaced using a NULL value.
   bool can_reap;
 
   // Cond used to wake up the GC.

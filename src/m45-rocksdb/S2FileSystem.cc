@@ -28,7 +28,9 @@ SOFTWARE.
 
 #include <iostream>
 #include <string>
+
 #include "directory.hpp"
+#include "inode.hpp"
 
 namespace ROCKSDB_NAMESPACE {
 S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
@@ -54,23 +56,27 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
     std::cout << "Error: ret " << ret << "\n";
   }
 
-  // Setup the inode and dnode maps
-  this->inodes = {
-	  .lock = PTHREAD_RWLOCK_INITIALIZER,
-	  .inodes = __inode_map()
-  };
-  this->dnodes = {
-	  .lock = PTHREAD_RWLOCK_INITIALIZER,
-	  .dnodes = __dir_map()
-  };
+  // Setup the inode and dnode map
+  this->inodes = {.lock = PTHREAD_RWLOCK_INITIALIZER, .inodes = __inode_map()};
+  this->dnodes = {.lock = PTHREAD_RWLOCK_INITIALIZER, .dnodes = __dir_map()};
 
+  setup_test_system();
   // Create the root directory node
-  StoDir root = StoDir("/", 2);
-  root.add_entry(4, 2, "foo/bar");
-  root.add_entry(5, 3, "foo/baz");
+  StoDir root = StoDir("/");
+  StoDir foo = StoDir("foo");
+
+  root.write_to_disk();
+  foo.write_to_disk();
+  root.add_entry(foo.inode_number, 0, "foo");
+  root.write_to_disk();
+
+  // root.add_entry(4, 2, "foo/bar");
+  // root.add_entry(5, 3, "foo/baz");
   root.add_entry(6, 2, "queef");
+  std::cout << "Added all the entries" << std::endl;
   find_file(root, "foo/baz");
-  	  
+  std::cout << "Find file in root" << std::endl;
+
   assert(ret == 0);
   assert(this->_zns_dev->lba_size_bytes != 0);
   assert(this->_zns_dev->capacity_bytes != 0);

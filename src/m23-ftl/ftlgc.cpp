@@ -40,7 +40,7 @@ int Calliope::select_zone() {
   float util = 0;
 
   // Select the region with the most undead blocks compared to the
-  // total capacity. This safes on the copies we need to do. 
+  // total capacity. This safes on the copies we need to do.
   for (int i = 0; i < ftl->zones_num; i++) {
     ZNSZone &current = ftl->zones[i];
     if (!current.is_full()) continue;
@@ -57,31 +57,30 @@ int Calliope::select_zone() {
   }
 
   // If we cannot find something decent to do, we flag the thread to
-  // just keep going. 
+  // just keep going.
   this->can_reap = max_util != 0.0f;
   return max;
 }
 
 void Calliope::reap() {
-
   while (true) {
-	  pthread_mutex_lock(this->condmutex);
-	  pthread_cond_wait(this->cond, this->condmutex);
-	  pthread_mutex_unlock(this->condmutex);
+    pthread_mutex_lock(this->condmutex);
+    pthread_cond_wait(this->cond, this->condmutex);
+    pthread_mutex_unlock(this->condmutex);
 
     pthread_rwlock_rdlock(&this->ftl->zone_lock);
     int free_count = this->ftl->get_free_regions();
-	
+
     if (free_count > this->threshold) {
       pthread_rwlock_unlock(&this->ftl->zone_lock);
       std::cout << "Reporting back to death-sama: " << free_count << std::endl;
       continue;
     }
-	pthread_rwlock_unlock(&this->ftl->zone_lock);
+    pthread_rwlock_unlock(&this->ftl->zone_lock);
 
-	// Get the zone with the highest win of free blocks, if none is
-	// found we just wait until the next loop. This can happen if no
-	// data is overwritten
+    // Get the zone with the highest win of free blocks, if none is
+    // found we just wait until the next loop. This can happen if no
+    // data is overwritten
     int zone_num = this->select_zone();
     ZNSZone *reapable = &this->ftl->zones[zone_num];
     if (!this->can_reap) {
@@ -90,53 +89,51 @@ void Calliope::reap() {
 
     // Lock the zone since we are modifying it from this point
     // onwards. We are using the 0th region as a scratch buffer
-  	// where we copy data back and forth from. 
+    // where we copy data back and forth from.
     pthread_mutex_lock(&reapable->zone_mutex);
     this->can_reap = false;
     std::vector<physaddr_t> blocks = reapable->get_nonfree_blocks();
     ZNSZone *zone = &this->ftl->zones[0];
-	std::vector<physaddr_t> lbas;
+    std::vector<physaddr_t> lbas;
 
     // Copy data to the new zone block by block
     // TODO(valentijn): move by MDTS chunks instead
-	std::vector<physaddr_t> pas;
-	
+    std::vector<physaddr_t> pas;
+
     for (size_t i = 0; i < blocks.size(); i++) {
-	  physaddr_t address = blocks.at(i);
+      physaddr_t address = blocks.at(i);
       // TODO(valentijn): we have a nice copy command which is not working
-      //   use it instead of this garbage	  
+      //   use it instead of this garbage
       char buffer[this->ftl->lba_size];
       uint32_t read_size;
-	  physaddr_t lba = reapable->block_map.map[address].logical_address;
+      physaddr_t lba = reapable->block_map.map[address].logical_address;
 
-	  uint64_t wp_starts = zone->get_wp();
+      uint64_t wp_starts = zone->get_wp();
       reapable->read(address, &buffer, this->ftl->lba_size, &read_size);
       zone->write(address, &buffer, this->ftl->lba_size, &read_size);
-	  pas.push_back(wp_starts);
-	  lbas.push_back(lba);	  
+      pas.push_back(wp_starts);
+      lbas.push_back(lba);
     }
-	reapable->deadbeat = true;
+    reapable->deadbeat = true;
     reapable->reset();
-	
+
     // TODO(valentijn): Do this one round trip instead of N
     uint64_t wp = zone->position;
-	for (size_t i = 0; i < pas.size(); i++) {
-	  physaddr_t address = pas.at(i);
+    for (size_t i = 0; i < pas.size(); i++) {
+      physaddr_t address = pas.at(i);
       char buffer[this->ftl->lba_size];
       uint32_t read_size;
-	  uint64_t wp_starts = reapable->get_wp();
+      uint64_t wp_starts = reapable->get_wp();
       zone->read(address, &buffer, this->ftl->lba_size, &read_size);
       reapable->write(lbas.at(i), &buffer, this->ftl->lba_size, &read_size);
-	  wp += this->ftl->lba_size;
-	  this->ftl->insert_logmap(lbas.at(i), wp_starts, reapable->zone_id);
+      wp += this->ftl->lba_size;
+      this->ftl->insert_logmap(lbas.at(i), wp_starts, reapable->zone_id);
     }
 
-	// Unlock the zone since we finished writing and reset our scratch
-	// region.
-	pthread_mutex_unlock(&reapable->zone_mutex);
+    // Unlock the zone since we finished writing and reset our scratch
+    // region.
+    pthread_mutex_unlock(&reapable->zone_mutex);
     zone->reset();
-	
-	
   }
 }
 

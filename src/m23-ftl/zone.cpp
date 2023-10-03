@@ -21,13 +21,13 @@ SOFTWARE.
 
 #include "zone.hpp"
 
+#include <bits/stdc++.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
 #include <cassert>
-#include <bits/stdc++.h>
 
 #include "../common/nvmewrappers.h"
 #include "znsblock.hpp"
@@ -220,7 +220,7 @@ int ZNSZone::ss_sequential_write(const void *buffer,
 
 // TODO(someone): this is copying the entire block map every time
 uint64_t ZNSZone::get_alive_capacity() const {
-  BlockMap *map = (BlockMap*) &this->block_map.map;
+  BlockMap *map = (BlockMap *)&this->block_map.map;
 
   uint64_t alive_count = 0;
   for (BlockMap::iterator it = map->begin(); it != map->end(); ++it) {
@@ -248,7 +248,8 @@ int ZNSZone::invalidate_block(const uint64_t pa) {
 /*
 return the size of the inserted buffer.
 */
-uint32_t ZNSZone::write(const uint64_t lba, void *buffer, uint32_t size, uint32_t *write_size) {
+uint32_t ZNSZone::write(const uint64_t lba, void *buffer, uint32_t size,
+                        uint32_t *write_size) {
   uint32_t max_writes = this->get_current_capacity() * this->lba_size;
   *write_size = (size > max_writes) ? max_writes : size;
 
@@ -272,8 +273,8 @@ uint32_t ZNSZone::write(const uint64_t lba, void *buffer, uint32_t size, uint32_
 
   for (uint64_t i = 0, address = write_base; i < total_nlb; i++) {
     uint64_t pa = address + i;
-    ZNSBlock b1 = {.address = pa, .logical_address = lba,
-				   .buffer = buffer, .valid = true};
+    ZNSBlock b1 = {
+        .address = pa, .logical_address = lba, .buffer = buffer, .valid = true};
     this->block_map.map[pa] = b1;
   }
 
@@ -300,7 +301,7 @@ int get_zns_zone_info(const int fd, const int nsid, uint64_t *zcap,
 uint32_t ZNSZone::read(const uint64_t pa, const void *buffer, uint32_t size,
                        uint32_t *read_size) {
   pthread_rwlock_rdlock(&this->lock);
-  
+
   if (pa + size / this->lba_size > this->base + this->capacity) {
     // cross boundary read.
     size = (this->base + this->capacity - pa) * this->lba_size;
@@ -358,17 +359,17 @@ std::vector<ZNSZone> create_zones(const int zns_fd, const uint32_t nsid,
 }
 
 std::vector<physaddr_t> ZNSZone::get_nonfree_blocks() const {
-  BlockMap *map = (BlockMap*) &this->block_map.map;
+  BlockMap *map = (BlockMap *)&this->block_map.map;
   // TODO(anyone): this can be faster if these are pointers instead
   //  saves a lot of copying. Keep in mind that these are lost
-  //  after we reset the zone! 
+  //  after we reset the zone!
   std::vector<physaddr_t> nonfree_blocks;
 
   for (BlockMap::iterator it = map->begin(); it != map->end(); ++it) {
-	  if (it->second.valid) {
-		  nonfree_blocks.push_back(it->second.address);
-	  }
+    if (it->second.valid) {
+      nonfree_blocks.push_back(it->second.address);
+    }
   }
-  
+
   return nonfree_blocks;
 }
