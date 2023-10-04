@@ -6,9 +6,9 @@
 #include <iostream>
 #include <random>
 
-std::random_device rd;
-std::mt19937 rng(rd());
-std::uniform_int_distribution<uint64_t> uni(1 << 4, 1 << 12);
+inline std::random_device rd;
+inline std::mt19937 rng(rd());
+inline std::uniform_int_distribution<uint64_t> uni(1 << 4, 1 << 12);
 
 // Fake in-memory map of the inodes
 std::map<uint64_t, struct ss_inode> fake_storage =

@@ -1,7 +1,7 @@
 #include "directory.hpp"
 
 #include <cstring>
-
+#include <regex>
 #include "inode.hpp"
 
 StoDir::StoDir(char *name, const uint64_t parent_inode) {
@@ -101,10 +101,14 @@ int StoDir::remove_entry(const char *name) {
 enum DirectoryError find_inode(StoDir &directory, std::string name,
                                struct ss_inode *found,
                                struct find_inode_callbacks *cbs) {
-  std::string delimiter = "/";
 
+  // Find and replace double // with a singular /.
+  name = std::regex_replace(name, std::regex("//"), "/");  
+  std::cerr << name << std::endl;
+  
   // Split our string until the next delimiter and find it in the
   // current directory
+  std::string delimiter = "/";
   auto location = name.find(delimiter);
   auto current = name.substr(0, location);
   struct ss_dnode_record *entry = directory.find_entry(current.c_str());

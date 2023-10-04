@@ -30,9 +30,19 @@ SOFTWARE.
 #include <string>
 
 #include "directory.hpp"
+#include "fswrapper.hpp"
 #include "inode.hpp"
+#include "file.hpp"
+#include "structures.h"
+
+uint64_t g_lba_size;
 
 namespace ROCKSDB_NAMESPACE {
+// Maps inode numbers to locks. They are not automatically populated,
+// so a lock must be inserted for first use.
+std::map<const std::string, std::mutex> file_locks;
+
+  
 S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
   FileSystem::Default();
   std::string sdelimiter = ":";
@@ -61,6 +71,7 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
   this->dnodes = {.lock = PTHREAD_RWLOCK_INITIALIZER, .dnodes = __dir_map()};
 
   setup_test_system();
+  file_locks = std::map<const std::string, std::mutex>();
 
   // Create the root directory node
 
@@ -98,8 +109,13 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
   std::cout << "Find file in root" << std::endl;
 
   assert(ret == 0);
-  assert(this->_zns_dev->lba_size_bytes != 0);
+  assert(this->_zns_dev->lba_size_bytes != 0);  
   assert(this->_zns_dev->capacity_bytes != 0);
+
+  // Globally store our LBA size so we can access everywhere
+  // without copying everything oer.
+  g_lba_size = this->_zns_dev->lba_size_bytes;
+
   ss_dprintf(DBG_FS_1,
              "device %s is opened and initialized, reported LBA size is %u and "
              "capacity %lu \n",
@@ -189,7 +205,21 @@ IOStatus S2FileSystem::NewDirectory(const std::string &name,
                                     std::unique_ptr<FSDirectory> *result,
                                     __attribute__((unused))
                                     IODebugContext *dbg) {
-  return IOStatus::IOError(__FUNCTION__);
+  std::string cut = name.substr(1, name.size() - 2);
+  std::cout << cut << " " << name << std::endl;
+  StoDir root = StoDir(2, get_dnode_by_id(2));
+  struct ss_inode found_inode;
+  enum DirectoryError error = find_inode(root, cut, &found_inode, NULL);
+
+  if (error != DirectoryError::Found_inode) {
+	return IOStatus::IOError("New Directory: " + name + "not found");	
+  }
+
+  if (!(found_inode.flags & FLAG_DIRECTORY)) {
+	return IOStatus::InvalidArgument(name + " is not a directory.");
+  }
+  result->reset(new StoDirFS(found_inode.id, get_dnode_by_id(found_inode.id)));
+  return IOStatus::OK();
 }
 
 IOStatus S2FileSystem::GetFreeSpace(const std::string &, const IOOptions &,
@@ -325,6 +355,26 @@ IOStatus S2FileSystem::UnlockFile(FileLock *lock, const IOOptions &options,
   return IOStatus::IOError(__FUNCTION__);
 }
 
+struct ss_inode *callback_missing_file_create_lock(const char *name, StoDir &parent) {
+  // Our lock will only contain one block so we can hardcode it here
+  StoInode inode = StoInode(1, (char*) name);
+
+  std::cerr << "Lock created" << std::endl;
+
+  // Open as file and write thee lock to disk. We use a sentinel value
+  // in the data block to store that is locked. A more lightweight approach
+  // would use the flag system in the inode. 
+  StoFile file = StoFile(&inode);
+  file.write(5, (void*) "lock");
+
+  // Flush the inode. Since this file is new, we also flush the directory.
+  inode.write_to_disk();
+  parent.add_entry(inode.inode_number, 12, name);
+  parent.write_to_disk();
+  
+  return get_inode_by_id(inode.inode_number);
+}
+
 // Lock the specified file.  Used to prevent concurrent access to
 // the same db by multiple processes.  On failure, stores nullptr in
 // *lock and returns non-OK.
@@ -342,7 +392,38 @@ IOStatus S2FileSystem::UnlockFile(FileLock *lock, const IOOptions &options,
 IOStatus S2FileSystem::LockFile(const std::string &fname,
                                 const IOOptions &options, FileLock **lock,
                                 __attribute__((unused)) IODebugContext *dbg) {
-  return IOStatus::IOError(__FUNCTION__);
+  *lock = nullptr;
+  std::cerr << "Called LockFile "  << fname << std::endl;
+  struct ss_inode found_inode;
+
+  struct find_inode_callbacks cbs = {
+	.missing_file_cb = callback_missing_file_create_lock
+  };
+  
+  StoDir root = StoDir(2, get_dnode_by_id(2));
+  std::string cut = fname.substr(1, fname.size()-1);
+  enum DirectoryError error = find_inode(root, cut, &found_inode, &cbs);
+
+  if (error == DirectoryError::Created_inode) {
+	*lock = new StoFileLock(found_inode.id, fname);
+	return IOStatus::OK();
+  } else if (error != DirectoryError::Found_inode) {	
+	return IOStatus::IOError("Path to " + fname + " does not exist");
+  }
+
+  // We check this in our callback so that we can more easily signal
+  // errors to the system
+  StoFile file = StoFile(&found_inode);
+  char buf[128];
+
+  // Read the first five bytes of our file to find our sentinel and see if it is the same
+  // TODO: Check if this works? What does this do whenever it is unlocked.
+  file.read(5, &buf);
+  if (strncmp(buf, "lock", 5) == 0) {
+	return IOStatus::IOError("Lock " + fname + " already locked");
+  } else {
+	return IOStatus::IOError("File " + fname + " is not a lock");
+  }
 }
 
 IOStatus S2FileSystem::AreFilesSame(const std::string &, const std::string &,

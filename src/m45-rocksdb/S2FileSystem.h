@@ -24,7 +24,7 @@ SOFTWARE.
 #define STOSYS_PROJECT_S2FILESYSTEM_H
 
 #include <zns_device.h>
-
+#include <mutex>
 #include <iostream>
 
 #include "rocksdb/env.h"
@@ -34,7 +34,6 @@ SOFTWARE.
 #include "structures.h"
 
 namespace ROCKSDB_NAMESPACE {
-
 class S2FileSystem : public FileSystem {
  public:
   // No copying allowed
