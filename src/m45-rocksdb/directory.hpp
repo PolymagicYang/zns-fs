@@ -4,11 +4,11 @@
 #include <iostream>
 #include <vector>
 
-#include "structures.h"
 #include "rocksdb/file_system.h"
 #include "rocksdb/io_status.h"
+#include "structures.h"
 
-class StoDir  {
+class StoDir {
  public:
   // Records
   std::array<struct ss_dnode_record, DIRSIZE> records;
@@ -37,10 +37,12 @@ class StoDir  {
 
 struct find_inode_callbacks {
   struct ss_dnode_record *(*missing_directory_cb)(const char *name,
-                                                  StoDir &parent);
-  struct ss_inode *(*missing_file_cb)(const char *name, StoDir &parent);
-  void (*found_file_cb)(const char *name, StoDir &parent,
-                        const ss_inode *inode);
+                                                  StoDir &parent,
+                                                  void *user_data);
+  struct ss_inode *(*missing_file_cb)(const char *name, StoDir &parent,
+                                      void *user_data);
+  void (*found_file_cb)(const char *name, StoDir &parent, const ss_inode *inode,
+                        void *user_data);
   void *user_data;
 };
 

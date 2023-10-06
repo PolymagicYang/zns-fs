@@ -39,6 +39,20 @@ StoInode::StoInode(const uint32_t size, char *name) {
   this->name[this->namelen] = '\0';
 }
 
+StoInode::StoInode(const struct ss_inode *inode) {
+  this->inode_number = inode->id;
+  this->mode = inode->mode;
+  this->user_id = inode->uuid;
+  this->size = inode->size;
+  this->time = inode->time;
+  this->deleted = inode->deleted;
+  this->flags = inode->flags;
+  this->namelen = inode->strlen;
+  strncpy(this->name, inode->name, inode->strlen);
+  this->name[this->namelen] = '\0';
+  std::copy(std::begin(inode->segments), std::end(inode->segments),
+            std::begin(this->segments));
+}
 struct ss_inode StoInode::get_inode_struct() {
   struct ss_inode inode;
   inode.id = this->inode_number;

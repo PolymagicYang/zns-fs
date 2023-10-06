@@ -24,8 +24,9 @@ SOFTWARE.
 #define STOSYS_PROJECT_S2FILESYSTEM_H
 
 #include <zns_device.h>
-#include <mutex>
+
 #include <iostream>
+#include <mutex>
 
 #include "rocksdb/env.h"
 #include "rocksdb/file_system.h"

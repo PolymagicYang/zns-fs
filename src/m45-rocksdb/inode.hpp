@@ -19,6 +19,7 @@ class StoInode {
  public:
   StoInode(const uint32_t size, char *name);
   ~StoInode();
+  StoInode(const struct ss_inode *inode);
 
   uint64_t inode_number;
   uint16_t mode;
@@ -34,6 +35,7 @@ class StoInode {
 
   void add_segment(const uint64_t lba, const size_t nblocks);
   struct ss_inode get_inode_struct();
+
   void write_to_disk();
 
  private:
