@@ -1,6 +1,7 @@
 #include "fswrapper.hpp"
 
 #include <cassert>
+#include "../common/unused.h"
 
 namespace ROCKSDB_NAMESPACE {
 
@@ -15,6 +16,8 @@ StoDirFS::StoDirFS(const uint64_t inum, const struct ss_dnode *dnode) {
 StoDirFS::~StoDirFS() { free(this->directory); }
 
 IOStatus StoDirFS::Fsync(const IOOptions &opts, IODebugContext *db) {
+  UNUSED(opts);
+  UNUSED(db);
   std::cerr << "Fsync the directory" << std::endl;
   return IOStatus::OK();
 }
@@ -41,7 +44,11 @@ StoRAFile::~StoRAFile() {
 
 IOStatus StoRAFile::Read(uint64_t offset, size_t size, const IOOptions &options,
                          Slice *result, char *scratch,
-                         IODebugContext *dbg) const {
+                         IODebugContext *dbg) const {\
+  UNUSED(scratch);
+  UNUSED(dbg);
+  
+  std::cout << "RA read" << std::endl;
   // Read a total offset + size bytes from the underlying file
   // TODO(valentijn): memory leak?
   char *buffer = (char *)malloc(offset + size);
@@ -51,7 +58,8 @@ IOStatus StoRAFile::Read(uint64_t offset, size_t size, const IOOptions &options,
   buffer += offset;
 
   // Copy the buffer over to the result slice
-  *result = Slice(buffer);
+  *result = Slice(buffer, std::min(this->file->inode->size - (size_t) 1 , size));
+  std::cout << "RA read " << result->data() << std::endl;
   return IOStatus::OK();
 }
 
@@ -67,6 +75,9 @@ StoSeqFile::~StoSeqFile() {
 
 IOStatus StoSeqFile::Read(size_t size, const IOOptions &options, Slice *result,
                           char *scratch, IODebugContext *dbg) {
+  UNUSED(scratch);
+  UNUSED(dbg);
+  
   if (eof) {
     *result = Slice();
     return IOStatus::OK();
@@ -81,8 +92,7 @@ IOStatus StoSeqFile::Read(size_t size, const IOOptions &options, Slice *result,
   // Clasp the amount we store based on the current size of our inode
   // TODO(everyone): make this more generic so we don't overallocate memory
   //   as badly as we do atm.
-  *result = Slice(buffer, std::min(this->file->inode->size - offset - 1, size));
-  
+  *result = Slice(buffer, std::min(this->file->inode->size - offset - 1, size));  
 
   this->offset = adjusted;
 
@@ -109,6 +119,9 @@ StoWriteFile::~StoWriteFile() {
 // Append data to the end of the file
 IOStatus StoWriteFile::Append(const Slice &data, const IOOptions &options,
                               IODebugContext *dbg) {
+  UNUSED(options);
+  UNUSED(dbg);
+  
   if (!this->file) return IOStatus::IOError("File closed");
 
   this->file->write(data.size(), (void *)data.data());
@@ -117,6 +130,9 @@ IOStatus StoWriteFile::Append(const Slice &data, const IOOptions &options,
 
 // Flush writes the application data to the filesystem
 IOStatus StoWriteFile::Flush(const IOOptions &options, IODebugContext *dbg) {
+  UNUSED(options);
+  UNUSED(dbg);
+  
   if (!this->file) return IOStatus::IOError("File closed");
 
   this->file->write_to_disk();
@@ -125,6 +141,9 @@ IOStatus StoWriteFile::Flush(const IOOptions &options, IODebugContext *dbg) {
 
 // Sync writes the filesystem data to the FTL
 IOStatus StoWriteFile::Sync(const IOOptions &options, IODebugContext *dbg) {
+  UNUSED(options);
+  UNUSED(dbg);
+  
   if (!this->file) return IOStatus::IOError("File closed");
 
   this->file->write_to_disk();
@@ -133,6 +152,9 @@ IOStatus StoWriteFile::Sync(const IOOptions &options, IODebugContext *dbg) {
 
 // Close our file
 IOStatus StoWriteFile::Close(const IOOptions &options, IODebugContext *dbg) {
+  UNUSED(options);
+  UNUSED(dbg);
+				
   if (!this->file) return IOStatus::IOError("File closed");
 
   this->file = nullptr;

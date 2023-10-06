@@ -12,9 +12,13 @@
 StoFile::StoFile(const ss_inode *inode) {
   // TODO(valentijn): memory leak or something
   this->inode = new StoInode(inode);
+  this->name = inode->name;
 }
 
-StoFile::StoFile(const StoInode *inode) { this->inode = (StoInode *)inode; }
+StoFile::StoFile(StoInode *inode) {
+  this->inode = inode;
+  this->name;
+}
 
 StoFile::~StoFile() {}
 

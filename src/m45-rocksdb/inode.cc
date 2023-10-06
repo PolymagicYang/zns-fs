@@ -23,7 +23,7 @@ std::map<uint64_t, uint64_t> inode_map = std::map<uint64_t, uint64_t>();
 // Vector containing the physical address of each of the inode maps
 std::vector<uint64_t> checkpoint_region = std::vector<uint64_t>();
 
-StoInode::StoInode(const uint32_t size, char *name) {
+StoInode::StoInode(const uint32_t size, std::string name) {
   this->inode_number = g_inode_num++;
   this->mode = 0;
   this->user_id = 0;
@@ -34,9 +34,8 @@ StoInode::StoInode(const uint32_t size, char *name) {
                    p0.time_since_epoch())
                    .count();
   this->flags = 0;
-  this->namelen = strlen(name);
-  strncpy(this->name, name, this->namelen);
-  this->name[this->namelen] = '\0';
+  this->namelen = name.size();  
+  this->name = name;
 }
 
 StoInode::StoInode(const struct ss_inode *inode) {
@@ -48,7 +47,7 @@ StoInode::StoInode(const struct ss_inode *inode) {
   this->deleted = inode->deleted;
   this->flags = inode->flags;
   this->namelen = inode->strlen;
-  strncpy(this->name, inode->name, inode->strlen);
+  strncpy((char*) this->name.c_str(), inode->name, inode->strlen);
   this->name[this->namelen] = '\0';
   std::copy(std::begin(inode->segments), std::end(inode->segments),
             std::begin(this->segments));
@@ -63,8 +62,7 @@ struct ss_inode StoInode::get_inode_struct() {
   inode.deleted = false;
   inode.flags = this->flags;
   inode.strlen = this->namelen;
-  strncpy(inode.name, this->name, this->namelen);
-  inode.name[this->namelen] = '\0';
+  this->name = std::string(inode.name);
   std::copy(std::begin(this->segments), std::end(this->segments),
             std::begin(inode.segments));
   return inode;

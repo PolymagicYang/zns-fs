@@ -17,7 +17,7 @@ void setup_test_system();
 
 class StoInode {
  public:
-  StoInode(const uint32_t size, char *name);
+  StoInode(const uint32_t size, std::string name);
   ~StoInode();
   StoInode(const struct ss_inode *inode);
 
@@ -31,11 +31,10 @@ class StoInode {
   std::array<struct ss_segment, SEGMENT_SIZE> segments;
   uint32_t flags;
   uint16_t namelen;
-  char name[NAMELEN];
+  std::string name;
 
   void add_segment(const uint64_t lba, const size_t nblocks);
   struct ss_inode get_inode_struct();
-
   void write_to_disk();
 
  private:

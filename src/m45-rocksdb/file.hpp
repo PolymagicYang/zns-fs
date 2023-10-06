@@ -10,9 +10,9 @@
 
 class StoFile {
  public:
-  char *name;
+  std::string name;
   StoFile(const ss_inode *inode);
-  StoFile(const StoInode *inode);
+  StoFile(StoInode *inode);
   ~StoFile();
   void write_to_disk();
   void write(size_t size, void *data);

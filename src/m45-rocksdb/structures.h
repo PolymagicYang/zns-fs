@@ -12,14 +12,14 @@
 #include <map>
 #include <vector>
 
-#define SEGMENT_SIZE 16
+#define SEGMENT_SIZE 32
 #define NAMELEN 256
 #define DIRSIZE 32
-#define TEST_LBA_SIZE 4096
+#define TEST_LBA_SIZE 1 << 24
 
 // 4th bit
 #define FLAG_DIRECTORY (1 << 4)
-
+#define FLAG_LOCK (1 << 5)
 extern uint64_t g_lba_size;
 
 struct ss_segment {
@@ -50,7 +50,7 @@ struct ss_dnode_record {
 struct ss_dnode {
   struct ss_dnode_record entries[DIRSIZE];
   uint16_t strlen;
-  char dirname[DIRSIZE];
+  char dirname[NAMELEN];
 };
 
 using __inode_map = std::map<uint64_t, struct ss_inode>;
