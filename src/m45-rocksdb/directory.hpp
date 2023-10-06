@@ -31,8 +31,6 @@ class StoDir {
 
   void write_to_disk();
 
- private:
-  uint8_t entry_index = 0;
 };
 
 struct find_inode_callbacks {

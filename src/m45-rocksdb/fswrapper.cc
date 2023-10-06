@@ -77,8 +77,13 @@ IOStatus StoSeqFile::Read(size_t size, const IOOptions &options, Slice *result,
   char *buffer = (char *)malloc(adjusted);
   file->read(adjusted, (void *)buffer);
   *buffer += offset;
-  *result = Slice(buffer);
-  std::cout << result->data() << std::endl;
+
+  // Clasp the amount we store based on the current size of our inode
+  // TODO(everyone): make this more generic so we don't overallocate memory
+  //   as badly as we do atm.
+  *result = Slice(buffer, std::min(this->file->inode->size - offset - 1, size));
+  
+
   this->offset = adjusted;
 
   if (strlen(buffer) < size) this->eof = true;

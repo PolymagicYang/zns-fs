@@ -17,8 +17,6 @@ class StoFile {
   void write_to_disk();
   void write(size_t size, void *data);
   void read(size_t size, void *result);
-
- private:
   StoInode *inode;
 };
 

@@ -60,6 +60,13 @@ void StoDir::write_to_disk() {
 
 int StoDir::add_entry(const uint16_t inode_number, const uint16_t reclen,
                       const char *name) {
+  // Find an empty spot in our directory structure
+  uint16_t index = 0;
+  for (auto &entry : this->records) {
+	  if (entry.inum == 0) break;
+	  index++;
+  }
+									   
   struct ss_dnode_record drec;
   if (inode_number == 0) {
     std::cerr << "Invalid inode number '" << inode_number << "' for " << name
@@ -70,7 +77,7 @@ int StoDir::add_entry(const uint16_t inode_number, const uint16_t reclen,
   drec.namelen = strlen(name);
   strncpy(drec.name, name, drec.namelen);
   drec.name[drec.namelen] = '\0';
-  this->records[this->entry_index++] = drec;
+  this->records[index] = drec;
   return 0;
 }
 
@@ -111,7 +118,7 @@ enum DirectoryError find_inode(StoDir &directory, std::string name,
   auto location = name.find(delimiter);
   auto current = name.substr(0, location);
   struct ss_dnode_record *entry = directory.find_entry(current.c_str());
-
+  
   // Iterate to the next level in our directory hierarchy
   if (location != std::string::npos) {
     auto next = name.substr(location + 1, name.size());

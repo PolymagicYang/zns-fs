@@ -150,7 +150,7 @@ IOStatus S2FileSystem::NewSequentialFile(
     const std::string &fname, const FileOptions &file_opts,
     std::unique_ptr<FSSequentialFile> *result,
     __attribute__((unused)) IODebugContext *dbg) {
-  std::cout << "Create sequential file of " << fname << std::endl;
+  std::cerr << "[SequentialFile] Create " << fname << std::endl;
   *result = nullptr;
   StoDir root = StoDir(2, get_dnode_by_id(2));
   struct ss_inode found_inode;
@@ -198,6 +198,7 @@ IOStatus S2FileSystem::NewRandomAccessFile(
     const std::string &fname, const FileOptions &file_opts,
     std::unique_ptr<FSRandomAccessFile> *result,
     __attribute__((unused)) IODebugContext *dbg) {
+  std::cerr << "[RandomAccess] create " << fname << std::endl;
   *result = nullptr;
   StoDir root = StoDir(2, get_dnode_by_id(2));
   struct ss_inode found_inode;
@@ -230,7 +231,7 @@ IOStatus S2FileSystem::NewWritableFile(const std::string &fname,
                                        std::unique_ptr<FSWritableFile> *result,
                                        __attribute__((unused))
                                        IODebugContext *dbg) {
-  std::cout << "Create " << fname << std::endl;
+  std::cout << "[WriteableFile] Create " << fname << std::endl;
   *result = nullptr;
   StoDir root = StoDir(2, get_dnode_by_id(2));
   struct ss_inode found_inode;
@@ -240,6 +241,7 @@ IOStatus S2FileSystem::NewWritableFile(const std::string &fname,
                                          callback_missing_file_create};
 
   enum DirectoryError err = find_inode(root, cut, &found_inode, &cbs);
+
   if (err == DirectoryError::Found_inode) {
     // TODO(someone): File deletion
     return IOStatus::IOError(
@@ -283,7 +285,7 @@ IOStatus S2FileSystem::NewDirectory(const std::string &name,
                                     __attribute__((unused))
                                     IODebugContext *dbg) {
   std::string cut = name.substr(1, name.size() - 2);
-  std::cout << cut << " " << name << std::endl;
+  std::cout << "[NewDirectory] " << cut << " " << name << std::endl;
   StoDir root = StoDir(2, get_dnode_by_id(2));
   struct ss_inode found_inode;
   enum DirectoryError error = find_inode(root, cut, &found_inode, NULL);
@@ -475,7 +477,7 @@ IOStatus S2FileSystem::LockFile(const std::string &fname,
                                 const IOOptions &options, FileLock **lock,
                                 __attribute__((unused)) IODebugContext *dbg) {
   *lock = nullptr;
-  std::cerr << "Called LockFile " << fname << std::endl;
+  std::cerr << "[Lock]" << fname << std::endl;
   struct ss_inode found_inode;
 
   struct find_inode_callbacks cbs = {.missing_file_cb =
@@ -552,7 +554,7 @@ IOStatus S2FileSystem::RenameFile(const std::string &src,
                                   __attribute__((unused)) IODebugContext *dbg) {
   StoDir root = StoDir(2, get_dnode_by_id(2));
   std::string cut = src.substr(1, src.size());
-  std::cout << "rename: " << cut << " to " << target << std::endl;
+  std::cout << "[Rename] " << cut << " to " << target << std::endl;
 
   auto index_src = src.rfind("/");
   auto index_target = target.rfind("/");
@@ -614,7 +616,7 @@ IOStatus S2FileSystem::FileExists(const std::string &fname,
                                   __attribute__((unused)) IODebugContext *dbg) {
   StoDir root = StoDir(2, get_dnode_by_id(2));
   std::string cut = fname.substr(1, fname.size());
-  std::cout << "exists: " << cut << std::endl;
+  std::cout << "[FileExist] " << cut << std::endl;
 
   struct ss_inode found_inode;
   // TODO(valentijn): permission checking

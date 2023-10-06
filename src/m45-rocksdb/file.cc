@@ -19,7 +19,10 @@ StoFile::StoFile(const StoInode *inode) { this->inode = (StoInode *)inode; }
 StoFile::~StoFile() {}
 
 void StoFile::write(size_t size, void *data) {
-  std::cout << "Data write " << data << std::endl;
+  std::cout << "Data write " << size << " " <<  data << std::endl;
+  // Move the size of our inode up by the number of bytes in our write
+  this->inode->size += size;
+  
   uint8_t total_blocks = std::ceil(size / (float)g_lba_size);
   struct ss_data *barray =
       (struct ss_data *)malloc(sizeof(struct ss_data) * total_blocks);
@@ -44,6 +47,7 @@ void StoFile::write(size_t size, void *data) {
 void StoFile::read(const size_t size, void *result) {
   size_t index = 0;
   void *copy = result;
+
   for (auto &segment : inode->segments) {
     for (uint8_t i = 0; i < segment.nblocks; i++) {
       struct ss_data *data =
@@ -57,7 +61,7 @@ void StoFile::read(const size_t size, void *result) {
     }
   }
 
-  std::cout << "Data read " << (char *)copy << std::endl;
+  std::cout << "Data read " << size << " " << copy << std::endl;
 }
 
 void StoFile::write_to_disk() { this->inode->write_to_disk(); }
