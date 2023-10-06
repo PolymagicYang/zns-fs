@@ -41,7 +41,8 @@ struct find_inode_callbacks {
                                                   void *user_data);
   struct ss_inode *(*missing_file_cb)(const char *name, StoDir &parent,
                                       void *user_data);
-  void (*found_file_cb)(const char *name, StoDir &parent, const ss_inode *inode,
+  void (*found_file_cb)(const char *name, StoDir &parent,
+                        struct ss_inode *inode, struct ss_dnode_record *entry,
                         void *user_data);
   void *user_data;
 };

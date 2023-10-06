@@ -78,7 +78,7 @@ IOStatus StoSeqFile::Read(size_t size, const IOOptions &options, Slice *result,
   file->read(adjusted, (void *)buffer);
   *buffer += offset;
   *result = Slice(buffer);
-  free(buffer);
+  std::cout << result->data() << std::endl;
   this->offset = adjusted;
 
   if (strlen(buffer) < size) this->eof = true;

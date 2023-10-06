@@ -27,6 +27,7 @@ SOFTWARE.
 #include <utils.h>
 
 #include <iostream>
+#include <regex>
 #include <string>
 
 #include "directory.hpp"
@@ -149,6 +150,7 @@ IOStatus S2FileSystem::NewSequentialFile(
     const std::string &fname, const FileOptions &file_opts,
     std::unique_ptr<FSSequentialFile> *result,
     __attribute__((unused)) IODebugContext *dbg) {
+  std::cout << "Create sequential file of " << fname << std::endl;
   *result = nullptr;
   StoDir root = StoDir(2, get_dnode_by_id(2));
   struct ss_inode found_inode;
@@ -343,7 +345,8 @@ struct ss_inode *callback_missing_file_create_dir(const char *name,
 }
 
 void callback_found_file_print(const char *name, StoDir &parent,
-                               const struct ss_inode *inode, void *user_data) {
+                               struct ss_inode *inode,
+                               struct ss_dnode_record *entry, void *user_data) {
   std::cerr << "Found file " << name << " in " << parent.name << std::endl;
 }
 
@@ -521,11 +524,62 @@ IOStatus S2FileSystem::LinkFile(const std::string &, const std::string &,
   return IOStatus::IOError(__FUNCTION__);
 }
 
+void callback_found_file_rename(const char *name, StoDir &parent,
+                                struct ss_inode *ss_inode,
+                                struct ss_dnode_record *entry,
+                                void *user_data) {
+  char *new_name = (char *)user_data;
+  size_t length = strlen(new_name);
+
+  // Copy the name to the inode and write it to disk. Somewhat
+  // inconvient to wrap it around a class.
+  strncpy((char *)ss_inode->name, new_name, length);
+  ss_inode->name[length] = '\0';
+  ss_inode->strlen = length;
+  StoInode inode = StoInode(ss_inode);
+  inode.write_to_disk();
+
+  // Update our directory entry and write to disk
+  strncpy((char *)entry->name, new_name, length);
+  entry->name[length] = '\0';
+  entry->namelen = length;
+  parent.write_to_disk();
+}
+
 IOStatus S2FileSystem::RenameFile(const std::string &src,
                                   const std::string &target,
                                   const IOOptions &options,
                                   __attribute__((unused)) IODebugContext *dbg) {
-  return IOStatus::IOError(__FUNCTION__);
+  StoDir root = StoDir(2, get_dnode_by_id(2));
+  std::string cut = src.substr(1, src.size());
+  std::cout << "rename: " << cut << " to " << target << std::endl;
+
+  auto index_src = src.rfind("/");
+  auto index_target = target.rfind("/");
+
+  std::string new_name = target.substr(index_target, target.size());
+  std::string path_to_src = src.substr(0, index_src);
+  std::string path_to_target = target.substr(0, index_target);
+
+  if (path_to_src.compare(path_to_target) != 0) {
+    return IOStatus::IOError("Rename cannot move to a different directory!");
+  }
+
+  // Remove a leading / if it exists
+  if (new_name[0] == '/') {
+    new_name = new_name.substr(1, new_name.size());
+  }
+
+  struct find_inode_callbacks cbs = {
+      .found_file_cb = callback_found_file_rename,
+      .user_data = (void *)new_name.c_str()};
+  struct ss_inode found_inode;
+  enum DirectoryError err = find_inode(root, cut, &found_inode, &cbs);
+  if (err == DirectoryError::Found_inode) {
+    return IOStatus::OK();
+  }
+
+  return IOStatus::NotFound();
 }
 
 IOStatus S2FileSystem::GetChildrenFileAttributes(
@@ -563,7 +617,6 @@ IOStatus S2FileSystem::FileExists(const std::string &fname,
   std::cout << "exists: " << cut << std::endl;
 
   struct ss_inode found_inode;
-
   // TODO(valentijn): permission checking
   // TODO(valentijn): overzealous not found code
   enum DirectoryError err = find_inode(root, cut, &found_inode, NULL);
