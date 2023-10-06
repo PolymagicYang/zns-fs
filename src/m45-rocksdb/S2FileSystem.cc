@@ -591,6 +591,17 @@ IOStatus S2FileSystem::GetChildrenFileAttributes(
   return FileSystem::GetChildrenFileAttributes(dir, options, result, dbg);
 }
 
+void callback_found_directory_count(const char *name, StoDir &parent,
+									struct ss_inode *inode,
+									struct ss_dnode_record *entry, void *user_data) {
+  std::vector<std::string> *children = (std::vector<std::string> *) user_data;
+
+  for (auto &entry : parent.records) {
+	if (entry.inum == 0) continue;
+	children->push_back(entry.name);
+  }
+}
+
 // Store in *result the names of the children of the specified directory.
 // The names are relative to "dir".
 // Original contents of *results are dropped.
@@ -603,7 +614,21 @@ IOStatus S2FileSystem::GetChildren(const std::string &dir,
                                    std::vector<std::string> *result,
                                    __attribute__((unused))
                                    IODebugContext *dbg) {
-  return IOStatus::IOError(__FUNCTION__);
+  StoDir root = StoDir(2, get_dnode_by_id(2));
+  std::string cut = dir.substr(1, dir.size());
+  std::cout << "[GetChildren] " << cut << std::endl;
+
+  struct find_inode_callbacks cbs = {
+	.found_file_cb = callback_found_directory_count,
+	.user_data = (void*) result	
+  };
+  struct ss_inode found_inode;
+  enum DirectoryError err = find_inode(root, cut, &found_inode, &cbs);
+  if (err == DirectoryError::Found_inode) {
+	return IOStatus::OK();
+  }
+
+  return IOStatus::NotFound();
 }
 
 // Returns OK if the named file exists.
