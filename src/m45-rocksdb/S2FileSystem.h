@@ -28,6 +28,7 @@ SOFTWARE.
 #include <iostream>
 #include <mutex>
 
+#include "allocator.hpp"
 #include "rocksdb/env.h"
 #include "rocksdb/file_system.h"
 #include "rocksdb/io_status.h"
@@ -156,6 +157,7 @@ class S2FileSystem : public FileSystem {
 
  private:
   struct user_zns_device *_zns_dev;
+  BlockManager *allocator;
   std::string _uri;
   const std::string _fs_delimiter = "/";
   struct InodeMap inodes;

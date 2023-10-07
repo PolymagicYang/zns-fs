@@ -21,7 +21,9 @@ SOFTWARE.
  */
 
 #include "S2FileSystem.h"
+// #include "allocator.hpp"
 
+#include <cstdint>
 #include <stosys_debug.h>
 #include <sys/mman.h>
 #include <utils.h>
@@ -45,7 +47,6 @@ namespace ROCKSDB_NAMESPACE {
 std::map<const std::string, std::mutex> file_locks;
 
 S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
-  UNUSED(debug);
   FileSystem::Default();
   std::string sdelimiter = ":";
   std::string edelimiter = "://";
@@ -62,6 +63,8 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
   params.gc_wmark = 1;
   params.force_reset = false;
   int ret = init_ss_zns_device(&params, &this->_zns_dev);
+
+  this->allocator = new BlockManager(this->_zns_dev);
   if (ret != 0) {
     std::cout << "Error: " << uri_db_path << " failed to open the device "
               << device.c_str() << "\n";
@@ -151,10 +154,9 @@ IOStatus S2FileSystem::NewSequentialFile(
     const std::string &fname, const FileOptions &file_opts,
     std::unique_ptr<FSSequentialFile> *result,
     __attribute__((unused)) IODebugContext *dbg) {
-  UNUSED(file_opts);
-  UNUSED(dbg);
   std::cerr << "[SequentialFile] Create " << fname << std::endl;
   *result = nullptr;
+
   
   StoDir root = StoDir(2, get_dnode_by_id(2));
   struct ss_inode found_inode;
@@ -171,7 +173,7 @@ IOStatus S2FileSystem::NewSequentialFile(
     return IOStatus::OK();
   } else if (err == DirectoryError::Found_inode) {
     std::cerr << "Found the inode" << std::endl;
-    result->reset(new StoSeqFile(&found_inode));
+    result->reset(new StoSeqFile(&found_inode, this->allocator));
     return IOStatus::OK();
   } else if (err == DirectoryError::Inode_not_found) {
     std::cerr << "Did not find the inode" << std::endl;
@@ -215,7 +217,7 @@ IOStatus S2FileSystem::NewRandomAccessFile(
     return IOStatus::IOError(__FUNCTION__);
   }
 
-  result->reset(new StoRAFile(&found_inode));
+  result->reset(new StoRAFile(&found_inode, this->allocator));
   return IOStatus::OK();
 }
 
@@ -235,6 +237,7 @@ IOStatus S2FileSystem::NewWritableFile(const std::string &fname,
                                        IODebugContext *dbg) {
   UNUSED(file_opts);
   std::cout << "[WriteableFile] Create " << fname << std::endl;
+
   *result = nullptr;
   StoDir root = StoDir(2, get_dnode_by_id(2));
   struct ss_inode found_inode;
@@ -257,7 +260,7 @@ IOStatus S2FileSystem::NewWritableFile(const std::string &fname,
     return IOStatus::IOError(__FUNCTION__);
   }
 
-  result->reset(new StoWriteFile(&found_inode));
+  result->reset(new StoWriteFile(&found_inode, this->allocator));
   return IOStatus::OK();
 }
 

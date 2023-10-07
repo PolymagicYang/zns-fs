@@ -1,3 +1,4 @@
+#include "allocator.hpp"
 #include "directory.hpp"
 #include "file.hpp"
 #include "rocksdb/file_system.h"
@@ -28,7 +29,7 @@ class StoFileLock : public FileLock {
 
 class StoRAFile : public FSRandomAccessFile {
  public:
-  StoRAFile(struct ss_inode *inode);
+  StoRAFile(struct ss_inode *inode, BlockManager *);
   ~StoRAFile();
 
   virtual IOStatus Read(uint64_t offset, size_t size, const IOOptions &options,
@@ -41,7 +42,7 @@ class StoRAFile : public FSRandomAccessFile {
 
 class StoSeqFile : public FSSequentialFile {
  public:
-  StoSeqFile(struct ss_inode *inode);
+  StoSeqFile(struct ss_inode *inode, BlockManager *);
   ~StoSeqFile();
   virtual IOStatus Read(size_t size, const IOOptions &options, Slice *result,
                         char *scratch, IODebugContext *dbg);
@@ -56,7 +57,7 @@ class StoSeqFile : public FSSequentialFile {
 
 class StoWriteFile : public FSWritableFile {
  public:
-  StoWriteFile(struct ss_inode *inode);
+  StoWriteFile(struct ss_inode *inode, BlockManager *);
   ~StoWriteFile();
 
   virtual IOStatus Append(const Slice &data, const IOOptions &options,

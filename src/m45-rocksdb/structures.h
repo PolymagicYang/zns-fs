@@ -14,8 +14,8 @@
 
 #define SEGMENT_SIZE 32
 #define NAMELEN 256
-#define DIRSIZE 32
-#define TEST_LBA_SIZE 1 << 24
+#define DIRSIZE 32 
+#define TEST_LBA_SIZE 4096 
 
 // 4th bit
 #define FLAG_DIRECTORY (1 << 4)

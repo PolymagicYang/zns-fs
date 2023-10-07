@@ -102,6 +102,8 @@ add_library(stosys SHARED
 src/m23-ftl/zone.hpp src/m23-ftl/zone.cpp src/m23-ftl/znsblock.hpp
 src/m23-ftl/ftlgc.hpp src/m23-ftl/ftlgc.cpp
 src/common/nvmewrappers.h src/common/nvmewrappers.cpp
+src/m23-ftl/logzone.hpp src/m23-ftl/logzone.cpp
+src/m23-ftl/datazone.hpp src/m23-ftl/datazone.cpp
 src/m23-ftl/ftl.hpp src/m23-ftl/ftl.cpp src/m23-ftl/ftlgc.hpp src/m23-ftl/ftlgc.cpp
 src/m23-ftl/zns_device.cpp src/m23-ftl/zns_device.h  src/m23-ftl/backup_zns_device_file.cpp
 src/common/nvmeprint.cpp src/common/nvmeprint.h src/common/utils.cpp
@@ -152,7 +154,9 @@ if(STOSYS_M45)
     src/m45-rocksdb/DummyFSForward.cc src/m45-rocksdb/DummyFSForward.h
     src/m45-rocksdb/MyRocksContext.h
 	src/m45-rocksdb/directory.cc src/m45-rocksdb/fswrapper.cc
-	src/m45-rocksdb/file.cc src/m45-rocksdb/storage_layer.cc
+    src/m45-rocksdb/allocator.cc
+    src/m45-rocksdb/storage_layer.cc
+	src/m45-rocksdb/file.cc
     src/m45-rocksdb/S2FileSystem.cc src/m45-rocksdb/S2FileSystem.h)
     # see all the defined variables here: https://cmake.org/cmake/help/latest/module/FindPkgConfig.html
     add_definitions (${NVME_CFLAGS} ${ROCKSDB_CFLAGS}  ${ROCKSDB_STATIC_CFLAGS} ${ROCKSDB_CFLAGS_OTHER})

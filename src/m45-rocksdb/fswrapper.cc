@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include "../common/unused.h"
+#include "allocator.hpp"
 
 namespace ROCKSDB_NAMESPACE {
 
@@ -34,8 +35,8 @@ void StoFileLock::Clear() {
 
 StoFileLock::~StoFileLock() { assert(this->inode_num != 0); }
 
-StoRAFile::StoRAFile(struct ss_inode *inode) {
-  this->file = new StoFile(inode);
+StoRAFile::StoRAFile(struct ss_inode *inode, BlockManager *allocator) {
+  this->file = new StoFile(inode, allocator);
 }
 
 StoRAFile::~StoRAFile() {
@@ -63,8 +64,8 @@ IOStatus StoRAFile::Read(uint64_t offset, size_t size, const IOOptions &options,
   return IOStatus::OK();
 }
 
-StoSeqFile::StoSeqFile(struct ss_inode *inode) {
-  this->file = new StoFile(inode);
+StoSeqFile::StoSeqFile(struct ss_inode *inode, BlockManager *allocator) {
+  this->file = new StoFile(inode, allocator);
   this->offset = 0;
   this->eof = false;
 }
@@ -78,6 +79,7 @@ IOStatus StoSeqFile::Read(size_t size, const IOOptions &options, Slice *result,
   UNUSED(scratch);
   UNUSED(dbg);
   
+
   if (eof) {
     *result = Slice();
     return IOStatus::OK();
@@ -86,7 +88,8 @@ IOStatus StoSeqFile::Read(size_t size, const IOOptions &options, Slice *result,
   // doing things
   size_t adjusted = offset + size;
   char *buffer = (char *)malloc(adjusted);
-  file->read(adjusted, (void *)buffer);
+  this->file->read(adjusted, (void *)buffer);
+  printf("end read.\n");
   *buffer += offset;
 
   // Clasp the amount we store based on the current size of our inode
@@ -107,8 +110,8 @@ IOStatus StoSeqFile::Skip(uint64_t size) {
   this->offset = adjusted;
 }
 
-StoWriteFile::StoWriteFile(struct ss_inode *inode) {
-  this->file = new StoFile(inode);
+StoWriteFile::StoWriteFile(struct ss_inode *inode, BlockManager *allocator) {
+  this->file = new StoFile(inode, allocator);
   this->offset = 0;
 }
 
