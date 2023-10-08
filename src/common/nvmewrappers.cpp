@@ -53,6 +53,17 @@ int ss_nvme_zns_append(int fd, __u32 nsid, __u64 zslba, __u16 nlb,
   return ret;
 }
 
+int ss_device_zone_reset(int fd, uint32_t nsid, uint64_t slba) {
+  // this is to supress gcc warnings, remove it when you complete this function
+  __u32 cdw10 = slba & 0xffffffff;
+  __u32 cdw11 = slba >> 32;
+  __u32 cdw13 =
+      1 << 2;  // 08 sets to 0, 04h as the reset zone, and others reserved.
+  return nvme_io_passthru(fd, nvme_zns_cmd_mgmt_send, 0, 0, nsid, 0, 0, cdw10,
+                          cdw11, 0, cdw13, 0, 0, 0, nullptr, 0, nullptr, 0,
+                          NULL);
+}
+
 int ss_nvme_read(int fd, __u32 nsid, __u64 slba, __u16 nlb, __u16 control,
                  __u8 dsm, __u32 reftag, __u16 apptag, __u16 appmask,
                  __u32 data_len, void *data, __u32 metadata_len,
@@ -71,50 +82,4 @@ int ss_nvme_read(int fd, __u32 nsid, __u64 slba, __u16 nlb, __u16 control,
   return ret;
 }
 
-/**
- * Args:
- *   fd: file descriptor of the NVMe device
- *   nsid: namespace id for our current namespace
- *   sdlba: LBA of the destination
- *   lr: limited rewrite type
- *   fua: if set 1 the controller will write data before command completion
- *   prinfow: protection information for the writing
- *   prinfor: protection information for reading
- *   dtype: directive type for writing
- *   format: format of the source range entries
- *   dspec: directive speicfic value for the type field
- *   ilbr: Initial logical block reference tag
- *   lbatm: Application tag mask for the write
- *   lbat: Application tag for write
- *   copy: a struct containing the copy range.
- *   nr: number of ranges in the command (0 based)
- */
-// TODO: fix this shit
-int ss_nvme_copy(int fd, uint32_t nsid, struct nvme_copy_range *copy,
-                 uint64_t sdlba, uint16_t nr) {
-  printf("nlb and nr: %d and %d\n", copy->nlb, nr);
-  int ret = nvme_copy(fd, cpu_to_le32(nsid), copy, cpu_to_le64(sdlba),
-                      cpu_to_le16(nr), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-  if (ret == -1) {
-    perror("ss_nvme_copy() failed");
-  } else if (ret != 0) {
-    print_nvme_error("copy", ret);
-#ifdef EARLY_EXIT
-    exit(ret);
-#endif
-  }
-
-  return ret;
-}
-
-struct nvme_copy_range ss_nvme_create_range(const uint64_t slba,
-                                            const uint16_t nlb) {
-  return {// .rsvd0 = {0, 0, 0, 0, 0, 0, 0},
-          .slba = cpu_to_le64(slba),
-          .nlb = cpu_to_le16(nlb),
-          // .rsvd18 = {0, 0, 0, 0, 0},
-          .eilbrt = cpu_to_le32(0),
-          .elbatm = cpu_to_le16(0),
-          .elbat = cpu_to_le16(0)};
-}
 }

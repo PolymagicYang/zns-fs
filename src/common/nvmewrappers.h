@@ -24,10 +24,7 @@ int ss_nvme_zns_append(int fd, __u32 nsid, __u64 zslba, __u16 nlb,
                        __u32 data_len, void *data, __u32 metadata_len,
                        void *metadata, __u64 *result);
 
-int ss_nvme_copy(int fd, uint32_t nsid, struct nvme_copy_range *copy,
-                 uint64_t sdlba, uint16_t nr);
-struct nvme_copy_range ss_nvme_create_range(const uint64_t slba,
-                                            const uint16_t nlb);
+int ss_device_zone_reset(int fd, uint32_t nsid, uint64_t slba);
 
 #ifdef __cplusplus
 }
