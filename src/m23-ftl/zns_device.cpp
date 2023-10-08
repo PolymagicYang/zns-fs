@@ -45,6 +45,7 @@ SOFTWARE.
 #include "../common/unused.h"
 #include "../common/utils.h"
 #include "ftl.hpp"
+#include "ftlgc.hpp"
 #include "zone.hpp"
 
 extern "C" {
@@ -53,10 +54,13 @@ int deinit_ss_zns_device(struct user_zns_device *my_dev) {
   int ret = -ENOSYS;
   // cppcheck-suppress cstyleCast
   FTL *ftl = (FTL *)my_dev->_private;
+  Calliope *mori = (Calliope *)ftl->mori;
+  mori->terminated = true;
+
+  // wait thread finish.
+  std::this_thread::sleep_for(std::chrono::milliseconds(1000));
   delete ftl;
 
-  // this is to supress gcc warnings, remove it when you complete this function
-  UNUSED(my_dev);
   return ret;
 }
 
@@ -130,6 +134,7 @@ int init_ss_zns_device(struct zdev_init_params *params,
   nvme_identify_ctrl(fd, &ctrl);
   uint64_t MDTS = (uint64_t)ctrl.mdts - 1;
   uint64_t MDTS_SIZE = (1 << MDTS) * MPSMIN;
+
   FTL *ftl = new FTL(fd, MDTS_SIZE, nsid, lba_size_in_use, params->gc_wmark,
                      params->log_zones);
   free(path);
@@ -140,14 +145,15 @@ int init_ss_zns_device(struct zdev_init_params *params,
     .zns_zone_capacity = (uint32_t)ftl->zcap * lba_size_in_use,
     .zns_num_zones = static_cast<uint32_t>(ftl->zones.size()),
   };
-  struct user_zns_device device {
-    .lba_size_bytes = lba_size_in_use,
-    .capacity_bytes =
-        (ns.ncap - ftl->log_zones * ftl->zcap) *
-        lba_size_in_use,  // ZNS capacity - log zones (includes metadata).
-        .tparams = tparams, ._private = ftl,
-  };
-  *my_dev = &device;
+
+  struct user_zns_device *device = (user_zns_device *) malloc(sizeof(struct user_zns_device));
+  device->lba_size_bytes = lba_size_in_use,
+  device->capacity_bytes =
+      (ns.ncap - (ftl->log_zones + 1) * ftl->zcap) *
+      lba_size_in_use,  // ZNS capacity - log zones (includes metadata).
+  device->tparams = tparams;
+  device->_private = ftl;
+  *my_dev = device;
 
   munmap(regs, getpagesize());
   return 0;
@@ -169,6 +175,7 @@ int zns_udevice_write(struct user_zns_device *my_dev, uint64_t address,
   // uint64_t *ret_wp;
   // cppcheck-suppress cstyleCast
   FTL *flt = (FTL *)my_dev->_private;
-  return flt->write(address, buffer, size);
+  uint32_t ret_size = flt->write(address, buffer, size);
+  return ret_size;
 }
 }

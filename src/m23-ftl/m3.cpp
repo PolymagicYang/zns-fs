@@ -26,11 +26,13 @@ SOFTWARE.
 
 #include <algorithm>
 #include <cassert>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <random>
+#include <thread>
 #include <vector>
 
 #include "../common/utils.h"
@@ -141,12 +143,9 @@ static int wr_full_device_verify(struct user_zns_device *dev,
   uint32_t seedp = 0xB00B135;
   for (uint32_t i = 0; i < list_size; i++) {
     uint64_t woffset = (addr_list[i]) * dev->lba_size_bytes;
-    if (i == 256) std::cout << "fuck" << std::endl;
     // random offset within the page and just write some random stuff = this is
     // to make a unique I/O pattern
-    uint64_t random_offset = min + (rand_r(&seedp) % (max - min));
-
-    b1[random_offset] = (char)rand_r(&seedp);
+    b1[(min + (rand_r(&seedp) % (max - min)))] = (char)rand_r(&seedp);
     // now we need to write the buffer in parallel to the zns device, and the
     // file
     ret = zns_udevice_write(dev, woffset, b1, dev->lba_size_bytes);
@@ -191,7 +190,6 @@ static int wr_full_device_verify(struct user_zns_device *dev,
   // and now read the whole device and compare the content with the file
   for (uint32_t i = 0; i < list_size; i++) {
     uint64_t roffset = (addr_list[i]) * dev->lba_size_bytes;
-
     // now we need to write the buffer in parallel to the zns device, and the
     // file
     ret = zns_udevice_read(dev, roffset, b1, dev->lba_size_bytes);
@@ -199,20 +197,18 @@ static int wr_full_device_verify(struct user_zns_device *dev,
     ret = read_complete_file(fd, roffset, b2, dev->lba_size_bytes);
     assert(ret == 0);
     // now both of these should match
-    for (uint32_t j = 0; j < dev->lba_size_bytes; j++)
-
+    for (uint32_t j = 0; j < dev->lba_size_bytes; j++) {
+      // printf("compare %u, %u, addr %lx \n", b1[j], b2[j], roffset);
       if (b1[j] != b2[j]) {
-        std::cout << addr_list[i] << std::endl;
-        printf("B1\n===========\n%s\n", b1);
-        printf("\nB2\n===========\n%s\n", b2);
         printf(
             "ERROR: buffer mismatch at i %u and j %u , address is 0%lx "
-            "expecting %x found %x \n",
+            "expecting %u found %u \n",
             i, j, roffset, b2[j], b1[j]);
-        exit(-1);
+        printf("lba size: %d\n", dev->lba_size_bytes);
         ret = -EINVAL;
         goto done;
       }
+    }
   }
   printf("Verification passed on the while device \n");
 
@@ -220,7 +216,7 @@ done:
   free(b1);
   free(b2);
   close(fd);
-  ret = remove(tmp_file);
+  // ret = remove(tmp_file);
   if (ret != 0) {
     printf("Error: file deleting failed with ret %d \n", ret);
   }
@@ -338,7 +334,6 @@ int main(int argc, char **argv) {
   get_sequence_as_array(max_lba_entries, &seq_addresses, false);
   // get a randomized LBA address list
   get_sequence_as_array(max_lba_entries, &random_addresses, true);
-
   // now we start the test
   printf(
       "device %s is opened and initialized, reported LBA size is %u and "
@@ -356,7 +351,8 @@ int main(int argc, char **argv) {
   printf(
       "\n=======================================\n\t\tTest "
       "3\n=======================================\n");
-  int t3 = wr_full_device_verify(my_dev, random_addresses, 1024, to_hammer_lba);
+  int t3 = wr_full_device_verify(my_dev, random_addresses, max_lba_entries,
+                                 to_hammer_lba);
   printf("\n");
   // clean up
   ret = deinit_ss_zns_device(my_dev);

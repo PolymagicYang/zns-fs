@@ -30,7 +30,8 @@ SOFTWARE.
 #include <unordered_map>
 #include <vector>
 
-#include "zone.hpp"
+#include "datazone.hpp"
+#include "logzone.hpp"
 
 struct Addr {
   uint64_t addr;
@@ -49,17 +50,20 @@ class FTL {
  public:
   int fd;
   int gc_wmark;
-  int zones_num;
   uint32_t zcap;
   uint32_t nsid;
   uint64_t mdts_size;
   uint16_t lba_size;
-  pthread_cond_t cond;
-  pthread_mutex_t cond_lock;
+  pthread_cond_t need_gc;
+  pthread_mutex_t need_gc_lock;
+
+  pthread_cond_t clean_finish;
+  pthread_mutex_t clean_finish_lock;
+
   int log_zones;
 
   /** Store a list of all the zones in the system */
-  std::vector<ZNSZone> zones;
+  std::vector<ZNSLogZone> zones;
 
   // A variable to hold our GC object. We set to void so we don't
   // get into a circulair dpeendency of header imports
@@ -81,7 +85,6 @@ class FTL {
     log_map.map.clear();
   }
 
-  Addr get_pa(uint64_t);
   inline bool has_pa(uint64_t);
   int read(uint64_t addr, void* buffer, uint32_t size);
   int write(uint64_t addr, void* buffer, uint32_t size);
@@ -92,30 +95,37 @@ class FTL {
   // return index of all the free log zones.
   std::vector<int> get_free_datazones();
 
-  ZNSZone* get_zone(int index);
-  ZNSZone* get_random_logzone();
-  ZNSZone* get_random_datazone();
-
   /** Get a free zone with enough space to hold a number of blocks. */
-  ZNSZone* get_free_zone(const uint32_t needed);
+  ZNSLogZone* get_free_log_zone(const uint32_t needed);
+
+  ZNSDataZone* get_free_data_zone(const uint32_t needed);
 
   void insert_logmap(uint64_t lba, uint64_t pa, uint16_t zone_num);
 
   /** Get the number of free regions in our system */
-  int16_t get_free_regions();
+  int16_t get_free_log_regions();
 
   void insert_datamap(uint64_t lba, uint64_t pa, uint16_t zone_num);
+
+  void delete_logmap(uint64_t lba);
 
   struct Ftlmap log_map;
   struct Ftlmap data_map;
   pthread_rwlock_t zone_lock;
 
- private:
+  std::vector<ZNSLogZone> zones_log;
+  std::vector<ZNSDataZone> zones_reserved;
+  std::vector<ZNSDataZone> zones_data;
   // return physical page address from log map.
   bool get_ppa(uint64_t, Addr*);
 
+  bool get_pba_by_base(uint64_t, Addr*);
+
   // return physical block address from data map.
   bool get_pba(uint64_t, Addr*);
+
+  // Given a base address to check the existence of the data entry.
+  bool pba_exist(uint64_t);
 };
 
 #endif
