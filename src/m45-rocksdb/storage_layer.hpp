@@ -6,7 +6,6 @@
 #include "allocator.hpp"
 
 struct ss_data get_from_disk(const uint64_t lba, BlockManager *allocator);
-uint64_t store_segment_on_disk(const uint8_t nblocks,
-                               const struct ss_data *data, BlockManager *allocator);
+uint64_t store_segment_on_disk(const size_t size, void *data, BlockManager *allocator);
 
 #endif

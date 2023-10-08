@@ -31,24 +31,10 @@ void StoFile::write(size_t size, void *data) {
   this->inode->size += size;
   
   uint8_t total_blocks = std::ceil(size / (float)g_lba_size);
-  struct ss_data *barray =
-      (struct ss_data *)malloc(sizeof(struct ss_data) * total_blocks);
-
-  for (uint8_t i = 0; i < total_blocks; i++) {
-    struct ss_data *sdata = &barray[i];
-    size_t border = Min(size, TEST_LBA_SIZE);
-    memcpy(sdata->data, data, border);
-    sdata->data[border] = '\0';
-
-    // Move our data pointer one block ahead and adjust our size
-    data += TEST_LBA_SIZE;
-    size -= TEST_LBA_SIZE;
-  }
 
   // Writes the range of blocks to the disk
-  uint64_t slba = store_segment_on_disk(total_blocks, barray, this->allocator);
-  this->inode->add_segment(slba, total_blocks);
-  free(barray);
+  uint64_t slba = store_segment_on_disk(size, data, this->allocator);
+  this->inode->add_segment(slba, total_blocks);  
 }
 
 void StoFile::read(const size_t size, void *result) {

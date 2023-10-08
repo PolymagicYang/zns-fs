@@ -119,9 +119,9 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
   assert(this->_zns_dev->capacity_bytes != 0);
 
   // Globally store our LBA size so we can access everywhere
-  // without copying everything oer.
+  // without copying everything over.
   g_lba_size = this->_zns_dev->lba_size_bytes;
-
+  
   ss_dprintf(DBG_FS_1,
              "device %s is opened and initialized, reported LBA size is %u and "
              "capacity %lu \n",

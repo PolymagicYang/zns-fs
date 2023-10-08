@@ -6,10 +6,9 @@
 #include <iostream>
 #include <sys/ioctl.h>
 
-uint64_t store_segment_on_disk(const uint8_t nblocks,
-                               const struct ss_data *data, BlockManager *allocator) {
+uint64_t store_segment_on_disk(const size_t size, void *data, BlockManager *allocator) {
   uint64_t lba;
-  int ret = allocator->append((void *) data,  nblocks * sizeof(struct ss_data), &lba);
+  int ret = allocator->append((void *) data,  size, &lba);
 
   // ret == 0 => No space for writing.
   assert(ret == 0);
