@@ -7,8 +7,8 @@
 namespace ROCKSDB_NAMESPACE {
 class StoDirFS : public FSDirectory {
  public:
-  StoDirFS(char *name, const uint64_t parent_inode);
-  StoDirFS(const uint64_t inum, const struct ss_dnode *dnode);
+  StoDirFS(char *name, const uint64_t parent_inode, BlockManager *);
+  StoDirFS(const uint64_t inum, const struct ss_dnode *dnode, BlockManager *);
   ~StoDirFS();
 
   virtual IOStatus Fsync(const IOOptions &opts, IODebugContext *db);

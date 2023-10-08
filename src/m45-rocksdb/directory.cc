@@ -3,9 +3,10 @@
 #include <cstring>
 #include <regex>
 
+#include "allocator.hpp"
 #include "inode.hpp"
 
-StoDir::StoDir(char *name, const uint64_t parent_inode) {
+StoDir::StoDir(char *name, const uint64_t parent_inode, BlockManager *allocator) {
   this->inode_number = 0;
   this->parent_inode = parent_inode;
   size_t length = strlen(name) + 1;
@@ -13,14 +14,16 @@ StoDir::StoDir(char *name, const uint64_t parent_inode) {
   strncpy(this->name, name, length);
   this->name[this->namelen] = '\0';
   this->records = std::array<struct ss_dnode_record, DIRSIZE>();
+  this->allocator = allocator;
 }
 
-StoDir::StoDir(const uint64_t inum, const struct ss_dnode *node) {
+StoDir::StoDir(const uint64_t inum, const struct ss_dnode *node, BlockManager *allocator) {
   this->inode_number = inum;
   this->namelen = node->strlen;
   strncpy(this->name, node->dirname, node->strlen);
   std::copy(std::begin(node->entries), std::end(node->entries),
             std::begin(this->records));
+  this->allocator = allocator;
 }
 
 struct ss_dnode StoDir::create_dnode() {
@@ -38,7 +41,7 @@ void StoDir::write_to_disk() {
   // and we need to generate the inode
   if (this->inode_number == 0) {
     // Add our dnode to the system with a fresh inode
-    StoInode sinode = StoInode(DIRSIZE, name);
+    StoInode sinode = StoInode(DIRSIZE, name, this->allocator);
     sinode.flags |= FLAG_DIRECTORY;
 
     this->inode_number = sinode.inode_number;
@@ -47,7 +50,7 @@ void StoDir::write_to_disk() {
     this->add_entry(this->parent_inode, 12, "..");
 
     const uint64_t lba =
-        add_dnode_to_storage(this->inode_number, this->create_dnode());
+        add_dnode_to_storage(this->inode_number, this->create_dnode(), this->allocator);
 
     sinode.add_segment(lba, 1);
     sinode.write_to_disk();
@@ -55,7 +58,7 @@ void StoDir::write_to_disk() {
   }
 
   // Use our stored
-  update_dnode_in_storage(this->inode_number, this->create_dnode());
+  update_dnode_in_storage(this->inode_number, this->create_dnode(), this->allocator);
 }
 
 int StoDir::add_entry(const uint16_t inode_number, const uint16_t reclen,
@@ -108,7 +111,8 @@ int StoDir::remove_entry(const char *name) {
 
 enum DirectoryError find_inode(StoDir &directory, std::string name,
                                struct ss_inode *found,
-                               struct find_inode_callbacks *cbs) {
+                               struct find_inode_callbacks *cbs,
+                               BlockManager *allocator) {
   // Find and replace double // with a singular /
   name = std::regex_replace(name, std::regex("//"), "/");
 
@@ -124,20 +128,20 @@ enum DirectoryError find_inode(StoDir &directory, std::string name,
     auto next = name.substr(location + 1, name.size());
     if (entry == NULL && cbs && cbs->missing_directory_cb) {
       entry =
-          cbs->missing_directory_cb(current.c_str(), directory, cbs->user_data);
+          cbs->missing_directory_cb(current.c_str(), directory, cbs->user_data, allocator);
     } else if (entry == NULL) {
       return DirectoryError::Directory_not_found;
     }
 
     // If there is no dnode found then our storage system fucked up
     // and we can't really fix it anymore
-    struct ss_dnode *next_dir_inode = get_dnode_by_id(entry->inum);
+    struct ss_dnode *next_dir_inode = get_dnode_by_id(entry->inum, allocator);
     if (next_dir_inode == NULL) {
       return DirectoryError::Dnode_not_found;
     }
 
-    StoDir next_dir = StoDir(entry->inum, next_dir_inode);
-    return find_inode(next_dir, next, found, cbs);
+    StoDir next_dir = StoDir(entry->inum, next_dir_inode, allocator);
+    return find_inode(next_dir, next, found, cbs, allocator);
   }
 
   // If we reach the end of the hierarchy and we found something,
@@ -145,15 +149,15 @@ enum DirectoryError find_inode(StoDir &directory, std::string name,
   if (entry != NULL) {
     if (cbs && cbs->found_file_cb) {
       cbs->found_file_cb(current.c_str(), directory,
-                         get_inode_by_id(entry->inum), entry, cbs->user_data);
+                         get_inode_by_id(entry->inum, allocator), entry, cbs->user_data, allocator);
     }
 
-    *found = *get_inode_by_id(entry->inum);
+    *found = *get_inode_by_id(entry->inum, allocator);
     return DirectoryError::Found_inode;
   }
 
   if (cbs && cbs->missing_file_cb) {
-    *found = *cbs->missing_file_cb(current.c_str(), directory, cbs->user_data);
+    *found = *cbs->missing_file_cb(current.c_str(), directory, cbs->user_data, allocator);
     return DirectoryError::Created_inode;
   }
 

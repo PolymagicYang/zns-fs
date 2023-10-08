@@ -123,6 +123,7 @@ int open_rocksdb(struct MyRocksContext *context, const std::string delimiter) {
   cout << "## Database opened at " << context->uri << " db name is "
        << context->db->GetName() << " , attached FS is --> "
        << context->db->GetFileSystem()->Name() << "<-- \n";
+
   return 0;
 }
 

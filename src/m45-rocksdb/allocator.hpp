@@ -19,7 +19,7 @@ class BlockManager {
 
         int read(uint64_t lba, void *buffer, uint32_t size);
 
-        int write(void *buffer, uint32_t size);
+        int write(uint64_t lba, void *buffer, uint32_t size);
 
         // return the write pointer.
         uint64_t get_current_position();

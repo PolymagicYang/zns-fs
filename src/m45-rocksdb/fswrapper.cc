@@ -6,12 +6,12 @@
 
 namespace ROCKSDB_NAMESPACE {
 
-StoDirFS::StoDirFS(char *name, const uint64_t parent_inode) {
-  this->directory = new StoDir(name, parent_inode);
+StoDirFS::StoDirFS(char *name, const uint64_t parent_inode, BlockManager *allocator) {
+  this->directory = new StoDir(name, parent_inode, allocator);
 }
 
-StoDirFS::StoDirFS(const uint64_t inum, const struct ss_dnode *dnode) {
-  this->directory = new StoDir(inum, dnode);
+StoDirFS::StoDirFS(const uint64_t inum, const struct ss_dnode *dnode, BlockManager *allocator) {
+  this->directory = new StoDir(inum, dnode, allocator);
 }
 
 StoDirFS::~StoDirFS() { free(this->directory); }
@@ -89,7 +89,6 @@ IOStatus StoSeqFile::Read(size_t size, const IOOptions &options, Slice *result,
   size_t adjusted = offset + size;
   char *buffer = (char *)malloc(adjusted);
   this->file->read(adjusted, (void *)buffer);
-  printf("end read.\n");
   *buffer += offset;
 
   // Clasp the amount we store based on the current size of our inode

@@ -12,7 +12,7 @@
 
 StoFile::StoFile(const ss_inode *inode, BlockManager *allocator) {
   // TODO(valentijn): memory leak or something
-  this->inode = new StoInode(inode);
+  this->inode = new StoInode(inode, allocator);
   this->name = inode->name;
   this->allocator = allocator;
 }
