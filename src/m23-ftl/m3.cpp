@@ -26,11 +26,13 @@ SOFTWARE.
 
 #include <algorithm>
 #include <cassert>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <random>
+#include <thread>
 #include <vector>
 
 #include "../common/utils.h"
@@ -195,15 +197,18 @@ static int wr_full_device_verify(struct user_zns_device *dev,
     ret = read_complete_file(fd, roffset, b2, dev->lba_size_bytes);
     assert(ret == 0);
     // now both of these should match
-    for (uint32_t j = 0; j < dev->lba_size_bytes; j++)
+    for (uint32_t j = 0; j < dev->lba_size_bytes; j++) {
+      // printf("compare %u, %u, addr %lx \n", b1[j], b2[j], roffset);
       if (b1[j] != b2[j]) {
         printf(
             "ERROR: buffer mismatch at i %u and j %u , address is 0%lx "
-            "expecting %x found %x \n",
+            "expecting %u found %u \n",
             i, j, roffset, b2[j], b1[j]);
+        printf("lba size: %d\n", dev->lba_size_bytes);
         ret = -EINVAL;
         goto done;
       }
+    }
   }
   printf("Verification passed on the while device \n");
 
@@ -211,7 +216,7 @@ done:
   free(b1);
   free(b2);
   close(fd);
-  ret = remove(tmp_file);
+  // ret = remove(tmp_file);
   if (ret != 0) {
     printf("Error: file deleting failed with ret %d \n", ret);
   }
@@ -335,10 +340,20 @@ int main(int argc, char **argv) {
       "capacity %lu , max total LBA %u to_hammer %u \n",
       params.name, my_dev->lba_size_bytes, my_dev->capacity_bytes,
       max_lba_entries, to_hammer_lba);
+  printf(
+      "\n=======================================\n\t\tTest "
+      "1\n=======================================\n");
   int t1 = wr_full_device_verify(my_dev, seq_addresses, max_lba_entries, 0);
+  printf(
+      "\n=======================================\n\t\tTest "
+      "2\n=======================================\n");
   int t2 = wr_full_device_verify(my_dev, random_addresses, max_lba_entries, 0);
+  printf(
+      "\n=======================================\n\t\tTest "
+      "3\n=======================================\n");
   int t3 = wr_full_device_verify(my_dev, random_addresses, max_lba_entries,
                                  to_hammer_lba);
+  printf("\n");
   // clean up
   ret = deinit_ss_zns_device(my_dev);
   // free all

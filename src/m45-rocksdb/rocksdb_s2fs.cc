@@ -42,7 +42,7 @@ FactoryFunc<FileSystem> stosys_s2fs_reg =
                << " and errmsg: " << (*errmsg) << endl;
           // we have two setup - one - s2fs-rocksdb which is just forwarding,
           // then the other that we can use to debug
-          if (false) {
+          if (true) {
             S2FileSystem *z = new S2FileSystem(uri, true);
             ret_fs->reset(z);
           } else {

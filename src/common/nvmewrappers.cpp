@@ -8,8 +8,9 @@
 #include <string.h>
 
 extern "C" {
-void print_nvme_error(const int ret) {
-  fprintf(stderr, "NVMe error: %s\n", nvme_status_to_string(ret, false));
+void print_nvme_error(const char *type, const int ret) {
+  fprintf(stderr, "NVMe %s error: %s\n", type,
+          nvme_status_to_string(ret, false));
 }
 
 int ss_nvme_write(int fd, __u32 nsid, __u64 slba, __u16 nlb, __u16 control,
@@ -24,13 +25,43 @@ int ss_nvme_write(int fd, __u32 nsid, __u64 slba, __u16 nlb, __u16 control,
     perror("ss_nvme_write() failed");
   } else if (ret != 0) {
     printf("%d\n", ret);
-    print_nvme_error(ret);
+    print_nvme_error("write", ret);
 #ifdef EARLY_EXIT
     exit(ret);
 #endif
   }
 
   return ret;
+}
+
+int ss_nvme_zns_append(int fd, __u32 nsid, __u64 zslba, __u16 nlb,
+                       __u16 control, __u32 ilbrt, __u16 lbat, __u16 lbatm,
+                       __u32 data_len, void *data, __u32 metadata_len,
+                       void *metadata, __u64 *result) {
+  uint32_t ret =
+      nvme_zns_append(fd, nsid, zslba, nlb, control, ilbrt, lbat, lbatm,
+                      data_len, data, metadata_len, metadata, result);
+  if (ret == -1) {
+    perror("ss_nvme_append failed");
+  } else if (ret != 0) {
+    print_nvme_error("append", ret);
+#ifdef EARLY_EXIT
+    exit(ret);
+#endif
+  }
+
+  return ret;
+}
+
+int ss_device_zone_reset(int fd, uint32_t nsid, uint64_t slba) {
+  // this is to supress gcc warnings, remove it when you complete this function
+  __u32 cdw10 = slba & 0xffffffff;
+  __u32 cdw11 = slba >> 32;
+  __u32 cdw13 =
+      1 << 2;  // 08 sets to 0, 04h as the reset zone, and others reserved.
+  return nvme_io_passthru(fd, nvme_zns_cmd_mgmt_send, 0, 0, nsid, 0, 0, cdw10,
+                          cdw11, 0, cdw13, 0, 0, 0, nullptr, 0, nullptr, 0,
+                          NULL);
 }
 
 int ss_nvme_read(int fd, __u32 nsid, __u64 slba, __u16 nlb, __u16 control,
@@ -43,11 +74,12 @@ int ss_nvme_read(int fd, __u32 nsid, __u64 slba, __u16 nlb, __u16 control,
   if (ret == -1) {
     perror("ss_nvme_write() failed");
   } else if (ret != 0) {
-    print_nvme_error(ret);
+    print_nvme_error("read", ret);
 #ifdef EARLY_EXIT
     exit(ret);
 #endif
   }
   return ret;
 }
+
 }

@@ -26,14 +26,16 @@ SOFTWARE.
 #include <zns_device.h>
 
 #include <iostream>
+#include <mutex>
 
+#include "allocator.hpp"
 #include "rocksdb/env.h"
 #include "rocksdb/file_system.h"
 #include "rocksdb/io_status.h"
 #include "rocksdb/status.h"
+#include "structures.h"
 
 namespace ROCKSDB_NAMESPACE {
-
 class S2FileSystem : public FileSystem {
  public:
   // No copying allowed
@@ -155,8 +157,11 @@ class S2FileSystem : public FileSystem {
 
  private:
   struct user_zns_device *_zns_dev;
+  BlockManager *allocator;
   std::string _uri;
   const std::string _fs_delimiter = "/";
+  struct InodeMap inodes;
+  struct DirMap dnodes;
 };
 }  // namespace ROCKSDB_NAMESPACE
 

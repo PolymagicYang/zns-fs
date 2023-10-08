@@ -32,9 +32,9 @@ set(CMAKE_LIBRARY_PATH "/home/$ENV{USER}/local/lib/")
 set(CMAKE_INSTALL_PREFIX "/home/$ENV{USER}/local/")
 
 # Project configuration specific parameters
-set(STOSYS_M45 OFF)
+set(STOSYS_M45 ON)
 set(STOSYS_CMAKE_DEBUG OFF)
-set(STOSYS_ASAN ON)
+set(STOSYS_ASAN OFF)
 
 find_package(PkgConfig REQUIRED)
 if(NOT PKG_CONFIG_FOUND)
@@ -66,11 +66,11 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0  -ggdb -Wl,--no-as-needed -Wall -
 if (CMAKE_CXX_COMPILER STREQUAL "clang++")
     # using Clang
     message("[info] compiler is clang")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -frtti")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -fno-rtti")
 elseif (CMAKE_CXX_COMPILER STREQUAL "g++")
     # using GCC
     message("[info] compiler is gcc/g++")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -frtti")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -fno-rtti")
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
     # using Intel C++
     message("[info] Intel compiler? not sure which flags to pick up")
@@ -99,9 +99,15 @@ add_definitions (${NVME_CFLAGS})
 target_link_libraries(m1 ${NVME_LIBRARIES} pthread)
 
 add_library(stosys SHARED
+src/m23-ftl/zone.hpp src/m23-ftl/zone.cpp src/m23-ftl/znsblock.hpp
+src/m23-ftl/ftlgc.hpp src/m23-ftl/ftlgc.cpp
 src/common/nvmewrappers.h src/common/nvmewrappers.cpp
+src/m23-ftl/logzone.hpp src/m23-ftl/logzone.cpp
+src/m23-ftl/datazone.hpp src/m23-ftl/datazone.cpp
+src/m23-ftl/ftl.hpp src/m23-ftl/ftl.cpp src/m23-ftl/ftlgc.hpp src/m23-ftl/ftlgc.cpp
 src/m23-ftl/zns_device.cpp src/m23-ftl/zns_device.h  src/m23-ftl/backup_zns_device_file.cpp
-src/common/nvmeprint.cpp src/common/nvmeprint.h src/common/utils.cpp src/common/utils.h src/common/stosys_debug.h src/common/unused.h)
+src/common/nvmeprint.cpp src/common/nvmeprint.h src/common/utils.cpp
+src/common/utils.h src/common/stosys_debug.h src/common/unused.h)
 
 target_link_libraries(stosys ${NVME_LIBRARIES})
 set_target_properties(stosys PROPERTIES VERSION ${PROJECT_VERSION})
@@ -143,9 +149,14 @@ if(STOSYS_M45)
     link_directories(${CMAKE_LIBRARY_PATH})
 
     add_executable(m45 src/m45-rocksdb/m45_main.cc
+	  src/m45-rocksdb/inode.cc
     src/m45-rocksdb/rocksdb_s2fs.cc
     src/m45-rocksdb/DummyFSForward.cc src/m45-rocksdb/DummyFSForward.h
     src/m45-rocksdb/MyRocksContext.h
+	src/m45-rocksdb/directory.cc src/m45-rocksdb/fswrapper.cc
+    src/m45-rocksdb/allocator.cc
+    src/m45-rocksdb/storage_layer.cc
+	src/m45-rocksdb/file.cc
     src/m45-rocksdb/S2FileSystem.cc src/m45-rocksdb/S2FileSystem.h)
     # see all the defined variables here: https://cmake.org/cmake/help/latest/module/FindPkgConfig.html
     add_definitions (${NVME_CFLAGS} ${ROCKSDB_CFLAGS}  ${ROCKSDB_STATIC_CFLAGS} ${ROCKSDB_CFLAGS_OTHER})
