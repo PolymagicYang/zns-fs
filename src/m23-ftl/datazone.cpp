@@ -20,14 +20,15 @@ SOFTWARE.
  */
 
 #include "datazone.hpp"
+
 #include <cstdint>
 
-ZNSDataZone::ZNSDataZone(const int zns_fd, const uint32_t nsid, const uint32_t zone_id,
-                 const uint64_t size, const uint64_t capacity,
-                 const enum ZoneState state, const enum ZoneZNSType zns_type,
-                 const uint64_t slba,
-                 const enum ZoneModel model, const uint64_t position,
-                 const uint64_t lba_size, const uint64_t mdts_size) {
+ZNSDataZone::ZNSDataZone(const int zns_fd, const uint32_t nsid,
+                         const uint32_t zone_id, const uint64_t size,
+                         const uint64_t capacity, const enum ZoneState state,
+                         const enum ZoneZNSType zns_type, const uint64_t slba,
+                         const enum ZoneModel model, const uint64_t position,
+                         const uint64_t lba_size, const uint64_t mdts_size) {
   this->zns_fd = zns_fd;
   this->nsid = nsid;
   this->zone_id = zone_id;
@@ -119,8 +120,6 @@ int ZNSDataZone::reset_zone(void) {
   return send_management_command(NVME_ZNS_ZSA_RESET);
 }
 
-
-
 std::ostream &operator<<(std::ostream &os, ZNSDataZone const &tc) {
   const char *state = get_state_text(tc.state);
   const char *model = get_zone_model_text(tc.model);
@@ -133,13 +132,12 @@ std::ostream &operator<<(std::ostream &os, ZNSDataZone const &tc) {
             << std::endl
             << "Write pointer: "
             << "0x" << std::hex << tc.position << std::endl
-            << "Metadata: " << state << " | Data Zone | " << model
-            << std::endl;
+            << "Metadata: " << state << " | Data Zone | " << model << std::endl;
 }
 
 int ZNSDataZone::ss_sequential_write(const void *buffer,
-                                 const uint16_t max_nlb_per_round,
-                                 const uint16_t total_nlb) {
+                                     const uint16_t max_nlb_per_round,
+                                     const uint16_t total_nlb) {
   uint64_t i;
   uint64_t data_len = max_nlb_per_round * this->lba_size;
   void *buffer_ptr;
@@ -175,8 +173,8 @@ int ZNSDataZone::invalidate_block(uint16_t index) {
   // This can happen if the cache at the FTL is invalid or if it has
   // done a multiple region write.
   if (this->block_map[index]) {
-    std::cerr << "Error: Block " << index << " does not exist in " << this->zone_id
-              << std::endl;
+    std::cerr << "Error: Block " << index << " does not exist in "
+              << this->zone_id << std::endl;
     return -1;
   }
 
@@ -200,15 +198,17 @@ bool ZNSDataZone::write_until(void *buffer, uint32_t size, uint32_t index) {
   uint16_t num_blocks_until = (index - curr_wp);
   // write invalid blocks until index.
   if (num_blocks_until != 0) {
-    int ret = nvme_write_zeros(this->zns_fd, this->nsid, this->position, num_blocks_until - 1, 0, 0, 0, 0);
+    int ret = nvme_write_zeros(this->zns_fd, this->nsid, this->position,
+                               num_blocks_until - 1, 0, 0, 0, 0);
     if (ret != 0) {
       return false;
     }
     this->position += num_blocks_until;
   }
-  
-  int write_t = ss_nvme_write(this->zns_fd, this->nsid, this->position, 0, 0, 0, 0, 0, 0, 0, size, buffer, 0, nullptr);
-  this->block_map[this->position-this->base] = true;
+
+  int write_t = ss_nvme_write(this->zns_fd, this->nsid, this->position, 0, 0, 0,
+                              0, 0, 0, 0, size, buffer, 0, nullptr);
+  this->block_map[this->position - this->base] = true;
   if (write_t != 0) {
     return false;
   }
@@ -228,7 +228,7 @@ bool ZNSDataZone::can_write(uint32_t index) {
 }
 
 uint32_t ZNSDataZone::read(const uint64_t pa, const void *buffer, uint32_t size,
-                       uint32_t *read_size) {
+                           uint32_t *read_size) {
   if (pa + size / this->lba_size > this->base + this->capacity) {
     // cross boundary read.
     size = (this->base + this->capacity - pa) * this->lba_size;
@@ -249,7 +249,8 @@ uint32_t ZNSDataZone::read(const uint64_t pa, const void *buffer, uint32_t size,
 /*
 return the size of the inserted buffer.
 */
-uint32_t ZNSDataZone::write_nounce(const void *buffer, uint32_t size, uint32_t *write_size) {
+uint32_t ZNSDataZone::write_nounce(const void *buffer, uint32_t size,
+                                   uint32_t *write_size) {
   uint32_t max_writes = this->get_current_capacity() * this->lba_size;
   *write_size = (size > max_writes) ? max_writes : size;
 
@@ -276,7 +277,8 @@ uint32_t ZNSDataZone::write_nounce(const void *buffer, uint32_t size, uint32_t *
 /*
 return the size of the inserted buffer.
 */
-uint32_t ZNSDataZone::write(const void *buffer, uint32_t size, uint32_t *write_size) {
+uint32_t ZNSDataZone::write(const void *buffer, uint32_t size,
+                            uint32_t *write_size) {
   uint32_t max_writes = this->get_current_capacity() * this->lba_size;
   *write_size = (size > max_writes) ? max_writes : size;
 
@@ -299,7 +301,7 @@ uint32_t ZNSDataZone::write(const void *buffer, uint32_t size, uint32_t *write_s
   }
 
   // mark valid until the current index.
-  for (uint16_t i = init_index; i < this->position-this->base; i++) {
+  for (uint16_t i = init_index; i < this->position - this->base; i++) {
     this->block_map[i] = true;
   }
 
@@ -329,8 +331,8 @@ bool ZNSDataZone::exists(uint64_t lba) {
 }
 
 std::vector<ZNSDataZone> create_datazones(const int zns_fd, const uint32_t nsid,
-                                  const uint64_t lba_size,
-                                  const uint64_t mdts_size) {
+                                          const uint64_t lba_size,
+                                          const uint64_t mdts_size) {
   // TODO(valentijn): don't hard code this please
   struct nvme_zone_report *zns_report =
       (struct nvme_zone_report *)calloc(1, 0x1000);
@@ -355,8 +357,8 @@ std::vector<ZNSDataZone> create_datazones(const int zns_fd, const uint32_t nsid,
     }
 
     ZNSDataZone zone =
-        ZNSDataZone(zns_fd, nsid, i, capacity, capacity, zstate, ztype, zone_slba,
-                HostManaged, write_pointer, lba_size, mdts_size);
+        ZNSDataZone(zns_fd, nsid, i, capacity, capacity, zstate, ztype,
+                    zone_slba, HostManaged, write_pointer, lba_size, mdts_size);
     zones.push_back(zone);
   }
 
@@ -365,4 +367,3 @@ std::vector<ZNSDataZone> create_datazones(const int zns_fd, const uint32_t nsid,
   free(zns_report);
   return zones;
 }
-

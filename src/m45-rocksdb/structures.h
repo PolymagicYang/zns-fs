@@ -12,10 +12,10 @@
 #include <map>
 #include <vector>
 
-#define SEGMENT_SIZE 1000 
+#define SEGMENT_SIZE 220
 #define NAMELEN 256
-#define DIRSIZE 32 
-#define TEST_LBA_SIZE 4096 
+#define DIRSIZE 32
+#define TEST_LBA_SIZE 4096
 
 // 4th bit
 #define FLAG_DIRECTORY (1 << 4)

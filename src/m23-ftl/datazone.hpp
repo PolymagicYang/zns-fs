@@ -22,9 +22,6 @@ SOFTWARE.
 #ifndef STOSYS_PROJECT_DATA_ZONE_H
 #define STOSYS_PROJECT_DATA_ZONE_H
 #pragma once
-#include "zone.hpp"
-#include <cstddef>
-#include <cstdint>
 #include <nvme/ioctl.h>
 #include <pthread.h>
 #include <stdlib.h>
@@ -32,12 +29,13 @@ SOFTWARE.
 #include <unistd.h>
 
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 #include <vector>
 
 #include "../common/nvmewrappers.h"
 #include "znsblock.hpp"
 #include "zone.hpp"
-
 
 class ZNSDataZone {
  public:
@@ -45,11 +43,11 @@ class ZNSDataZone {
   uint32_t nsid;
 
   ZNSDataZone(const int zns_fd, const uint32_t nsisd, const uint32_t zone_id,
-          const uint64_t size, const uint64_t capacity,
-          const enum ZoneState state, const enum ZoneZNSType zns_type,
-          const uint64_t slba,
-          const enum ZoneModel model, const uint64_t position,
-          const uint64_t lba_size, const uint64_t mdts_size);
+              const uint64_t size, const uint64_t capacity,
+              const enum ZoneState state, const enum ZoneZNSType zns_type,
+              const uint64_t slba, const enum ZoneModel model,
+              const uint64_t position, const uint64_t lba_size,
+              const uint64_t mdts_size);
 
   /** Zone capacity is the total optimized number of blocks in the
           region. This is always less than the zone size. */
@@ -74,11 +72,10 @@ class ZNSDataZone {
   uint32_t read(const uint64_t lba, const void *buffer, uint32_t size,
                 uint32_t *read_size);
 
-  uint32_t write(const void *buffer, uint32_t size,
-                uint32_t *write_size);
+  uint32_t write(const void *buffer, uint32_t size, uint32_t *write_size);
 
   uint32_t write_nounce(const void *buffer, uint32_t size,
-                uint32_t *write_size);
+                        uint32_t *write_size);
   /** Reset the write pointer to the start. */
   int reset_zone(void);
 
@@ -94,9 +91,9 @@ class ZNSDataZone {
   friend std::ostream &operator<<(std::ostream &os, ZNSDataZone const &tc);
 
   friend std::vector<ZNSDataZone> create_datazones(const int zns_fd,
-                                           const uint32_t nsid,
-                                           const uint64_t lba_size,
-                                           const uint64_t mdts_size);
+                                                   const uint32_t nsid,
+                                                   const uint64_t lba_size,
+                                                   const uint64_t mdts_size);
 
   bool write_until(void *buffer, uint32_t size, uint32_t index);
 
@@ -105,8 +102,9 @@ class ZNSDataZone {
 
   /** Gets the index or id of the zone*/
   int get_index();
-  
-  /** Resets the zone and performs additional checking compared to ZNSZone::reset_zone */
+
+  /** Resets the zone and performs additional checking compared to
+   * ZNSZone::reset_zone */
   int reset();
 
   /** Checks if the zone is full*/
@@ -123,14 +121,14 @@ class ZNSDataZone {
 
   /** Size of a block */
   uint64_t lba_size;
-  
+
   /** Maximum transfer size */
   uint64_t mdts_size;
 
   /** Map of the physical addresses to the buffer and state */
   std::vector<bool> block_map;
 
-  /** Set the block to being free based on the physical address */  
+  /** Set the block to being free based on the physical address */
   int invalidate_block(uint16_t index);
 
   /** copy from index [start: end) to target. */
@@ -142,7 +140,7 @@ class ZNSDataZone {
 
   /** Zone mutex for the FTL::write and Calliope::reap methods */
   pthread_mutex_t zone_mutex = PTHREAD_MUTEX_INITIALIZER;
-  
+
   /** Resets all the zones in the device. */
   inline int reset_all_zones() const;
 

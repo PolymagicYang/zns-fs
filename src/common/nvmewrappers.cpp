@@ -81,5 +81,4 @@ int ss_nvme_read(int fd, __u32 nsid, __u64 slba, __u16 nlb, __u16 control,
   }
   return ret;
 }
-
 }

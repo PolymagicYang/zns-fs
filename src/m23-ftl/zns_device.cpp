@@ -146,12 +146,13 @@ int init_ss_zns_device(struct zdev_init_params *params,
     .zns_num_zones = static_cast<uint32_t>(ftl->zones.size()),
   };
 
-  struct user_zns_device *device = (user_zns_device *) malloc(sizeof(struct user_zns_device));
+  struct user_zns_device *device =
+      (user_zns_device *)malloc(sizeof(struct user_zns_device));
   device->lba_size_bytes = lba_size_in_use,
   device->capacity_bytes =
       (ns.ncap - (ftl->log_zones + 1) * ftl->zcap) *
       lba_size_in_use,  // ZNS capacity - log zones (includes metadata).
-  device->tparams = tparams;
+      device->tparams = tparams;
   device->_private = ftl;
   *my_dev = device;
 

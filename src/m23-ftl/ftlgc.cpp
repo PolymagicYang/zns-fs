@@ -131,7 +131,7 @@ void Calliope::reap() {
         if (new_data_zone == nullptr) {
           printf("faild!\n");
         }
-
+        std::cout << "Reap!" << std::endl;
         // if (new_data_zone == nullptr) {
         // use the reserved zone.
         //  new_data_zone = &this->ftl->zones_reserved[0];
@@ -146,8 +146,7 @@ void Calliope::reap() {
           char buffer[this->ftl->lba_size];
           uint32_t read_size;
           if (block_index == index) {
-            reapable->read(block->address, &buffer, ftl->lba_size,
-                                     &read_size);
+            reapable->read(block->address, &buffer, ftl->lba_size, &read_size);
             new_data_zone->write_until(&buffer, ftl->lba_size, index);
             log_blocks.erase(log_blocks.begin());
             ftl->delete_logmap(block->logical_address);

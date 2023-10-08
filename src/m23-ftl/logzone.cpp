@@ -21,8 +21,6 @@ SOFTWARE.
 
 #include "logzone.hpp"
 
-#include <cstddef>
-#include <cstdint>
 #include <nvme/ioctl.h>
 #include <pthread.h>
 #include <stdlib.h>
@@ -30,16 +28,18 @@ SOFTWARE.
 #include <unistd.h>
 
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
 
 #include "../common/nvmewrappers.h"
 #include "znsblock.hpp"
 
-ZNSLogZone::ZNSLogZone(const int zns_fd, const uint32_t nsid, const uint32_t zone_id,
-                 const uint64_t size, const uint64_t capacity,
-                 const enum ZoneState state, const enum ZoneZNSType zns_type,
-                 const uint64_t slba,
-                 const enum ZoneModel model, const uint64_t position,
-                 const uint64_t lba_size, const uint64_t mdts_size) {
+ZNSLogZone::ZNSLogZone(const int zns_fd, const uint32_t nsid,
+                       const uint32_t zone_id, const uint64_t size,
+                       const uint64_t capacity, const enum ZoneState state,
+                       const enum ZoneZNSType zns_type, const uint64_t slba,
+                       const enum ZoneModel model, const uint64_t position,
+                       const uint64_t lba_size, const uint64_t mdts_size) {
   this->zns_fd = zns_fd;
   this->nsid = nsid;
   this->zone_id = zone_id;
@@ -138,13 +138,14 @@ std::ostream &operator<<(std::ostream &os, ZNSLogZone const &tc) {
             << std::endl
             << "Write pointer: "
             << "0x" << std::hex << tc.position << std::endl
-            << "Metadata: " << state << " | " << "Log" << " | " << model
-            << std::endl;
+            << "Metadata: " << state << " | "
+            << "Log"
+            << " | " << model << std::endl;
 }
 
 int ZNSLogZone::ss_sequential_write(const void *buffer,
-                                 const uint16_t max_nlb_per_round,
-                                 const uint16_t total_nlb) {
+                                    const uint16_t max_nlb_per_round,
+                                    const uint16_t total_nlb) {
   uint64_t i;
   uint64_t data_len = max_nlb_per_round * this->lba_size;
   void *buffer_ptr;
@@ -177,7 +178,7 @@ int ZNSLogZone::ss_sequential_write(const void *buffer,
 
 // TODO(someone): this is copying the entire block map every time
 uint64_t ZNSLogZone::get_alive_capacity() const {
-  BlockMap *map = (BlockMap*) &this->block_map.map;
+  BlockMap *map = (BlockMap *)&this->block_map.map;
 
   uint64_t alive_count = 0;
   for (BlockMap::iterator it = map->begin(); it != map->end(); ++it) {
@@ -206,14 +207,15 @@ int ZNSLogZone::invalidate_block(const uint64_t pa) {
 /*
 return the size of the inserted buffer.
 */
-uint32_t ZNSLogZone::write(void *buffer, uint32_t size, uint32_t *write_size, uint64_t lba) {
+uint32_t ZNSLogZone::write(void *buffer, uint32_t size, uint32_t *write_size,
+                           uint64_t lba) {
   uint32_t max_writes = this->get_current_capacity() * this->lba_size;
   *write_size = (size > max_writes) ? max_writes : size;
 
   // size is the multiple of lba_size.
   uint16_t total_nlb = *write_size / this->lba_size;
   if (size < this->lba_size) {
-	  total_nlb = 1;
+    total_nlb = 1;
   }
   uint16_t max_nlb_per_round = this->mdts_size / this->lba_size;
   uint64_t write_base = this->position;
@@ -234,8 +236,10 @@ uint32_t ZNSLogZone::write(void *buffer, uint32_t size, uint32_t *write_size, ui
   for (uint64_t i = 0, address = write_base; i < total_nlb; i++) {
     uint64_t pa = address + i;
     uint64_t local_lba = lba + i * this->lba_size;
-    ZNSBlock b1 = {
-        .address = pa, .logical_address = local_lba, .buffer = buffer, .valid = true};
+    ZNSBlock b1 = {.address = pa,
+                   .logical_address = local_lba,
+                   .buffer = buffer,
+                   .valid = true};
     this->block_map.map[pa] = b1;
   }
 
@@ -243,14 +247,14 @@ uint32_t ZNSLogZone::write(void *buffer, uint32_t size, uint32_t *write_size, ui
 }
 
 uint32_t ZNSLogZone::read(const uint64_t pa, const void *buffer, uint32_t size,
-                       uint32_t *read_size) {
+                          uint32_t *read_size) {
   if (pa + size / this->lba_size > this->base + this->capacity) {
     // cross boundary read.
     size = (this->base + this->capacity - pa) * this->lba_size;
   }
   uint32_t nlb = size / this->lba_size;
   if (nlb == 0) {
-	  nlb = 1;
+    nlb = 1;
   }
   *read_size = size;
 
@@ -265,8 +269,8 @@ uint32_t ZNSLogZone::read(const uint64_t pa, const void *buffer, uint32_t size,
 }
 
 std::vector<ZNSLogZone> create_logzones(const int zns_fd, const uint32_t nsid,
-                                  const uint64_t lba_size,
-                                  const uint64_t mdts_size) {
+                                        const uint64_t lba_size,
+                                        const uint64_t mdts_size) {
   // TODO(valentijn): don't hard code this please
   struct nvme_zone_report *zns_report =
       (struct nvme_zone_report *)calloc(1, 0x1000);
@@ -291,8 +295,8 @@ std::vector<ZNSLogZone> create_logzones(const int zns_fd, const uint32_t nsid,
     }
 
     ZNSLogZone zone =
-        ZNSLogZone(zns_fd, nsid, i, capacity, capacity, zstate, ztype, zone_slba,
-                HostManaged, write_pointer, lba_size, mdts_size);
+        ZNSLogZone(zns_fd, nsid, i, capacity, capacity, zstate, ztype,
+                   zone_slba, HostManaged, write_pointer, lba_size, mdts_size);
     zones.push_back(zone);
   }
 
@@ -303,7 +307,7 @@ std::vector<ZNSLogZone> create_logzones(const int zns_fd, const uint32_t nsid,
 }
 
 std::vector<ZNSBlock *> ZNSLogZone::get_nonfree_blocks() {
-  BlockMap *map = (BlockMap*) &this->block_map.map;
+  BlockMap *map = (BlockMap *)&this->block_map.map;
   std::vector<ZNSBlock *> nonfree_blocks;
 
   for (BlockMap::iterator it = map->begin(); it != map->end(); ++it) {
