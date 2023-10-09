@@ -18,10 +18,8 @@ uint64_t store_segment_on_disk(const size_t size, void *data,
   return lba;
 }
 
-struct ss_data get_from_disk(const uint64_t lba, BlockManager *allocator) {
-  struct ss_data buffer;
-  int ret = allocator->read(lba, &buffer, sizeof(struct ss_data));
-
+void get_from_disk(const uint64_t lba, const size_t size, void *data,
+                   BlockManager *allocator) {
+  int ret = allocator->read(lba, data, size);
   assert(ret == 0);
-  return buffer;
 }

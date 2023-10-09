@@ -22,6 +22,7 @@ SOFTWARE.
 #ifndef STOSYS_PROJECT_DATA_ZONE_H
 #define STOSYS_PROJECT_DATA_ZONE_H
 #pragma once
+#include <libnvme.h>
 #include <nvme/ioctl.h>
 #include <pthread.h>
 #include <stdlib.h>

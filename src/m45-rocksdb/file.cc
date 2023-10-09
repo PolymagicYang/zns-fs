@@ -39,19 +39,19 @@ void StoFile::write(size_t size, void *data) {
 
 void StoFile::read(const size_t size, void *result) {
   std::fflush(stdout);
-  size_t index = 0;
-  void *copy = result;
+  size_t current_size = size;
+  void *copy = (char *)result;
 
   for (auto &segment : inode->segments) {
     for (uint8_t i = 0; i < segment.nblocks; i++) {
-      struct ss_data data =
-          (struct ss_data)get_from_disk(segment.start_lba + i, this->allocator);
+      size_t segment_size =
+          std::min(g_lba_size * segment.nblocks, current_size);
+      get_from_disk(segment.start_lba, segment_size, result, this->allocator);
 
-      // End our data on
-      size_t border = std::min(size, g_lba_size);
-      data.data[border] = '\0';
-      memcpy(result, data.data, border + 1);
-      result += g_lba_size;
+      ((char *)result)[segment_size] = '\0';
+      // Move up by the amount we have read
+      current_size += segment_size;
+      result += segment_size;
     }
   }
 

@@ -21,6 +21,7 @@ SOFTWARE.
 
 #include "logzone.hpp"
 
+#include <libnvme.h>
 #include <nvme/ioctl.h>
 #include <pthread.h>
 #include <stdlib.h>

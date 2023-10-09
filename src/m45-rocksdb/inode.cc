@@ -87,7 +87,6 @@ void StoInode::add_segment(const uint64_t lba, const size_t nblocks) {
   // subtractions if we are so inclined.
   uint64_t last_lba = old->start_lba + (LBA_SIZE_DIFF * (old->nblocks - 1));
   if ((lba - last_lba) == LBA_SIZE_DIFF) {
-    std::cout << "Append data " << counter++ << std::endl;
     this->segments[this->segment_index - 1] = {.start_lba = old->start_lba,
                                                .nblocks = old->nblocks + 1};
     return;
