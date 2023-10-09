@@ -96,20 +96,28 @@ void StoInode::write_to_disk(bool update) {
 }
 
 static uint64_t counter = 0;
+#define Round_down(n, m) (n - (n % m))
+
 void StoInode::add_segment(const uint64_t lba, const size_t nblocks) {
   this->dirty = true;
-  
-  struct ss_segment *old = &this->segments[this->segment_index - 1];
 
+  struct ss_segment *old = &this->segments[this->segment_index - 1];
+  uint64_t slba = Round_down(lba, g_lba_size);
+  
   // Calculate the last written LBA by adding the difference between
   // LBA numbers together with the number of blocks. We can save two
   // subtractions if we are so inclined.
-  uint64_t last_lba = old->start_lba + (LBA_SIZE_DIFF * (old->nblocks - 1));
-  if ((lba - last_lba) == LBA_SIZE_DIFF) {
+  uint64_t last_lba = Round_down(old->start_lba, g_lba_size) + (g_lba_size * (old->nblocks - 1));
+  if (last_lba == slba) {
     this->segments[this->segment_index - 1] = {.start_lba = old->start_lba,
-                                               .nblocks = old->nblocks + 1};
+                                               .nblocks = old->nblocks};
+    return;
+  } else if ((last_lba + g_lba_size) == slba) {
+	this->segments[this->segment_index - 1] = {.start_lba = old->start_lba,
+                                               .nblocks = old->nblocks+1};
     return;
   }
+  
   this->segments[this->segment_index++] = {.start_lba = lba,
                                            .nblocks = nblocks};
 }
