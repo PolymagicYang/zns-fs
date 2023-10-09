@@ -1,5 +1,6 @@
 #pragma once
 #include "allocator.hpp"
+#include "directory.hpp"
 #ifndef STOSYS_PROJECT_INODE_H
 #define STOSYS_PROJECT_INODE_H
 
@@ -48,9 +49,11 @@ class StoInode {
 };
 
 StoInode *get_stoinode_by_id(const uint64_t inum, BlockManager *allocator);
+StoDir *get_directory_by_id(const uint64_t inum, BlockManager *allocator);
 
 extern std::map<uint64_t, uint64_t> inode_map;
 extern std::map<uint64_t, StoInode *> inode_cache;
+extern std::map<uint64_t, StoDir *> dir_cache;
 extern std::vector<uint64_t> checkpoint_region;
 
 #endif
