@@ -10,6 +10,7 @@
 uint64_t store_segment_on_disk(const size_t size, void *data,
                                BlockManager *allocator) {
   uint64_t lba;
+  printf("segment size is %d\n", size);
   int ret = allocator->append((void *)data, size, &lba);
 
   // ret == 0 => No space for writing.

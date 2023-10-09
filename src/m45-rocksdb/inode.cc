@@ -136,6 +136,7 @@ uint64_t add_dnode_to_storage(const uint64_t inum,
                               const struct ss_dnode drecord,
                               BlockManager *allocator) {
   uint64_t lba;
+  printf("append dnode\n");
   allocator->append((void *)&drecord, sizeof(struct ss_dnode), &lba);
   inode_map[inum] = lba;
   return lba;
