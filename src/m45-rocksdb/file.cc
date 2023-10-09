@@ -7,18 +7,21 @@
 
 #include "allocator.hpp"
 #include "structures.h"
+#include <pthread.h>
 
 #define Min(x, y) ((x) > (y) ? (y) : (x))
 
 StoFile::StoFile(const ss_inode *inode, BlockManager *allocator) {
   // TODO(valentijn): memory leak or something
-  this->inode = get_stoinode_by_id(inode->id, allocator);
+  this->inode.lock = PTHREAD_MUTEX_INITIALIZER;
+  this->inode.node = get_stoinode_by_id(inode->id, allocator);
   this->name = inode->name;
   this->allocator = allocator;
 }
 
 StoFile::StoFile(StoInode *inode, BlockManager *allocator) {
-  this->inode = inode;
+  this->inode.lock = PTHREAD_MUTEX_INITIALIZER;
+  this->inode.node = inode;
   this->name;
   this->allocator = allocator;
 }
@@ -27,20 +30,24 @@ StoFile::~StoFile() {}
 
 void StoFile::write(size_t size, void *data) {
   // Move the size of our inode up by the number of bytes in our write
-  this->inode->size += size;
+  pthread_mutex_lock(&this->inode.lock);
+  this->inode.node->size += size;
 
   uint8_t total_blocks = std::ceil(size / (float)g_lba_size);
 
   // Writes the range of blocks to the disk
-  bool overwrite = this->inode->inserted;
+  bool overwrite = this->inode.node->inserted;
   uint64_t slba = store_segment_on_disk(size, data, this->allocator, overwrite);
-  this->inode->add_segment(slba, total_blocks);
+
+  this->inode.node->add_segment(slba, total_blocks);
+  pthread_mutex_unlock(&this->inode.lock);
 }
 
 void StoFile::read(const size_t size, void *result) {
-  size_t current_size = Min(size, this->inode->size);
+  pthread_mutex_lock(&this->inode.lock);
+  size_t current_size = Min(size, this->inode.node->size);
   void *copy = (char *)result;
-  for (auto &segment : inode->segments) {
+  for (auto &segment : inode.node->segments) {
     for (uint8_t i = 0; i < segment.nblocks; i++) {
       size_t segment_size =
           std::min(g_lba_size * segment.nblocks, current_size);
@@ -53,7 +60,12 @@ void StoFile::read(const size_t size, void *result) {
     }
   }
 
+  pthread_mutex_unlock(&this->inode.lock);
   std::cout << "Data read " << size << " " << copy << std::endl;
 }
 
-void StoFile::write_to_disk(bool update) { this->inode->write_to_disk(update); }
+void StoFile::write_to_disk(bool update) { 
+  pthread_mutex_lock(&this->inode.lock);
+  this->inode.node->write_to_disk(update); 
+  pthread_mutex_unlock(&this->inode.lock);
+}
