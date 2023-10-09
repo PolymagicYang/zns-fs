@@ -221,14 +221,16 @@ uint32_t ZNSLogZone::write(void *buffer, uint32_t size, uint32_t *write_size,
   uint64_t write_base = this->position;
 
   if (size <= this->mdts_size) {
-    int ret =
+	// This values cause bad things to happen
+	int ret =
         ss_nvme_write(this->zns_fd, this->nsid, this->position, total_nlb - 1,
-                      0, 0, 0, 0, 0, 0, size, (void *)buffer, 0, nullptr);
+                      0, 0, 0, 0, 0, 0, *write_size, (void *)buffer, 0, nullptr);
     if (ret != 0) {
       return ret;
     }
     this->position += total_nlb;
   } else {
+	  std::cout << "sequential" << std::endl;
     int ret = ss_sequential_write(buffer, max_nlb_per_round, total_nlb);
     if (ret != 0) return ret;
   }
