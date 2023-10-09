@@ -26,14 +26,15 @@ StoFile::StoFile(StoInode *inode, BlockManager *allocator) {
 StoFile::~StoFile() {}
 
 void StoFile::write(size_t size, void *data) {
-  std::cout << "Data write " << size << " " << data << std::endl;
+  // std::cout << "Data write " << size << " " << data << std::endl;
   // Move the size of our inode up by the number of bytes in our write
   this->inode->size += size;
 
   uint8_t total_blocks = std::ceil(size / (float)g_lba_size);
 
   // Writes the range of blocks to the disk
-  uint64_t slba = store_segment_on_disk(size, data, this->allocator);
+  bool overwrite = this->inode->inserted;
+  uint64_t slba = store_segment_on_disk(size, data, this->allocator, overwrite);
   this->inode->add_segment(slba, total_blocks);
 }
 
@@ -58,4 +59,4 @@ void StoFile::read(const size_t size, void *result) {
   std::cout << "Data read " << size << " " << copy << std::endl;
 }
 
-void StoFile::write_to_disk() { this->inode->write_to_disk(); }
+void StoFile::write_to_disk(bool update) { this->inode->write_to_disk(update); }

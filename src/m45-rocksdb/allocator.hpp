@@ -15,7 +15,7 @@ class BlockManager {
  public:
   BlockManager(user_zns_device *disk);
 
-  int append(void *buffer, uint32_t size, uint64_t *start_addr);
+  int append(void *buffer, uint32_t size, uint64_t *start_addr, bool update);
 
   int read(uint64_t lba, void *buffer, uint32_t size);
 
@@ -30,7 +30,6 @@ class BlockManager {
 
   int update_current_position(uint64_t addr);
 
- private:
   // Maintain the last block address.
   WritePointer wp;
   uint32_t lba_size;

@@ -20,6 +20,7 @@ SOFTWARE.
  */
 
 #include "datazone.hpp"
+#include "libnvme.h"
 
 #include <cstdint>
 
@@ -52,7 +53,7 @@ ZNSDataZone::ZNSDataZone(const int zns_fd, const uint32_t nsid,
 // TODO(valentijn) update so it throws exceptions
 inline int ZNSDataZone::send_management_command(
     const enum nvme_zns_send_action action, const bool select_all) const {
-  int ret = nvme_zns_mgmt_send(this->zns_fd, this->nsid, this->slba, select_all,
+  int ret = ss_nvme_zns_mgmt_send(this->zns_fd, this->nsid, this->slba, select_all,
                                action, 0, NULL);
   if (ret != 0) {
     print_nvme_error("send_management_command", ret);
@@ -198,8 +199,7 @@ bool ZNSDataZone::write_until(void *buffer, uint32_t size, uint32_t index) {
   uint16_t num_blocks_until = (index - curr_wp);
   // write invalid blocks until index.
   if (num_blocks_until != 0) {
-    int ret = nvme_write_zeros(this->zns_fd, this->nsid, this->position,
-                               num_blocks_until - 1, 0, 0, 0, 0);
+    int ret = ss_nvme_write_zeros(this->zns_fd, this->nsid, this->position, num_blocks_until - 1, 0, 0, 0, 0);
     if (ret != 0) {
       return false;
     }

@@ -9,6 +9,6 @@ void get_from_disk(const uint64_t lba, const size_t size, void *data,
                    BlockManager *allocator);
 
 uint64_t store_segment_on_disk(const size_t size, void *data,
-                               BlockManager *allocator);
+                               BlockManager *allocator, bool overwrite);
 
 #endif

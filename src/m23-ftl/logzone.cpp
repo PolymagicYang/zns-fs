@@ -22,7 +22,6 @@ SOFTWARE.
 #include "logzone.hpp"
 
 #include <libnvme.h>
-#include <nvme/ioctl.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
@@ -61,7 +60,7 @@ ZNSLogZone::ZNSLogZone(const int zns_fd, const uint32_t nsid,
 // TODO(valentijn) update so it throws exceptions
 inline int ZNSLogZone::send_management_command(
     const enum nvme_zns_send_action action, const bool select_all) const {
-  int ret = nvme_zns_mgmt_send(this->zns_fd, this->nsid, this->slba, select_all,
+  int ret = ss_nvme_zns_mgmt_send(this->zns_fd, this->nsid, this->slba, select_all,
                                action, 0, NULL);
   if (ret != 0) {
     print_nvme_error("send_management_command", ret);

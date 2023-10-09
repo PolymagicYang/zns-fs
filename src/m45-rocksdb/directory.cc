@@ -55,7 +55,7 @@ void StoDir::write_to_disk() {
         this->inode_number, this->create_dnode(), this->allocator);
 
     sinode.add_segment(lba, 1);
-    sinode.write_to_disk();
+    sinode.write_to_disk(true);
     return;
   }
 
