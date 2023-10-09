@@ -13,7 +13,7 @@
 #include <map>
 #include <vector>
 
-#define SEGMENT_SIZE 500 
+#define SEGMENT_SIZE 200
 #define NAMELEN 256 
 #define DIRSIZE 32
 #define TEST_LBA_SIZE 4096

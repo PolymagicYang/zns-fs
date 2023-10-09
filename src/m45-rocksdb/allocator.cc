@@ -5,6 +5,7 @@
 #include <cstring>
 #include <pthread.h>
 #include <unistd.h>
+#include <iostream>
 
 BlockManager::BlockManager(user_zns_device *disk) {
     this->lba_size = disk->lba_size_bytes;

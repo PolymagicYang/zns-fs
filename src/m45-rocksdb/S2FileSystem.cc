@@ -81,6 +81,14 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
 
   // Create the root directory node
 
+  assert(ret == 0);
+  assert(this->_zns_dev->lba_size_bytes != 0);
+  assert(this->_zns_dev->capacity_bytes != 0);
+
+  // Globally store our LBA size so we can access everywhere
+  // without copying everything over.
+  g_lba_size = this->_zns_dev->lba_size_bytes;
+
   // Be aware that the behaviour here is a bit subtle, the inode is
   // not generated until the directory is written to disk. So you can
   // only rely on the inode number being there after the write_to_disk
@@ -113,14 +121,6 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
   }
 
   std::cout << "Find file in root" << std::endl;
-
-  assert(ret == 0);
-  assert(this->_zns_dev->lba_size_bytes != 0);
-  assert(this->_zns_dev->capacity_bytes != 0);
-
-  // Globally store our LBA size so we can access everywhere
-  // without copying everything over.
-  g_lba_size = this->_zns_dev->lba_size_bytes;
 
   ss_dprintf(DBG_FS_1,
              "device %s is opened and initialized, reported LBA size is %u and "
