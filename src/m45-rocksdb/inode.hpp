@@ -30,6 +30,7 @@ class StoInode {
   uint64_t time;
   bool deleted;
   bool inserted;
+  bool dirty;
 
   std::array<struct ss_segment, SEGMENT_SIZE> segments;
   uint32_t flags;
@@ -39,13 +40,18 @@ class StoInode {
   void add_segment(const uint64_t lba, const size_t nblocks);
   struct ss_inode get_inode_struct();
   void write_to_disk(bool update);
+  struct ss_inode inode;
 
  private:
   uint8_t segment_index = 0;
   BlockManager *allocator;
+  
 };
 
+StoInode *get_stoinode_by_id(const uint64_t inum, BlockManager *allocator);
+
 extern std::map<uint64_t, uint64_t> inode_map;
+extern std::map<uint64_t, StoInode*> inode_cache;
 extern std::vector<uint64_t> checkpoint_region;
 
 #endif

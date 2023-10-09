@@ -39,7 +39,7 @@ struct ss_inode {
   struct ss_segment segments[SEGMENT_SIZE];
   uint32_t flags;
   uint16_t strlen;
-  char name[NAMELEN];
+  char name[NAMELEN];  
 };
 
 struct ss_dnode_record {

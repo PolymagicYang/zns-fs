@@ -523,7 +523,7 @@ struct ss_inode *callback_missing_file_create_lock(const char *name,
 
   // Use an inode flag to avoid writing to disk
   inode.flags |= FLAG_LOCK;
-
+  inode.dirty = true;
   // Flush the inode. Since this file is new, we also flush the directory.
   inode.write_to_disk(true);
   parent.add_entry(inode.inode_number, 12, name);
@@ -620,6 +620,7 @@ void callback_found_file_rename(const char *name, StoDir &parent,
   ss_inode->name[length] = '\0';
   ss_inode->strlen = length;
   StoInode inode = StoInode(ss_inode, allocator);
+  inode.dirty = true;
   inode.write_to_disk(false);
 
   // Update our directory entry and write to disk
