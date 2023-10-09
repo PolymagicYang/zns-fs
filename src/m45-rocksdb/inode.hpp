@@ -29,6 +29,7 @@ class StoInode {
   uint32_t size;
   uint64_t time;
   bool deleted;
+  bool inserted;
 
   std::array<struct ss_segment, SEGMENT_SIZE> segments;
   uint32_t flags;
@@ -37,7 +38,7 @@ class StoInode {
 
   void add_segment(const uint64_t lba, const size_t nblocks);
   struct ss_inode get_inode_struct();
-  void write_to_disk();
+  void write_to_disk(bool update);
 
  private:
   uint8_t segment_index = 0;

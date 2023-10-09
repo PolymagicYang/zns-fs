@@ -134,12 +134,9 @@ IOStatus StoWriteFile::Append(const Slice &data, const IOOptions &options,
 
 // Flush writes the application data to the filesystem
 IOStatus StoWriteFile::Flush(const IOOptions &options, IODebugContext *dbg) {
-  UNUSED(options);
-  UNUSED(dbg);
-
   if (!this->file) return IOStatus::IOError("File closed");
 
-  this->file->write_to_disk();
+  this->file->write_to_disk(true);
   return IOStatus::OK();
 }
 
@@ -150,7 +147,7 @@ IOStatus StoWriteFile::Sync(const IOOptions &options, IODebugContext *dbg) {
 
   if (!this->file) return IOStatus::IOError("File closed");
 
-  this->file->write_to_disk();
+  this->file->write_to_disk(true);
   return IOStatus::OK();
 }
 

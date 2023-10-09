@@ -26,6 +26,7 @@ StoInode::StoInode(const uint32_t size, std::string name,
   this->inode_number = g_inode_num++;
   this->mode = 0;
   this->user_id = 0;
+  this->inserted = false;
   this->size = size;
 
   const auto p0 = std::chrono::time_point<std::chrono::system_clock>{};
@@ -47,6 +48,7 @@ StoInode::StoInode(const struct ss_inode *inode, BlockManager *allocator) {
   this->deleted = inode->deleted;
   this->flags = inode->flags;
   this->namelen = inode->strlen;
+  this->inserted = inode->inserted;
   this->allocator = allocator;
   strncpy((char *)this->name.c_str(), inode->name, inode->strlen);
   this->name[this->namelen] = '\0';
@@ -63,18 +65,22 @@ struct ss_inode StoInode::get_inode_struct() {
   inode.deleted = false;
   inode.flags = this->flags;
   inode.strlen = this->namelen;
+  inode.inserted = this->inserted;
   this->name = std::string(inode.name);
   std::copy(std::begin(this->segments), std::end(this->segments),
             std::begin(inode.segments));
   return inode;
 }
 
-void StoInode::write_to_disk() {
+void StoInode::write_to_disk(bool update) {
   // Enter the data into the system maps so we know where to find it.
   struct ss_inode inode = this->get_inode_struct();
   uint64_t lba;
 
-  this->allocator->append((void *)&inode, sizeof(struct ss_inode), &lba);
+  // printf("append inode %ld \n", this->inode_number);
+  // printf("\n");
+  inode.inserted = true;
+  this->allocator->append((void *)&inode, sizeof(struct ss_inode), &lba, true);
   inode_map[this->inode_number] = lba;
 }
 
@@ -137,7 +143,7 @@ uint64_t add_dnode_to_storage(const uint64_t inum,
                               BlockManager *allocator) {
   uint64_t lba;
   printf("append dnode\n");
-  allocator->append((void *)&drecord, sizeof(struct ss_dnode), &lba);
+  allocator->append((void *)&drecord, sizeof(struct ss_dnode), &lba, true);
   inode_map[inum] = lba;
   return lba;
 }

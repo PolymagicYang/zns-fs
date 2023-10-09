@@ -15,7 +15,7 @@ class StoFile {
   StoFile(const ss_inode *inode, BlockManager *allocator);
   StoFile(StoInode *inode, BlockManager *allocator);
   ~StoFile();
-  void write_to_disk();
+  void write_to_disk(bool update);
   void write(size_t size, void *data);
   void read(size_t size, void *result);
   StoInode *inode;

@@ -18,7 +18,7 @@ BlockManager::BlockManager(user_zns_device *disk) {
     };
 }
 
-int BlockManager::append(void* buffer, uint32_t size, uint64_t *start_addr) {
+int BlockManager::append(void* buffer, uint32_t size, uint64_t *start_addr, bool update) {
     // update operation should be atomic.
     /*
     check wheter the wp is on the block boundary.
@@ -31,7 +31,7 @@ int BlockManager::append(void* buffer, uint32_t size, uint64_t *start_addr) {
     int ret = 0;
     pthread_rwlock_wrlock(&this->wp.wp_lock);
     uint64_t wp = this->get_current_position();
-    printf("append to %ld, size is %d!\n", wp, size);
+    // printf("append to %ld, size is %d!\n", wp, size);
     uint32_t lba_size = this->disk->lba_size_bytes;
     *start_addr = wp;
     if (wp + size >= disk->capacity_bytes) {
@@ -52,7 +52,7 @@ int BlockManager::append(void* buffer, uint32_t size, uint64_t *start_addr) {
             ret = zns_udevice_write(this->disk, wp, buffer, size);
         }
     } else {
-        printf("needs padding\n");
+        // printf("needs padding\n");
         uint64_t wp_base = (wp / lba_size) * lba_size;
         uint64_t curr_data_size_in_block = wp - wp_base;
 
@@ -75,13 +75,15 @@ int BlockManager::append(void* buffer, uint32_t size, uint64_t *start_addr) {
         // printf("end for\n");
     }
 
-    this->update_current_position(wp + size);
+    if (update) {
+        this->update_current_position(wp + size);
+    }
     pthread_rwlock_unlock(&this->wp.wp_lock);
     return ret;
 }
 
 int BlockManager::read(uint64_t lba, void *buffer, uint32_t size) {
-    printf("read\n");
+    // printf("read\n");
     uint32_t lba_size = this->disk->lba_size_bytes;
     uint64_t padding_size;
     uint64_t wp_base = (lba / lba_size) * lba_size;
@@ -99,7 +101,7 @@ int BlockManager::read(uint64_t lba, void *buffer, uint32_t size) {
         printf("error!\n");
     }
     
-    printf("read end\n");
+    // printf("read end\n");
     memcpy(buffer, buf+curr_data_size_in_block, size);
 
     // printf("lba is %x, read from wp_base %x\n", lba, wp_base);

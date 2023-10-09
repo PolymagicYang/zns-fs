@@ -131,7 +131,7 @@ void Calliope::reap() {
         if (new_data_zone == nullptr) {
           printf("faild!\n");
         }
-        std::cout << "Reap!" << std::endl;
+        // std::cout << "Reap!" << std::endl;
         // if (new_data_zone == nullptr) {
         // use the reserved zone.
         //  new_data_zone = &this->ftl->zones_reserved[0];
