@@ -26,7 +26,6 @@ StoFile::StoFile(StoInode *inode, BlockManager *allocator) {
 StoFile::~StoFile() {}
 
 void StoFile::write(size_t size, void *data) {
-  // std::cout << "Data write " << size << " " << data << std::endl;
   // Move the size of our inode up by the number of bytes in our write
   this->inode->size += size;
 
@@ -39,10 +38,8 @@ void StoFile::write(size_t size, void *data) {
 }
 
 void StoFile::read(const size_t size, void *result) {
-  std::fflush(stdout);
-  size_t current_size = size;
+  size_t current_size = Min(size, this->inode->size);
   void *copy = (char *)result;
-
   for (auto &segment : inode->segments) {
     for (uint8_t i = 0; i < segment.nblocks; i++) {
       size_t segment_size =

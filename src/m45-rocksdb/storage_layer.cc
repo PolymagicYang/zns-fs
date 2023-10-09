@@ -1,4 +1,5 @@
 // #include "storage_layer.hpp"
+#include <pthread.h>
 #include <sys/ioctl.h>
 
 #include <cassert>
@@ -6,7 +7,6 @@
 
 #include "allocator.hpp"
 #include "structures.h"
-#include <pthread.h>
 
 uint64_t store_segment_on_disk(const size_t size, void *data,
                                BlockManager *allocator, bool overwrite) {

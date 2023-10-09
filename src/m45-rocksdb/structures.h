@@ -13,8 +13,8 @@
 #include <map>
 #include <vector>
 
-#define SEGMENT_SIZE 200
-#define NAMELEN 256 
+#define SEGMENT_SIZE 64
+#define NAMELEN 256
 #define DIRSIZE 32
 #define TEST_LBA_SIZE 4096
 
@@ -39,7 +39,7 @@ struct ss_inode {
   struct ss_segment segments[SEGMENT_SIZE];
   uint32_t flags;
   uint16_t strlen;
-  char name[NAMELEN];  
+  char name[NAMELEN];
 };
 
 struct ss_dnode_record {

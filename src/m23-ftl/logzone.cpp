@@ -60,8 +60,8 @@ ZNSLogZone::ZNSLogZone(const int zns_fd, const uint32_t nsid,
 // TODO(valentijn) update so it throws exceptions
 inline int ZNSLogZone::send_management_command(
     const enum nvme_zns_send_action action, const bool select_all) const {
-  int ret = ss_nvme_zns_mgmt_send(this->zns_fd, this->nsid, this->slba, select_all,
-                               action, 0, NULL);
+  int ret = ss_nvme_zns_mgmt_send(this->zns_fd, this->nsid, this->slba,
+                                  select_all, action, 0, NULL);
   if (ret != 0) {
     print_nvme_error("send_management_command", ret);
   }
@@ -221,16 +221,16 @@ uint32_t ZNSLogZone::write(void *buffer, uint32_t size, uint32_t *write_size,
   uint64_t write_base = this->position;
 
   if (size <= this->mdts_size) {
-	// This values cause bad things to happen
-	int ret =
-        ss_nvme_write(this->zns_fd, this->nsid, this->position, total_nlb - 1,
-                      0, 0, 0, 0, 0, 0, *write_size, (void *)buffer, 0, nullptr);
+    // This values cause bad things to happen
+    int ret = ss_nvme_write(this->zns_fd, this->nsid, this->position,
+                            total_nlb - 1, 0, 0, 0, 0, 0, 0, *write_size,
+                            (void *)buffer, 0, nullptr);
     if (ret != 0) {
       return ret;
     }
     this->position += total_nlb;
   } else {
-	  std::cout << "sequential" << std::endl;
+    std::cout << "sequential" << std::endl;
     int ret = ss_sequential_write(buffer, max_nlb_per_round, total_nlb);
     if (ret != 0) return ret;
   }

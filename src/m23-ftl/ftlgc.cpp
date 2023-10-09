@@ -89,7 +89,6 @@ void Calliope::reap() {
     // found we just wait until the next loop. This can happen if no
     // data is overwritten
     ZNSLogZone *reapable = &this->ftl->zones_log[log_zone_num];
-
     std::vector<ZNSBlock *> blocks = reapable->get_nonfree_blocks();
     std::unordered_map<uint64_t, std::vector<ZNSBlock *>> blocks_group =
         std::unordered_map<uint64_t, std::vector<ZNSBlock *>>();
@@ -129,7 +128,7 @@ void Calliope::reap() {
         ZNSDataZone *new_data_zone =
             this->ftl->get_free_data_zone(this->ftl->zcap);
         if (new_data_zone == nullptr) {
-          printf("faild!\n");
+          printf("failed!\n");
         }
         // std::cout << "Reap!" << std::endl;
         // if (new_data_zone == nullptr) {
@@ -189,6 +188,9 @@ void Calliope::reap() {
     }
 
     reapable->reset();
+    pthread_rwlock_wrlock(&this->ftl->zones_lock);
+    this->ftl->free_log_zones.push_back(reapable);
+    pthread_rwlock_unlock(&this->ftl->zones_lock);
     // std::cout << "reset finish!\n";
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }

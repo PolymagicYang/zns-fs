@@ -5,6 +5,8 @@
 #include "../common/unused.h"
 #include "allocator.hpp"
 
+#define Min(x, y) ((x) > (y) ? (y) : (x))
+
 namespace ROCKSDB_NAMESPACE {
 
 StoDirFS::StoDirFS(char *name, const uint64_t parent_inode,
@@ -55,14 +57,14 @@ IOStatus StoRAFile::Read(uint64_t offset, size_t size, const IOOptions &options,
   std::cout << "RA read" << std::endl;
   // Read a total offset + size bytes from the underlying file
   // TODO(valentijn): memory leak?
-  char *buffer = (char *)malloc(offset + size);
+  char *buffer = (char *)malloc(Min(offset + size, this->file->inode->size));
   file->read(size + offset, (void *)buffer);
 
   // Skip the offset
   buffer += offset;
 
   // Copy the buffer over to the result slice
-  *result = Slice(buffer, std::min(this->file->inode->size - (size_t)1, size));
+  *result = Slice(buffer, Min(this->file->inode->size - (size_t)1, size));
   std::cout << "RA read " << result->data() << std::endl;
   return IOStatus::OK();
 }
@@ -88,7 +90,7 @@ IOStatus StoSeqFile::Read(size_t size, const IOOptions &options, Slice *result,
   }
   // We read throw away our offset, this is an inefficient way of
   // doing things
-  size_t adjusted = offset + size;
+  size_t adjusted = Min(offset + size, this->file->inode->size);
   char *buffer = (char *)malloc(adjusted);
   this->file->read(adjusted, (void *)buffer);
   *buffer += offset;

@@ -21,7 +21,7 @@ std::map<uint64_t, uint64_t> inode_map = std::map<uint64_t, uint64_t>();
 // Vector containing the physical address of each of the inode maps
 std::vector<uint64_t> checkpoint_region = std::vector<uint64_t>();
 
-std::map<uint64_t, StoInode*> inode_cache = std::map<uint64_t, StoInode*>();
+std::map<uint64_t, StoInode *> inode_cache = std::map<uint64_t, StoInode *>();
 
 StoInode::StoInode(const uint32_t size, std::string name,
                    BlockManager *allocator) {
@@ -80,10 +80,9 @@ struct ss_inode StoInode::get_inode_struct() {
 void StoInode::write_to_disk(bool update) {
   // If we never change the inode then we don't actually need to write
   // it to disk
-  if (! this->dirty)
-	return;
-  
-  // Enter the data into the system maps so we know where to find it.	
+  if (!this->dirty) return;
+
+  // Enter the data into the system maps so we know where to find it.
   struct ss_inode inode = this->get_inode_struct();
   uint64_t lba;
 
@@ -91,7 +90,7 @@ void StoInode::write_to_disk(bool update) {
   // printf("\n");
   inode.inserted = true;
   this->allocator->append((void *)&inode, sizeof(struct ss_inode), &lba, true);
-  inode_map[this->inode_number] = lba;  
+  inode_map[this->inode_number] = lba;
   this->dirty = false;
 }
 
@@ -103,21 +102,22 @@ void StoInode::add_segment(const uint64_t lba, const size_t nblocks) {
 
   struct ss_segment *old = &this->segments[this->segment_index - 1];
   uint64_t slba = Round_down(lba, g_lba_size);
-  
+
   // Calculate the last written LBA by adding the difference between
   // LBA numbers together with the number of blocks. We can save two
   // subtractions if we are so inclined.
-  uint64_t last_lba = Round_down(old->start_lba, g_lba_size) + (g_lba_size * (old->nblocks - 1));
+  uint64_t last_lba = Round_down(old->start_lba, g_lba_size) +
+                      (g_lba_size * (old->nblocks - 1));
   if (last_lba == slba) {
     this->segments[this->segment_index - 1] = {.start_lba = old->start_lba,
                                                .nblocks = old->nblocks};
     return;
   } else if ((last_lba + g_lba_size) == slba) {
-	this->segments[this->segment_index - 1] = {.start_lba = old->start_lba,
-                                               .nblocks = old->nblocks+1};
+    this->segments[this->segment_index - 1] = {.start_lba = old->start_lba,
+                                               .nblocks = old->nblocks + 1};
     return;
   }
-  
+
   this->segments[this->segment_index++] = {.start_lba = lba,
                                            .nblocks = nblocks};
 }
@@ -133,7 +133,7 @@ void setup_test_system() {
 std::map<uint64_t, uint64_t> get_imap(const uint64_t lba) { return inode_map; }
 
 struct ss_inode *get_inode_from_disk(const uint64_t lba,
-                                     BlockManager *allocator) {  
+                                     BlockManager *allocator) {
   struct ss_inode *buffer = (struct ss_inode *)malloc(sizeof(struct ss_inode));
   int ret = allocator->read(lba, buffer, sizeof(struct ss_inode));
 
@@ -192,16 +192,16 @@ struct ss_inode *get_inode_by_id(const uint64_t inum, BlockManager *allocator) {
 
 StoInode *get_stoinode_by_id(const uint64_t inum, BlockManager *allocator) {
   if (inode_cache.count(inum) == 1 && !inode_cache[inum]->dirty) {
-	return inode_cache[inum];
+    return inode_cache[inum];
   }
 
   for (auto &lba : checkpoint_region) {
     std::map<uint64_t, uint64_t> map = get_imap(lba);
     auto found = map.find(inum);
     if (found == map.end()) continue;
-  
+
     struct ss_inode *ret = get_inode_from_disk(found->second, allocator);
-	inode_cache[inum] = new StoInode(ret, allocator);
+    inode_cache[inum] = new StoInode(ret, allocator);
     ret->segments;
     return inode_cache[inum];
   }

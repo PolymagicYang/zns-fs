@@ -45,13 +45,12 @@ class StoInode {
  private:
   uint8_t segment_index = 0;
   BlockManager *allocator;
-  
 };
 
 StoInode *get_stoinode_by_id(const uint64_t inum, BlockManager *allocator);
 
 extern std::map<uint64_t, uint64_t> inode_map;
-extern std::map<uint64_t, StoInode*> inode_cache;
+extern std::map<uint64_t, StoInode *> inode_cache;
 extern std::vector<uint64_t> checkpoint_region;
 
 #endif
