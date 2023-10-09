@@ -7,6 +7,7 @@
 
 #include "allocator.hpp"
 #include "structures.h"
+#define assertm(exp, msg) assert(((void)msg, exp))
 
 uint64_t store_segment_on_disk(const size_t size, void *data,
                                BlockManager *allocator, bool overwrite) {
@@ -22,7 +23,7 @@ uint64_t store_segment_on_disk(const size_t size, void *data,
   int ret = allocator->append((void *)data, size, &lba, true);
 
   // ret == 0 => No space for writing.
-  assert(ret == 0);
+  assertm(ret == 0, "write failed");
 
   return lba;
 }
@@ -30,5 +31,5 @@ uint64_t store_segment_on_disk(const size_t size, void *data,
 void get_from_disk(const uint64_t lba, const size_t size, void *data,
                    BlockManager *allocator) {
   int ret = allocator->read(lba, data, size);
-  assert(ret == 0);
+  assertm(ret == 0, "read failed");
 }

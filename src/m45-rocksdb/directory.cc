@@ -59,7 +59,7 @@ void StoDir::write_to_disk() {
     return;
   }
 
-  // Use our stored
+  // Use our stored inode number
   update_dnode_in_storage(this->inode_number, this->create_dnode(),
                           this->allocator);
 }
@@ -112,7 +112,7 @@ int StoDir::remove_entry(const char *name) {
   dnode->namelen = 0;
 }
 
-enum DirectoryError find_inode(StoDir &directory, std::string name,
+enum DirectoryError find_inode(StoDir *directory, std::string name,
                                struct ss_inode *found,
                                struct find_inode_callbacks *cbs,
                                BlockManager *allocator) {
@@ -121,31 +121,42 @@ enum DirectoryError find_inode(StoDir &directory, std::string name,
 
   // Split our string until the next delimiter and find it in the
   // current directory
-  std::string delimiter = "/";
+  std::string delimiter = "/";  
+  struct ss_dnode_record *entry;
+
   auto location = name.find(delimiter);
   auto current = name.substr(0, location);
-  struct ss_dnode_record *entry = directory.find_entry(current.c_str());
+  auto prev = location;
+  
+  do {
+	  prev = location;
+	  location = name.find(delimiter);
+	  current = name.substr(0, location);  
+	  entry = directory->find_entry(current.c_str());
 
-  // Iterate to the next level in our directory hierarchy
-  if (location != std::string::npos) {
-    auto next = name.substr(location + 1, name.size());
-    if (entry == NULL && cbs && cbs->missing_directory_cb) {
-      entry = cbs->missing_directory_cb(current.c_str(), directory,
-                                        cbs->user_data, allocator);
-    } else if (entry == NULL) {
-      return DirectoryError::Directory_not_found;
-    }
-
-    // If there is no dnode found then our storage system fucked up
-    // and we can't really fix it anymore
-    struct ss_dnode *next_dir_inode = get_dnode_by_id(entry->inum, allocator);
-    if (next_dir_inode == NULL) {
-      return DirectoryError::Dnode_not_found;
-    }
-
-    StoDir next_dir = StoDir(entry->inum, next_dir_inode, allocator);
-    return find_inode(next_dir, next, found, cbs, allocator);
-  }
+	  // We don't need to iterate if we found the inode
+	  if (name == current)
+		  break;
+	  
+	  // Iterate to the next level in our directory hierarchy
+	  auto next = name.substr(location + 1, name.size());
+	  if (entry == NULL && cbs && cbs->missing_directory_cb) {
+		  entry = cbs->missing_directory_cb(current.c_str(), directory,
+												cbs->user_data, allocator);
+	  } else if (entry == NULL) {
+		  return DirectoryError::Directory_not_found;
+	  }
+	  
+	  // If there is no dnode found then our storage system fucked up
+	  // and we can't really fix it anymore
+	  struct ss_dnode *next_dir_inode = get_dnode_by_id(entry->inum, allocator);
+	  if (next_dir_inode == NULL) {
+		  return DirectoryError::Dnode_not_found;
+	  }
+	  
+	  directory = get_directory_by_id(entry->inum, allocator);
+	  name = next;  
+  } while (prev != std::string::npos);
 
   // If we reach the end of the hierarchy and we found something,
   // then we can just return our inode directly, no harm done.
