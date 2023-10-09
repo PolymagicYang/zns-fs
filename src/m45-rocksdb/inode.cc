@@ -5,6 +5,7 @@
 #include <cstring>
 #include <ctime>
 #include <iostream>
+#include <pthread.h>
 #include <random>
 
 #include "allocator.hpp"
@@ -17,6 +18,7 @@
 // Inode map that keeps track of where the inodes are in disk (43.5 OSTEP)
 // It maps the inode with the physical logical block address
 std::map<uint64_t, uint64_t> inode_map = std::map<uint64_t, uint64_t>();
+pthread_mutex_t inode_map_lock = PTHREAD_MUTEX_INITIALIZER;
 
 // Vector containing the physical address of each of the inode maps
 std::vector<uint64_t> checkpoint_region = std::vector<uint64_t>();
@@ -90,7 +92,10 @@ void StoInode::write_to_disk(bool update) {
   // printf("\n");
   inode.inserted = true;
   this->allocator->append((void *)&inode, sizeof(struct ss_inode), &lba, true);
+
+  pthread_mutex_lock(&inode_map_lock);
   inode_map[this->inode_number] = lba;
+  pthread_mutex_unlock(&inode_map_lock);
   this->dirty = false;
 }
 
@@ -130,7 +135,9 @@ void setup_test_system() {
   checkpoint_region.push_back(0xDEADBEEF);
 }
 
-std::map<uint64_t, uint64_t> get_imap(const uint64_t lba) { return inode_map; }
+std::map<uint64_t, uint64_t> get_imap(const uint64_t lba) { 
+  return inode_map; 
+}
 
 struct ss_inode *get_inode_from_disk(const uint64_t lba,
                                      BlockManager *allocator) {
@@ -164,7 +171,9 @@ uint64_t add_dnode_to_storage(const uint64_t inum,
   uint64_t lba;
   printf("append dnode\n");
   allocator->append((void *)&drecord, sizeof(struct ss_dnode), &lba, true);
+  pthread_mutex_lock(&inode_map_lock);
   inode_map[inum] = lba;
+  pthread_mutex_unlock(&inode_map_lock);
   return lba;
 }
 
@@ -196,10 +205,16 @@ StoInode *get_stoinode_by_id(const uint64_t inum, BlockManager *allocator) {
   }
 
   for (auto &lba : checkpoint_region) {
+    pthread_mutex_lock(&inode_map_lock);
     std::map<uint64_t, uint64_t> map = get_imap(lba);
-    auto found = map.find(inum);
-    if (found == map.end()) continue;
 
+    auto found = map.find(inum);
+    if (found == map.end()) {
+      pthread_mutex_unlock(&inode_map_lock);
+      continue;
+    }
+
+    pthread_mutex_unlock(&inode_map_lock);
     struct ss_inode *ret = get_inode_from_disk(found->second, allocator);
     inode_cache[inum] = new StoInode(ret, allocator);
     ret->segments;
