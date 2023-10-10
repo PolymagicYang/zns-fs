@@ -129,7 +129,10 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
              this->_zns_dev->capacity_bytes);
 }
 
-S2FileSystem::~S2FileSystem() {}
+S2FileSystem::~S2FileSystem() {
+	std::cout << "Deconstructor" << std::endl;
+	deinit_ss_zns_device(this->_zns_dev);
+}
 
 struct ss_inode *callback_missing_file_create(const char *name, StoDir *parent,
                                               void *user_data,
@@ -330,6 +333,7 @@ IOStatus S2FileSystem::NewDirectory(const std::string &name,
 IOStatus S2FileSystem::GetFreeSpace(const std::string &fname,
                                     const IOOptions &opts, uint64_t *result,
                                     IODebugContext *dbg) {
+  std::cerr << "[GetFreeSpace]" << std::endl;
   UNUSED(fname);
   UNUSED(opts);
   UNUSED(result);
@@ -339,6 +343,7 @@ IOStatus S2FileSystem::GetFreeSpace(const std::string &fname,
 
 IOStatus S2FileSystem::Truncate(const std::string &fname, size_t size,
                                 const IOOptions &opts, IODebugContext *dbg) {
+  std::cerr << "[Truncate]" << std::endl;
   UNUSED(fname);
   UNUSED(size);
   UNUSED(opts);
@@ -350,6 +355,7 @@ IOStatus S2FileSystem::Truncate(const std::string &fname, size_t size,
 IOStatus S2FileSystem::CreateDir(const std::string &dirname,
                                  const IOOptions &options,
                                  __attribute__((unused)) IODebugContext *dbg) {
+  std::cerr << "[CreateDir]" << std::endl;
   UNUSED(dirname);
   UNUSED(options);
   return IOStatus::IOError(__FUNCTION__);
@@ -435,6 +441,7 @@ IOStatus S2FileSystem::GetFileSize(const std::string &fname,
                                    uint64_t *file_size,
                                    __attribute__((unused))
                                    IODebugContext *dbg) {
+  std::cerr << "[GetFileSize]" << std::endl;
   UNUSED(fname);
   UNUSED(options);
   UNUSED(file_size);
@@ -445,6 +452,7 @@ IOStatus S2FileSystem::GetFileSize(const std::string &fname,
 IOStatus S2FileSystem::DeleteDir(const std::string &dirname,
                                  const IOOptions &options,
                                  __attribute__((unused)) IODebugContext *dbg) {
+  std::cerr << "[DeleteDir]" << std::endl;
   UNUSED(dirname);
   UNUSED(options);
   UNUSED(dbg);
@@ -456,6 +464,7 @@ IOStatus S2FileSystem::GetFileModificationTime(const std::string &fname,
                                                uint64_t *file_mtime,
                                                __attribute__((unused))
                                                IODebugContext *dbg) {
+  std::cerr << "[GetFileModificationTime]" << std::endl;
   UNUSED(fname);
   UNUSED(options);
   UNUSED(file_mtime);
@@ -468,6 +477,7 @@ IOStatus S2FileSystem::GetAbsolutePath(const std::string &db_path,
                                        std::string *output_path,
                                        __attribute__((unused))
                                        IODebugContext *dbg) {
+  std::cerr << "[GetAbsolutePath]" << std::endl;
   UNUSED(db_path);
   UNUSED(options);
   UNUSED(output_path);
@@ -477,6 +487,7 @@ IOStatus S2FileSystem::GetAbsolutePath(const std::string &db_path,
 IOStatus S2FileSystem::DeleteFile(const std::string &fname,
                                   const IOOptions &options,
                                   __attribute__((unused)) IODebugContext *dbg) {
+  std::cerr << "[DeleteFile]" << std::endl;
   UNUSED(fname);
   UNUSED(options);
   return IOStatus::IOError(__FUNCTION__);
@@ -486,6 +497,7 @@ IOStatus S2FileSystem::NewLogger(const std::string &fname,
                                  const IOOptions &io_opts,
                                  std::shared_ptr<Logger> *result,
                                  __attribute__((unused)) IODebugContext *dbg) {
+  std::cerr << "[NewLogger]" << std::endl;
   UNUSED(fname);
   UNUSED(io_opts);
   UNUSED(result);
@@ -505,7 +517,8 @@ IOStatus S2FileSystem::GetTestDirectory(const IOOptions &options,
 // REQUIRES: lock was returned by a successful LockFile() call
 // REQUIRES: lock has not already been unlocked.
 IOStatus S2FileSystem::UnlockFile(FileLock *lock, const IOOptions &options,
-                                  __attribute__((unused)) IODebugContext *dbg) {
+                                  __attribute__((unused)) IODebugContext *dbg) { 
+  std::cerr << "[UnlockFile]" << std::endl;
   UNUSED(lock);
   UNUSED(options);
   return IOStatus::IOError(__FUNCTION__);
