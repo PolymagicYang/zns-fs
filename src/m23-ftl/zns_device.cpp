@@ -56,9 +56,7 @@ int deinit_ss_zns_device(struct user_zns_device *my_dev) {
   FTL *ftl = (FTL *)my_dev->_private;
   Calliope *mori = (Calliope *)ftl->mori;
   mori->terminated = true;
-
-  // wait thread finish.
-  std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+  pthread_cancel(mori->thread.native_handle());
   delete ftl;
 
   return ret;
