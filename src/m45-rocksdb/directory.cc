@@ -5,6 +5,7 @@
 
 #include "allocator.hpp"
 #include "inode.hpp"
+#include "structures.h"
 
 StoDir::StoDir(char *name, const uint64_t parent_inode,
                BlockManager *allocator) {
@@ -51,8 +52,9 @@ void StoDir::write_to_disk() {
     this->add_entry(this->inode_number, 12, ".");
     this->add_entry(this->parent_inode, 12, "..");
 
+    struct ss_dnode dnode = this->create_dnode();
     const uint64_t lba = add_dnode_to_storage(
-        this->inode_number, this->create_dnode(), this->allocator);
+        this->inode_number, &dnode, this->allocator);
 
     sinode.add_segment(lba, 1);
     sinode.write_to_disk(true);
@@ -60,7 +62,8 @@ void StoDir::write_to_disk() {
   }
 
   // Use our stored inode number
-  update_dnode_in_storage(this->inode_number, this->create_dnode(),
+  struct ss_dnode donode = this->create_dnode();
+  update_dnode_in_storage(this->inode_number, &dnode,
                           this->allocator);
 }
 
