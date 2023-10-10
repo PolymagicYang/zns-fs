@@ -17,14 +17,14 @@
 
 // Inode map that keeps track of where the inodes are in disk (43.5 OSTEP)
 // It maps the inode with the physical logical block address
-std::map<uint64_t, uint64_t> inode_map = std::map<uint64_t, uint64_t>();
+std::unordered_map<uint64_t, uint64_t> inode_map = std::unordered_map<uint64_t, uint64_t>();
 pthread_mutex_t inode_map_lock = PTHREAD_MUTEX_INITIALIZER;
 
 // Vector containing the physical address of each of the inode maps
 std::vector<uint64_t> checkpoint_region = std::vector<uint64_t>();
 
-std::map<uint64_t, StoInode *> inode_cache = std::map<uint64_t, StoInode *>();
-std::map<uint64_t, StoDir *> dir_cache = std::map<uint64_t, StoDir *>();
+std::unordered_map<uint64_t, StoInode *> inode_cache = std::unordered_map<uint64_t, StoInode *>();
+std::unordered_map<uint64_t, StoDir *> dir_cache = std::unordered_map<uint64_t, StoDir *>();
 
 StoInode::StoInode(const uint32_t size, std::string name,
                    BlockManager *allocator) {
@@ -137,7 +137,7 @@ void setup_test_system() {
   checkpoint_region.push_back(0xDEADBEEF);
 }
 
-std::map<uint64_t, uint64_t> get_imap(const uint64_t lba) { 
+std::unordered_map<uint64_t, uint64_t> get_imap(const uint64_t lba) { 
   return inode_map; 
 }
 
@@ -222,7 +222,7 @@ StoInode *get_stoinode_by_id(const uint64_t inum, BlockManager *allocator) {
   
   for (auto &lba : checkpoint_region) {
     pthread_mutex_lock(&inode_map_lock);
-    std::map<uint64_t, uint64_t> map = get_imap(lba);
+    std::unordered_map<uint64_t, uint64_t> map = get_imap(lba);
 
     auto found = map.find(inum);
     if (found == map.end()) {

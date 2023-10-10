@@ -358,10 +358,8 @@ std::vector<ZNSDataZone> create_datazones(const int zns_fd, const uint32_t nsid,
       write_pointer = zone_slba;
     }
 
-    ZNSDataZone zone =
-        ZNSDataZone(zns_fd, nsid, i, capacity, capacity, zstate, ztype,
-                    zone_slba, HostManaged, write_pointer, lba_size, mdts_size);
-    zones.push_back(zone);
+    zones.push_back(ZNSDataZone(zns_fd, nsid, i, capacity, capacity, zstate, ztype,
+                    zone_slba, HostManaged, write_pointer, lba_size, mdts_size));
   }
 
   // Reset all the zones in one go so that we are in a valid initial state

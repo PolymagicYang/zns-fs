@@ -39,7 +39,7 @@ struct Addr {
   bool alive;
 };
 
-using raw_map = std::map<uint64_t, struct Addr>;
+using raw_map = std::unordered_map<uint64_t, struct Addr>;
 
 struct Ftlmap {
   pthread_rwlock_t lock;
