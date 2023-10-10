@@ -62,8 +62,7 @@ class Calliope {
   void insert_new_zone(ZNSLogZone *reapable, uint64_t base_addr, std::vector<ZNSBlock *> &log_blocks);
   void merge_old_zone(ZNSLogZone *reapable, uint64_t base_addr, std::vector<ZNSBlock *> &log_blocks);
   
-  void get_blocks_group(ZNSLogZone *reapable, std::unordered_map<uint64_t, std::vector<ZNSBlock*>> &blocks_group);
-  // Number of regions we ought to keep clean
+  void get_blocks_group(ZNSLogZone *reapable, std::unordered_map<uint64_t, std::vector<ZNSBlock*>> &blocks_group);  // Number of regions we ought to keep clean
   uint16_t threshold;
 
   // Flag to see if we found something useful in our sweep could be

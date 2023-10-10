@@ -94,16 +94,7 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
   // only rely on the inode number being there after the write_to_disk
   // is called
   StoDir root = StoDir((char *)"/", 2, this->allocator);
-  StoDir foo = StoDir((char *)"foo", 2, this->allocator);
-
   root.write_to_disk();
-  foo.write_to_disk();
-  root.add_entry(foo.inode_number, 1, "foo");
-  root.write_to_disk();
-
-  // root.add_entry(4, 2, "foo/bar");
-  // root.add_entry(5, 3, "foo/baz");
-  root.add_entry(6, 2, "queef");
   std::cout << "Added all the entries" << std::endl;
   struct ss_inode new_inode;
   enum DirectoryError err =

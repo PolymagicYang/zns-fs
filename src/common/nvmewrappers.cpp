@@ -53,11 +53,9 @@ int ss_nvme_zns_append(int fd, __u32 nsid, __u64 zslba, __u16 nlb,
   return ret;
 }
 
-int ss_nvme_write_zeros(int fd, __u32 nsid, __u64 slba, __u16 nlb,
-                        __u16 control, __u32 reftag, __u16 apptag,
-                        __u16 appmask) {
-  return nvme_write_zeros(fd, nsid, slba, nlb, control, reftag, apptag,
-                          appmask);
+int ss_nvme_write_zeros(int fd, __u32 nsid, __u64 slba, __u16 nlb, __u16 control,
+		     __u32 reftag, __u16 apptag, __u16 appmask) {
+    return nvme_write_zeros(fd, nsid, slba, nlb, control, reftag, apptag, appmask);
 }
 
 int ss_device_zone_reset(int fd, uint32_t nsid, uint64_t slba) {
@@ -71,9 +69,7 @@ int ss_device_zone_reset(int fd, uint32_t nsid, uint64_t slba) {
                           NULL);
 }
 
-int ss_nvme_zns_mgmt_send(int t1, unsigned int t2, unsigned long long t3,
-                          bool t4, nvme_zns_send_action t5, unsigned int t6,
-                          void *t7) {
+int ss_nvme_zns_mgmt_send(int t1, unsigned int t2, unsigned long long t3, bool t4, nvme_zns_send_action t5, unsigned int t6, void* t7) {
   return nvme_zns_mgmt_send(t1, t2, t3, t4, t5, t6, t7);
 }
 

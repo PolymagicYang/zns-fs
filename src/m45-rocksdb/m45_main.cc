@@ -383,8 +383,8 @@ int main(int argc, char **argv) {
   }
   // will close the db - for now shadow context is created unconditionally, but
   // can be moved in the single mode
-  // destroy_myrocks_context(ctx_shadow);
-  // destroy_myrocks_context(ctx_test);
+  destroy_myrocks_context(ctx_shadow);
+  destroy_myrocks_context(ctx_test);
   cout << "database(s) closed, test is done OK " << endl;
   end = microseconds_since_epoch();
   std::cout << "==============================================================="
