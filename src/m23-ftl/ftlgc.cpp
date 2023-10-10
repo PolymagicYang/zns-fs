@@ -211,7 +211,6 @@ void Calliope::reap() {
     this->ftl->free_log_zones.push_back(reapable);
     pthread_rwlock_unlock(&this->ftl->zones_lock);
     // std::cout << "reset finish!\n";
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
 }
 
