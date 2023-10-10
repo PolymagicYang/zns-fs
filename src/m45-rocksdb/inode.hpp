@@ -10,12 +10,12 @@
 static uint32_t g_inode_num = 2;
 
 extern "C" {
-void update_dnode_in_storage(const uint64_t inum, const struct ss_dnode dnode,
+void update_dnode_in_storage(const uint64_t inum, const struct ss_dnode *dnode,
                              BlockManager *);
 struct ss_inode *get_inode_by_id(const uint64_t inum, BlockManager *);
 struct ss_dnode *get_dnode_by_id(const uint64_t inum, BlockManager *);
 uint64_t add_dnode_to_storage(const uint64_t inum,
-                              const struct ss_dnode drecord, BlockManager *);
+                              const struct ss_dnode *drecord, BlockManager *);
 void setup_test_system();
 }
 

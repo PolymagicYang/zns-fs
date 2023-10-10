@@ -151,7 +151,7 @@ struct ss_inode *get_inode_from_disk(const uint64_t lba,
   return buffer;
 }
 
-void update_dnode_in_storage(const uint64_t inum, const struct ss_dnode dnode,
+void update_dnode_in_storage(const uint64_t inum, const struct ss_dnode *dnode,
                              BlockManager *allocator) {
   struct ss_inode *inode = get_inode_by_id(inum, allocator);
   if (inode == NULL) {
@@ -162,17 +162,17 @@ void update_dnode_in_storage(const uint64_t inum, const struct ss_dnode dnode,
   struct ss_segment *segment = &inode->segments[0];
   const uint64_t lba = segment->start_lba;
 
-  int ret = allocator->write(lba, (void *)&dnode, sizeof(struct ss_dnode));
+  int ret = allocator->write(lba, &dnode, sizeof(struct ss_dnode));
 
   assert(ret == 0);
 }
 
 uint64_t add_dnode_to_storage(const uint64_t inum,
-                              const struct ss_dnode drecord,
+                              const struct ss_dnode *drecord,
                               BlockManager *allocator) {
   uint64_t lba;
   printf("append dnode\n");
-  allocator->append((void *)&drecord, sizeof(struct ss_dnode), &lba, true);
+  allocator->append(&drecord, sizeof(struct ss_dnode), &lba, true);
   pthread_mutex_lock(&inode_map_lock);
   inode_map[inum] = lba;
   pthread_mutex_unlock(&inode_map_lock);
