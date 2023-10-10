@@ -95,21 +95,6 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
   // is called
   StoDir root = StoDir((char *)"/", 2, this->allocator);
   root.write_to_disk();
-  std::cout << "Added all the entries" << std::endl;
-  struct ss_inode new_inode;
-  enum DirectoryError err =
-      find_inode(&root, "foo/../foo/./baz", &new_inode, NULL, this->allocator);
-  if (err == DirectoryError::Dnode_not_found) {
-    std::cerr << "Cannot find dnode" << std::endl;
-  } else if (err == DirectoryError::Directory_not_found) {
-    std::cerr << "Cannot find parent directory" << std::endl;
-  } else if (err == DirectoryError::Created_inode) {
-    std::cerr << "Created a new inode for the file" << std::endl;
-  } else if (err == DirectoryError::Found_inode) {
-    std::cerr << "Found the inode" << std::endl;
-  } else if (err == DirectoryError::Inode_not_found) {
-    std::cerr << "Did not find the inode" << std::endl;
-  }
 
   std::cout << "Find file in root" << std::endl;
 

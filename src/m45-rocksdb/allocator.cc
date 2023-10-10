@@ -45,10 +45,9 @@ int BlockManager::append(void *buffer, uint32_t size, uint64_t *start_addr,
   }
 
   if (wp % lba_size == 0) {
-	size_t padding_size = (size - (size % lba_size)) + lba_size; 
+	size_t padding_size = Round_up(size, lba_size);
 	ret = zns_udevice_write(this->disk, wp, buffer, padding_size); 
   } else {
-    // printf("needs padding\n");
     uint64_t wp_base = (wp / lba_size) * lba_size;
     uint64_t curr_data_size_in_block = wp - wp_base;
 	size_t current_size = size + curr_data_size_in_block;

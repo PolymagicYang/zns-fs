@@ -28,7 +28,7 @@ class StoDir {
                 const char *name);
   int remove_entry(const char *name);
   struct ss_dnode_record *find_entry(const char *name);
-  struct ss_dnode create_dnode();
+  struct ss_dnode *create_dnode();
 
   void write_to_disk();
   BlockManager *allocator;
