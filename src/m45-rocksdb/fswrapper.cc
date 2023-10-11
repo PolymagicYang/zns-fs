@@ -21,12 +21,13 @@ StoDirFS::StoDirFS(const uint64_t inum, const struct ss_dnode *dnode,
   this->directory = new StoDir(inum, dnode, allocator);
 }
 
-StoDirFS::~StoDirFS() { free(this->directory); }
+StoDirFS::~StoDirFS() { delete this->directory; }
 
 IOStatus StoDirFS::Fsync(const IOOptions &opts, IODebugContext *db) {
   UNUSED(opts);
   UNUSED(db);
   std::cerr << "Fsync the directory" << std::endl;
+  this->directory->write_to_disk();
   return IOStatus::OK();
 }
 
@@ -61,7 +62,7 @@ IOStatus StoRAFile::Read(uint64_t offset, size_t size, const IOOptions &options,
   // TODO(valentijn): memory leak?
   pthread_mutex_lock(&this->file->inode.lock);
   char *buffer =
-      (char *)malloc(Min(offset + size, this->file->inode.node->size));
+      (char *)malloc(Round_up(Min(offset + size, this->file->inode.node->size), g_lba_size) * 2);
   pthread_mutex_unlock(&this->file->inode.lock);
   file->read(size + offset, (void *)buffer);
 
@@ -97,7 +98,7 @@ IOStatus StoSeqFile::Read(size_t size, const IOOptions &options, Slice *result,
   // doing things
   pthread_mutex_lock(&this->file->inode.lock);
   size_t adjusted = Min(offset + size, this->file->inode.node->size);
-  char *buffer = (char *)malloc(adjusted);
+  char *buffer = (char *)malloc(Round_up(adjusted, g_lba_size) * 2);
   pthread_mutex_unlock(&this->file->inode.lock);
   this->file->read(adjusted, (void *)buffer);
   ((char*)buffer)[adjusted-1] = '\0';

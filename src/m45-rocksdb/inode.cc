@@ -80,15 +80,11 @@ void StoInode::write_to_disk(bool update) {
   struct ss_inode *inode = this->get_inode_struct();
   uint64_t lba;
 
-  // printf("append inode %ld \n", this->inode_number);
-  // printf("\n");
   inode->inserted = true;
   this->allocator->append((void *)inode, sizeof(struct ss_inode), &lba, true);
 
   pthread_mutex_lock(&inode_map_lock);
-  printf("store inode\n");
   inode_map[this->inode_number] = lba;
-  printf("store inode end\n");
   pthread_mutex_unlock(&inode_map_lock);
   this->dirty = false;
 }
@@ -136,7 +132,6 @@ std::unordered_map<uint64_t, uint64_t> get_imap(const uint64_t lba) {
 
 struct ss_inode *get_inode_from_disk(const uint64_t lba,
                                      BlockManager *allocator) {
-  printf("get inode\n");
   struct ss_inode *buffer = (struct ss_inode *)malloc(sizeof(struct ss_inode));
   int ret = allocator->read(lba, buffer, sizeof(struct ss_inode));
 
@@ -165,9 +160,7 @@ uint64_t add_dnode_to_storage(const uint64_t inum,
                               const struct ss_dnode *drecord,
                               BlockManager *allocator) {
   uint64_t lba;
-  printf("append dnode\n");
   allocator->append((void*) drecord, sizeof(struct ss_dnode), &lba, true);
-  printf("append succeed\n");
   pthread_mutex_lock(&inode_map_lock);
   inode_map[inum] = lba;
   pthread_mutex_unlock(&inode_map_lock);

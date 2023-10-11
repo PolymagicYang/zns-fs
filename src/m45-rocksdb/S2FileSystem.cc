@@ -100,8 +100,9 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
   // not generated until the directory is written to disk. So you can
   // only rely on the inode number being there after the write_to_disk
   // is called
-  StoDir root = StoDir((char *)"/", 2, this->allocator);
-  root.write_to_disk();
+  StoDir *root = new StoDir((char *)"/", 2, this->allocator);
+  root->write_to_disk();
+  dir_cache[root->inode_number] = root;
 
   ss_dprintf(DBG_FS_1,
              "device %s is opened and initialized, reported LBA size is %u and "
@@ -114,6 +115,14 @@ S2FileSystem::~S2FileSystem() {
   g_magic_offset++;
   std::cout << "Deconstructor" << std::endl;
   deinit_ss_zns_device(this->_zns_dev);
+
+  for (auto &dir : dir_cache) {
+	delete dir.second;
+  }
+
+  for (auto &inode : inode_cache) {
+	delete inode.second;
+  }
 }
 
 struct ss_inode *callback_missing_file_create(const char *name, StoDir *parent,
@@ -352,11 +361,13 @@ struct ss_dnode_record *callback_missing_directory(const char *name,
                                                    StoDir *parent,
                                                    void *user_data,
                                                    BlockManager *allocator) {
+  std::cout << "Create " << name << " in " << parent->name << std::endl;
   UNUSED(user_data);
-  StoDir directory = StoDir((char *)name, parent->inode_number, allocator);
-  directory.write_to_disk();
-  parent->add_entry(directory.inode_number, 12, name);
+  StoDir *directory = new StoDir((char *)name, parent->inode_number, allocator);
+  directory->write_to_disk();
+  parent->add_entry(directory->inode_number, 12, name);
   parent->write_to_disk();
+  dir_cache[directory->inode_number] = directory;
   return parent->find_entry(name);
 }
 

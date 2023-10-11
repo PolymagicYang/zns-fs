@@ -34,7 +34,6 @@ int BlockManager::append(void *buffer, uint32_t size, uint64_t *start_addr,
   needs to hold the lock when writing.
   */
   int ret = 0;
-  printf("append\n");
   pthread_rwlock_wrlock(&this->wp.wp_lock);
   uint64_t wp = this->get_current_position();
   // printf("append to %ld, size is %d!\n", wp, size);
@@ -80,14 +79,14 @@ int BlockManager::read(uint64_t lba, void *buffer, uint32_t size) {
     padding_size = read_size;
   }
   char *buf = static_cast<char *>(calloc(1, padding_size));
-  int ret = zns_udevice_read(this->disk, wp_base, buf, padding_size-1);
+  int ret = zns_udevice_read(this->disk, wp_base, buf, padding_size);
 
   if (ret != 0) {
     printf("error!\n");
   }
 
-  memcpy(buffer, buf + curr_data_size_in_block, size-1);
-
+  memcpy(buffer, buf + curr_data_size_in_block, size);
+  free(buf);
   printf("size is %d\n", padding_size);
   return ret;
 }
