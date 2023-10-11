@@ -103,13 +103,13 @@ int BlockManager::read(uint64_t lba, void *buffer, uint32_t size) {
     padding_size = read_size;
   }
   char *buf = static_cast<char *>(calloc(1, padding_size));
-  int ret = zns_udevice_read(this->disk, wp_base, buf, padding_size);
+  int ret = zns_udevice_read(this->disk, wp_base, buf, padding_size-1);
 
   if (ret != 0) {
     printf("error!\n");
   }
 
-  memcpy(buffer, buf + curr_data_size_in_block, size);
+  memcpy(buffer, buf + curr_data_size_in_block, size-1);
 
   printf("size is %d\n", padding_size);
   return ret;

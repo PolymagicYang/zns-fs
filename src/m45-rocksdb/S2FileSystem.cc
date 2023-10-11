@@ -112,7 +112,7 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
 
 S2FileSystem::~S2FileSystem() {
   g_magic_offset++;
-  std::cout << "D	econstructor" << std::endl;
+  std::cout << "Deconstructor" << std::endl;
   deinit_ss_zns_device(this->_zns_dev);
 }
 
@@ -351,8 +351,6 @@ struct ss_dnode_record *callback_missing_directory(const char *name,
                                                    void *user_data,
                                                    BlockManager *allocator) {
   UNUSED(user_data);
-  std::cerr << "Create missing directory " << name << " in " << parent->name
-            << std::endl;
   StoDir directory = StoDir((char *)name, parent->inode_number, allocator);
   directory.write_to_disk();
   parent->add_entry(directory.inode_number, 12, name);

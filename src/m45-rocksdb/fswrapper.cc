@@ -100,8 +100,9 @@ IOStatus StoSeqFile::Read(size_t size, const IOOptions &options, Slice *result,
   char *buffer = (char *)malloc(adjusted);
   pthread_mutex_unlock(&this->file->inode.lock);
   this->file->read(adjusted, (void *)buffer);
+  ((char*)buffer)[adjusted-1] = '\0';
   *buffer += offset;
-
+  
   // Clasp the amount we store based on the current size of our inode
   // TODO(everyone): make this more generic so we don't overallocate memory
   //   as badly as we do atm.
@@ -110,7 +111,7 @@ IOStatus StoSeqFile::Read(size_t size, const IOOptions &options, Slice *result,
 
   this->offset = adjusted;
 
-  if (strlen(buffer) < size) this->eof = true;
+  if (strlen(buffer) < adjusted) this->eof = true;
 
   return IOStatus::OK();
 }

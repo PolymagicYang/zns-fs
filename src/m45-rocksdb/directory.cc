@@ -93,6 +93,8 @@ int StoDir::add_entry(const uint16_t inode_number, const uint16_t reclen,
 }
 
 struct ss_dnode_record *StoDir::find_entry(const char *name) {
+  if (name == NULL || this == NULL) return NULL;
+  
   size_t needle_size = strlen(name);
   for (auto &entry : this->records) {
     // Weird C++ behaviour, we force it to be boolean.
