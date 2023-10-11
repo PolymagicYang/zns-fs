@@ -155,6 +155,7 @@ struct ss_inode *get_inode_from_disk(const uint64_t lba,
                                      BlockManager *allocator) {
   struct ss_inode *buffer = (struct ss_inode *)malloc(sizeof(struct ss_inode));
   int ret = allocator->read(lba, buffer, sizeof(struct ss_inode));
+  free(buffer);
 
   assert(ret == 0);
 
@@ -172,7 +173,7 @@ void update_dnode_in_storage(const uint64_t inum, const struct ss_dnode *dnode,
   struct ss_segment *segment = &inode->segments[0];
   const uint64_t lba = segment->start_lba;
 
-  int ret = allocator->write(lba, &dnode, sizeof(struct ss_dnode));
+  int ret = allocator->write(lba, (void *) dnode, sizeof(struct ss_dnode));
 
   assert(ret == 0);
 }
@@ -213,6 +214,7 @@ StoDir *get_directory_by_id(const uint64_t inum, BlockManager *allocator) {
 
   dir_cache[inum] = new StoDir(inum, dnode, allocator);
   dir_cache[inum]->dnode = *dnode;
+  free(buffer);
   return dir_cache[inum];
 }
 
