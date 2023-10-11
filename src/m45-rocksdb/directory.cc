@@ -115,6 +115,7 @@ int StoDir::remove_entry(const char *name) {
   // TODO(valentijn): reuse or garbage collect these values
   dnode->inum = 0;
   dnode->namelen = 0;
+  return 1;
 }
 
 enum DirectoryError find_inode(StoDir *directory, std::string name,
