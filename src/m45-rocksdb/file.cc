@@ -38,7 +38,9 @@ void StoFile::write(size_t size, void *data) {
   bool overwrite = this->inode.node->inserted;
   uint64_t slba = store_segment_on_disk(size, data, this->allocator, overwrite);
 
+  printf("add segment\n");
   this->inode.node->add_segment(slba, total_blocks);
+  printf("add segment end\n");
   pthread_mutex_unlock(&this->inode.lock);
 }
 

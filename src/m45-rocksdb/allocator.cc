@@ -34,6 +34,7 @@ int BlockManager::append(void *buffer, uint32_t size, uint64_t *start_addr,
   needs to hold the lock when writing.
   */
   int ret = 0;
+  printf("append\n");
   pthread_rwlock_wrlock(&this->wp.wp_lock);
   uint64_t wp = this->get_current_position();
   // printf("append to %ld, size is %d!\n", wp, size);
@@ -58,7 +59,7 @@ int BlockManager::append(void *buffer, uint32_t size, uint64_t *start_addr,
       ret = zns_udevice_write(this->disk, wp, buffer, size);
     }
   } else {
-    // printf("needs padding\n");
+    printf("needs padding\n");
     uint64_t wp_base = (wp / lba_size) * lba_size;
     uint64_t curr_data_size_in_block = wp - wp_base;
 
@@ -75,7 +76,7 @@ int BlockManager::append(void *buffer, uint32_t size, uint64_t *start_addr,
     memcpy(new_blocks, curr_block, curr_data_size_in_block);
     memcpy(new_blocks + curr_data_size_in_block, buffer, size);
     ret = zns_udevice_write(this->disk, wp_base, new_blocks, padding_size);
-    // printf("lba is %lx\n", wp);
+    printf("lba is %lx\n", wp);
     // for (int i = 0; i < size; i++) {
     //     printf("%x", ((char*)buffer)[i]);
     // }
@@ -86,6 +87,7 @@ int BlockManager::append(void *buffer, uint32_t size, uint64_t *start_addr,
     this->update_current_position(wp + size);
   }
   pthread_rwlock_unlock(&this->wp.wp_lock);
+  printf("finish\n");
   return ret;
 }
 
@@ -101,23 +103,16 @@ int BlockManager::read(uint64_t lba, void *buffer, uint32_t size) {
   } else {
     padding_size = read_size;
   }
-  char *buf = static_cast<char *>(calloc(1, padding_size));
+  char buf[padding_size];
   int ret = zns_udevice_read(this->disk, wp_base, buf, padding_size);
 
   if (ret != 0) {
     printf("error!\n");
   }
 
-  // printf("read end\n");
   memcpy(buffer, buf + curr_data_size_in_block, size);
 
-  free(buf);
-  // printf("lba is %x, read from wp_base %x\n", lba, wp_base);
-  // for (int i = 0; i < size; i++) {
-  //     printf("%x", ((char*)buffer)[i]);
-  // }
-  // printf("end for\n");
-
+  printf("size is %d\n", padding_size);
   return ret;
 }
 
