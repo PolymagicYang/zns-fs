@@ -159,7 +159,7 @@ int init_ss_zns_device(struct zdev_init_params *params,
 
 int zns_udevice_read(struct user_zns_device *my_dev, uint64_t address,
                      void *buffer, uint32_t size) {
-  // Check log map firstly beacuse of fresh data, then check data map, one page
+  // Check log map firstly because of fresh data, then check data map, one page
   // size at a time (to avoid overwrite). e.g. full sequantially writes on
   // address 0x0 to make a data map entry, then 1 page write on 0x2, the data in
   // log map will be newer than data map.

@@ -18,6 +18,7 @@
 #define DIRSIZE 32
 #define TEST_LBA_SIZE 4096
 
+#define Round_up(num, round) (((num) + (round) - 1) / (round)) * (round)
 // 4th bit
 #define FLAG_DIRECTORY (1 << 4)
 #define FLAG_LOCK (1 << 5)
@@ -35,7 +36,7 @@ struct ss_inode {
   uint32_t size;
   uint64_t time;
   uint64_t inserted;
-  bool deleted;
+  bool deleted = false; 
   struct ss_segment segments[SEGMENT_SIZE];
   uint32_t flags;
   uint16_t strlen;
@@ -43,9 +44,9 @@ struct ss_inode {
 };
 
 struct ss_dnode_record {
-  uint16_t inum;
-  uint16_t reclen;
-  uint16_t namelen;
+  uint16_t inum = 0;
+  uint16_t reclen = 0;
+  uint16_t namelen = 0;
   char name[NAMELEN];
 };
 

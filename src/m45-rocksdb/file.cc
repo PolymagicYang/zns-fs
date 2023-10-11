@@ -49,7 +49,7 @@ void StoFile::read(const size_t size, void *result) {
   std::cout << g_magic_offset << std::endl;
   size_t current_size = Min(size, this->inode.node->size - g_magic_offset);
   void *copy = (char *)result;
-  for (auto &segment : inode.node->segments) {
+  for (auto &segment : inode.node->inode.segments) {
     for (uint8_t i = 0; i < segment.nblocks; i++) {
       size_t segment_size =
           std::min(g_lba_size * segment.nblocks, current_size);
