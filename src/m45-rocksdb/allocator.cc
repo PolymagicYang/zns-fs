@@ -103,7 +103,6 @@ int BlockManager::read(uint64_t lba, void *buffer, uint32_t size) {
   }
   char *buf = static_cast<char *>(calloc(1, padding_size));
   int ret = zns_udevice_read(this->disk, wp_base, buf, padding_size);
-  free(buf);
 
   if (ret != 0) {
     printf("error!\n");
@@ -112,6 +111,7 @@ int BlockManager::read(uint64_t lba, void *buffer, uint32_t size) {
   // printf("read end\n");
   memcpy(buffer, buf + curr_data_size_in_block, size);
 
+  free(buf);
   // printf("lba is %x, read from wp_base %x\n", lba, wp_base);
   // for (int i = 0; i < size; i++) {
   //     printf("%x", ((char*)buffer)[i]);

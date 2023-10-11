@@ -155,7 +155,6 @@ struct ss_inode *get_inode_from_disk(const uint64_t lba,
                                      BlockManager *allocator) {
   struct ss_inode *buffer = (struct ss_inode *)malloc(sizeof(struct ss_inode));
   int ret = allocator->read(lba, buffer, sizeof(struct ss_inode));
-  free(buffer);
 
   assert(ret == 0);
 
@@ -246,6 +245,7 @@ StoInode *get_stoinode_by_id(const uint64_t inum, BlockManager *allocator) {
     struct ss_inode *ret = get_inode_from_disk(found->second, allocator);
     inode_cache[inum] = new StoInode(ret, allocator);
     ret->segments;
+    free(ret);
     return inode_cache[inum];
   }
 
