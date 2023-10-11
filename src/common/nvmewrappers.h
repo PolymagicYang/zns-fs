@@ -26,6 +26,13 @@ int ss_nvme_zns_append(int fd, __u32 nsid, __u64 zslba, __u16 nlb,
 
 int ss_device_zone_reset(int fd, uint32_t nsid, uint64_t slba);
 
+int ss_nvme_write_zeros(int fd, __u32 nsid, __u64 slba, __u16 nlb,
+                        __u16 control, __u32 reftag, __u16 apptag,
+                        __u16 appmask);
+
+int ss_nvme_zns_mgmt_send(int, unsigned int, unsigned long long, bool,
+                          nvme_zns_send_action, unsigned int, void *);
+
 #ifdef __cplusplus
 }
 #endif

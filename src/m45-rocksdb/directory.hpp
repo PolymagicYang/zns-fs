@@ -32,15 +32,17 @@ class StoDir {
 
   void write_to_disk();
   BlockManager *allocator;
+  struct ss_dnode dnode;
 };
 
 struct find_inode_callbacks {
   struct ss_dnode_record *(*missing_directory_cb)(const char *name,
-                                                  StoDir &parent,
-                                                  void *user_data, BlockManager *);
-  struct ss_inode *(*missing_file_cb)(const char *name, StoDir &parent,
+                                                  StoDir *parent,
+                                                  void *user_data,
+                                                  BlockManager *);
+  struct ss_inode *(*missing_file_cb)(const char *name, StoDir *parent,
                                       void *user_data, BlockManager *allocator);
-  void (*found_file_cb)(const char *name, StoDir &parent,
+  void (*found_file_cb)(const char *name, StoDir *parent,
                         struct ss_inode *inode, struct ss_dnode_record *entry,
                         void *user_data, BlockManager *);
   void *user_data;
@@ -57,8 +59,9 @@ enum DirectoryError {
 // We copy data here because it is easier, but you might want to do
 // it by reference instead. This does make the logic a lot more
 // complex though. Maybe a good use case for smart pointers?
-enum DirectoryError find_inode(StoDir &directory, std::string name,
+enum DirectoryError find_inode(StoDir *directory, std::string name,
                                struct ss_inode *found,
-                               struct find_inode_callbacks *cbs, BlockManager *);
+                               struct find_inode_callbacks *cbs,
+                               BlockManager *);
 
 #endif

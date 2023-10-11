@@ -1,16 +1,23 @@
 #include "fswrapper.hpp"
 
+#include <pthread.h>
+
 #include <cassert>
+
 #include "../common/unused.h"
 #include "allocator.hpp"
 
+#define Min(x, y) ((x) > (y) ? (y) : (x))
+
 namespace ROCKSDB_NAMESPACE {
 
-StoDirFS::StoDirFS(char *name, const uint64_t parent_inode, BlockManager *allocator) {
+StoDirFS::StoDirFS(char *name, const uint64_t parent_inode,
+                   BlockManager *allocator) {
   this->directory = new StoDir(name, parent_inode, allocator);
 }
 
-StoDirFS::StoDirFS(const uint64_t inum, const struct ss_dnode *dnode, BlockManager *allocator) {
+StoDirFS::StoDirFS(const uint64_t inum, const struct ss_dnode *dnode,
+                   BlockManager *allocator) {
   this->directory = new StoDir(inum, dnode, allocator);
 }
 
@@ -33,7 +40,7 @@ void StoFileLock::Clear() {
   this->inode_num = 0;
 }
 
-StoFileLock::~StoFileLock() { assert(this->inode_num != 0); }
+StoFileLock::~StoFileLock() { assert(this->inode_num == 0); }
 
 StoRAFile::StoRAFile(struct ss_inode *inode, BlockManager *allocator) {
   this->file = new StoFile(inode, allocator);
@@ -45,21 +52,24 @@ StoRAFile::~StoRAFile() {
 
 IOStatus StoRAFile::Read(uint64_t offset, size_t size, const IOOptions &options,
                          Slice *result, char *scratch,
-                         IODebugContext *dbg) const {\
+                         IODebugContext *dbg) const {
   UNUSED(scratch);
   UNUSED(dbg);
-  
+
   std::cout << "RA read" << std::endl;
   // Read a total offset + size bytes from the underlying file
   // TODO(valentijn): memory leak?
-  char *buffer = (char *)malloc(offset + size);
+  pthread_mutex_lock(&this->file->inode.lock);
+  char *buffer =
+      (char *)malloc(Min(offset + size, this->file->inode.node->size));
+  pthread_mutex_unlock(&this->file->inode.lock);
   file->read(size + offset, (void *)buffer);
 
   // Skip the offset
   buffer += offset;
 
   // Copy the buffer over to the result slice
-  *result = Slice(buffer, std::min(this->file->inode->size - (size_t) 1 , size));
+  *result = Slice(buffer, Min(this->file->inode.node->size - (size_t)1, size));
   std::cout << "RA read " << result->data() << std::endl;
   return IOStatus::OK();
 }
@@ -78,7 +88,6 @@ IOStatus StoSeqFile::Read(size_t size, const IOOptions &options, Slice *result,
                           char *scratch, IODebugContext *dbg) {
   UNUSED(scratch);
   UNUSED(dbg);
-  
 
   if (eof) {
     *result = Slice();
@@ -86,15 +95,18 @@ IOStatus StoSeqFile::Read(size_t size, const IOOptions &options, Slice *result,
   }
   // We read throw away our offset, this is an inefficient way of
   // doing things
-  size_t adjusted = offset + size;
+  pthread_mutex_lock(&this->file->inode.lock);
+  size_t adjusted = Min(offset + size, this->file->inode.node->size);
   char *buffer = (char *)malloc(adjusted);
+  pthread_mutex_unlock(&this->file->inode.lock);
   this->file->read(adjusted, (void *)buffer);
   *buffer += offset;
 
   // Clasp the amount we store based on the current size of our inode
   // TODO(everyone): make this more generic so we don't overallocate memory
   //   as badly as we do atm.
-  *result = Slice(buffer, std::min(this->file->inode->size - offset - 1, size));  
+  *result =
+      Slice(buffer, std::min(this->file->inode.node->size - offset - 1, size));
 
   this->offset = adjusted;
 
@@ -123,7 +135,7 @@ IOStatus StoWriteFile::Append(const Slice &data, const IOOptions &options,
                               IODebugContext *dbg) {
   UNUSED(options);
   UNUSED(dbg);
-  
+
   if (!this->file) return IOStatus::IOError("File closed");
 
   this->file->write(data.size(), (void *)data.data());
@@ -132,12 +144,9 @@ IOStatus StoWriteFile::Append(const Slice &data, const IOOptions &options,
 
 // Flush writes the application data to the filesystem
 IOStatus StoWriteFile::Flush(const IOOptions &options, IODebugContext *dbg) {
-  UNUSED(options);
-  UNUSED(dbg);
-  
   if (!this->file) return IOStatus::IOError("File closed");
 
-  this->file->write_to_disk();
+  this->file->write_to_disk(true);
   return IOStatus::OK();
 }
 
@@ -145,10 +154,10 @@ IOStatus StoWriteFile::Flush(const IOOptions &options, IODebugContext *dbg) {
 IOStatus StoWriteFile::Sync(const IOOptions &options, IODebugContext *dbg) {
   UNUSED(options);
   UNUSED(dbg);
-  
+
   if (!this->file) return IOStatus::IOError("File closed");
 
-  this->file->write_to_disk();
+  this->file->write_to_disk(true);
   return IOStatus::OK();
 }
 
@@ -156,7 +165,7 @@ IOStatus StoWriteFile::Sync(const IOOptions &options, IODebugContext *dbg) {
 IOStatus StoWriteFile::Close(const IOOptions &options, IODebugContext *dbg) {
   UNUSED(options);
   UNUSED(dbg);
-				
+
   if (!this->file) return IOStatus::IOError("File closed");
 
   this->file = nullptr;

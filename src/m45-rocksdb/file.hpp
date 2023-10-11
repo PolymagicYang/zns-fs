@@ -1,5 +1,7 @@
 #ifndef STOSYS_PROJECT_FILE_H_
 #define STOSYS_PROJECT_FILE_H_
+#include <pthread.h>
+
 #include "allocator.hpp"
 #pragma once
 
@@ -15,10 +17,13 @@ class StoFile {
   StoFile(const ss_inode *inode, BlockManager *allocator);
   StoFile(StoInode *inode, BlockManager *allocator);
   ~StoFile();
-  void write_to_disk();
+  void write_to_disk(bool update);
   void write(size_t size, void *data);
   void read(size_t size, void *result);
-  StoInode *inode;
+  struct inode {
+    StoInode *node;
+    pthread_mutex_t lock;
+  } inode;
   BlockManager *allocator;
 };
 

@@ -56,11 +56,8 @@ int deinit_ss_zns_device(struct user_zns_device *my_dev) {
   FTL *ftl = (FTL *)my_dev->_private;
   Calliope *mori = (Calliope *)ftl->mori;
   mori->terminated = true;
-
-  // wait thread finish.
-  std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+  pthread_cancel(mori->thread.native_handle());
   delete ftl;
-
   return ret;
 }
 
@@ -146,12 +143,13 @@ int init_ss_zns_device(struct zdev_init_params *params,
     .zns_num_zones = static_cast<uint32_t>(ftl->zones.size()),
   };
 
-  struct user_zns_device *device = (user_zns_device *) malloc(sizeof(struct user_zns_device));
+  struct user_zns_device *device =
+      (user_zns_device *)malloc(sizeof(struct user_zns_device));
   device->lba_size_bytes = lba_size_in_use,
   device->capacity_bytes =
       (ns.ncap - (ftl->log_zones + 1) * ftl->zcap) *
       lba_size_in_use,  // ZNS capacity - log zones (includes metadata).
-  device->tparams = tparams;
+      device->tparams = tparams;
   device->_private = ftl;
   *my_dev = device;
 

@@ -23,24 +23,31 @@ SOFTWARE.
 #include "S2FileSystem.h"
 // #include "allocator.hpp"
 
-#include <cstdint>
 #include <stosys_debug.h>
 #include <sys/mman.h>
 #include <utils.h>
 
+#include <cstdint>
+#include <cstdlib>
 #include <iostream>
 #include <regex>
 #include <string>
+#include <vector>
 
+#include "../common/unused.h"
 #include "allocator.hpp"
 #include "directory.hpp"
 #include "file.hpp"
 #include "fswrapper.hpp"
 #include "inode.hpp"
 #include "structures.h"
-#include "../common/unused.h"
 
 uint64_t g_lba_size;
+
+// Magical offset that increments by one for each FTL deinit to account
+// for... something that causes all reads to be offset by one for...
+// some reason
+uint32_t g_magic_offset = 0;
 
 namespace ROCKSDB_NAMESPACE {
 // Maps inode numbers to locks. They are not automatically populated,
@@ -81,39 +88,6 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
 
   // Create the root directory node
 
-  // Be aware that the behaviour here is a bit subtle, the inode is
-  // not generated until the directory is written to disk. So you can
-  // only rely on the inode number being there after the write_to_disk
-  // is called
-  StoDir root = StoDir((char*) "/", 2, this->allocator);
-  StoDir foo = StoDir((char*) "foo", 2, this->allocator);
-
-  root.write_to_disk();
-  foo.write_to_disk();
-  root.add_entry(foo.inode_number, 1, "foo");
-  root.write_to_disk();
-
-  // root.add_entry(4, 2, "foo/bar");
-  // root.add_entry(5, 3, "foo/baz");
-  root.add_entry(6, 2, "queef");
-  std::cout << "Added all the entries" << std::endl;
-  struct ss_inode new_inode;
-  enum DirectoryError err =
-      find_inode(root, "foo/../foo/./baz", &new_inode, NULL, this->allocator);
-  if (err == DirectoryError::Dnode_not_found) {
-    std::cerr << "Cannot find dnode" << std::endl;
-  } else if (err == DirectoryError::Directory_not_found) {
-    std::cerr << "Cannot find parent directory" << std::endl;
-  } else if (err == DirectoryError::Created_inode) {
-    std::cerr << "Created a new inode for the file" << std::endl;
-  } else if (err == DirectoryError::Found_inode) {
-    std::cerr << "Found the inode" << std::endl;
-  } else if (err == DirectoryError::Inode_not_found) {
-    std::cerr << "Did not find the inode" << std::endl;
-  }
-
-  std::cout << "Find file in root" << std::endl;
-
   assert(ret == 0);
   assert(this->_zns_dev->lba_size_bytes != 0);
   assert(this->_zns_dev->capacity_bytes != 0);
@@ -121,7 +95,14 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
   // Globally store our LBA size so we can access everywhere
   // without copying everything over.
   g_lba_size = this->_zns_dev->lba_size_bytes;
-  
+
+  // Be aware that the behaviour here is a bit subtle, the inode is
+  // not generated until the directory is written to disk. So you can
+  // only rely on the inode number being there after the write_to_disk
+  // is called
+  StoDir root = StoDir((char *)"/", 2, this->allocator);
+  root.write_to_disk();
+
   ss_dprintf(DBG_FS_1,
              "device %s is opened and initialized, reported LBA size is %u and "
              "capacity %lu \n",
@@ -129,19 +110,24 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
              this->_zns_dev->capacity_bytes);
 }
 
-S2FileSystem::~S2FileSystem() {}
+S2FileSystem::~S2FileSystem() {
+  g_magic_offset++;
+  std::cout << "D	econstructor" << std::endl;
+  deinit_ss_zns_device(this->_zns_dev);
+}
 
-struct ss_inode *callback_missing_file_create(const char *name, StoDir &parent,
-                                              void *user_data, BlockManager *allocator) {
+struct ss_inode *callback_missing_file_create(const char *name, StoDir *parent,
+                                              void *user_data,
+                                              BlockManager *allocator) {
   UNUSED(user_data);
-  
-  std::cerr << "Create " << name << " as sequential file" << std::endl;  
+
+  std::cerr << "Create " << name << " as sequential file" << std::endl;
   // We don't know how large this will end up being, but
   // we start off with one block
   StoInode inode = StoInode(1, name, allocator);
-  inode.write_to_disk();
-  parent.add_entry(inode.inode_number, 12, name);
-  parent.write_to_disk();
+  inode.write_to_disk(true);
+  parent->add_entry(inode.inode_number, 12, name);
+  parent->write_to_disk();
   return get_inode_by_id(inode.inode_number, allocator);
 }
 
@@ -158,11 +144,11 @@ IOStatus S2FileSystem::NewSequentialFile(
   std::cerr << "[SequentialFile] Create " << fname << std::endl;
   *result = nullptr;
 
-  
-  StoDir root = StoDir(2, get_dnode_by_id(2, this->allocator), this->allocator);
+  StoDir *root = get_directory_by_id(2, this->allocator);
   struct ss_inode found_inode;
   std::string cut = fname.substr(1, fname.size());
-  enum DirectoryError err = find_inode(root, cut, &found_inode, NULL, this->allocator);
+  enum DirectoryError err =
+      find_inode(root, cut, &found_inode, NULL, this->allocator);
 
   if (err == DirectoryError::Dnode_not_found) {
     std::cerr << "Cannot find dnode" << std::endl;
@@ -186,6 +172,7 @@ IOStatus S2FileSystem::NewSequentialFile(
 IOStatus S2FileSystem::IsDirectory(const std::string &dname,
                                    const IOOptions &options, bool *is_dir,
                                    IODebugContext *dbg) {
+  std::cout << "[IsDirectory]" << std::endl;
   UNUSED(dname);
   UNUSED(options);
   UNUSED(is_dir);
@@ -208,11 +195,12 @@ IOStatus S2FileSystem::NewRandomAccessFile(
   UNUSED(dbg);
   std::cerr << "[RandomAccess] create " << fname << std::endl;
   *result = nullptr;
-  
-  StoDir root = StoDir(2, get_dnode_by_id(2, this->allocator), this->allocator);
+
+  StoDir *root = get_directory_by_id(2, this->allocator);
   struct ss_inode found_inode;
   std::string cut = fname.substr(1, fname.size());
-  enum DirectoryError err = find_inode(root, cut, &found_inode, NULL, this->allocator);
+  enum DirectoryError err =
+      find_inode(root, cut, &found_inode, NULL, this->allocator);
 
   if (err != DirectoryError::Found_inode) {
     return IOStatus::IOError(__FUNCTION__);
@@ -240,18 +228,18 @@ IOStatus S2FileSystem::NewWritableFile(const std::string &fname,
   std::cout << "[WriteableFile] Create " << fname << std::endl;
 
   *result = nullptr;
-  StoDir root = StoDir(2, get_dnode_by_id(2, this->allocator), this->allocator);
+  StoDir *root = get_directory_by_id(2, this->allocator);
   struct ss_inode found_inode;
   std::string cut = fname.substr(1, fname.size());
 
   struct find_inode_callbacks cbs = {
-	.missing_directory_cb = NULL,
-	.missing_file_cb = callback_missing_file_create,
-	.found_file_cb = NULL,
-	.user_data = NULL
-  };
+      .missing_directory_cb = NULL,
+      .missing_file_cb = callback_missing_file_create,
+      .found_file_cb = NULL,
+      .user_data = NULL};
 
-  enum DirectoryError err = find_inode(root, cut, &found_inode, &cbs, this->allocator);
+  enum DirectoryError err =
+      find_inode(root, cut, &found_inode, &cbs, this->allocator);
 
   if (err == DirectoryError::Found_inode) {
     // TODO(someone): File deletion
@@ -265,10 +253,9 @@ IOStatus S2FileSystem::NewWritableFile(const std::string &fname,
   return IOStatus::OK();
 }
 
-IOStatus S2FileSystem::ReopenWritableFile(const std::string &fname,
-                                          const FileOptions &opts,
-                                          std::unique_ptr<FSWritableFile> *result,
-                                          IODebugContext *dbg) {
+IOStatus S2FileSystem::ReopenWritableFile(
+    const std::string &fname, const FileOptions &opts,
+    std::unique_ptr<FSWritableFile> *result, IODebugContext *dbg) {
   UNUSED(fname);
   UNUSED(opts);
   UNUSED(result);
@@ -276,7 +263,8 @@ IOStatus S2FileSystem::ReopenWritableFile(const std::string &fname,
   return IOStatus::IOError(__FUNCTION__);
 }
 
-IOStatus S2FileSystem::NewRandomRWFile(const std::string &fname, const FileOptions &fopts,
+IOStatus S2FileSystem::NewRandomRWFile(const std::string &fname,
+                                       const FileOptions &fopts,
                                        std::unique_ptr<FSRandomRWFile> *results,
                                        IODebugContext *dbg) {
   UNUSED(fname);
@@ -307,9 +295,10 @@ IOStatus S2FileSystem::NewDirectory(const std::string &name,
                                     IODebugContext *dbg) {
   std::string cut = name.substr(1, name.size() - 2);
   std::cout << "[NewDirectory] " << cut << " " << name << std::endl;
-  StoDir root = StoDir(2, get_dnode_by_id(2, this->allocator), this->allocator);
+  StoDir *root = get_directory_by_id(2, this->allocator);
   struct ss_inode found_inode;
-  enum DirectoryError error = find_inode(root, cut, &found_inode, NULL, this->allocator);
+  enum DirectoryError error =
+      find_inode(root, cut, &found_inode, NULL, this->allocator);
 
   if (error != DirectoryError::Found_inode) {
     return IOStatus::IOError("New Directory: " + name + "not found");
@@ -318,12 +307,16 @@ IOStatus S2FileSystem::NewDirectory(const std::string &name,
   if (!(found_inode.flags & FLAG_DIRECTORY)) {
     return IOStatus::InvalidArgument(name + " is not a directory.");
   }
-  result->reset(new StoDirFS(found_inode.id, get_dnode_by_id(found_inode.id, this->allocator), this->allocator));
+  result->reset(new StoDirFS(found_inode.id,
+                             get_dnode_by_id(found_inode.id, this->allocator),
+                             this->allocator));
   return IOStatus::OK();
 }
 
-IOStatus S2FileSystem::GetFreeSpace(const std::string &fname, const IOOptions &opts,
-                                    uint64_t *result, IODebugContext *dbg) {
+IOStatus S2FileSystem::GetFreeSpace(const std::string &fname,
+                                    const IOOptions &opts, uint64_t *result,
+                                    IODebugContext *dbg) {
+  std::cerr << "[GetFreeSpace]" << std::endl;
   UNUSED(fname);
   UNUSED(opts);
   UNUSED(result);
@@ -331,8 +324,9 @@ IOStatus S2FileSystem::GetFreeSpace(const std::string &fname, const IOOptions &o
   return IOStatus::IOError(__FUNCTION__);
 }
 
-IOStatus S2FileSystem::Truncate(const std::string &fname, size_t size, const IOOptions &opts,
-                                IODebugContext *dbg) {
+IOStatus S2FileSystem::Truncate(const std::string &fname, size_t size,
+                                const IOOptions &opts, IODebugContext *dbg) {
+  std::cerr << "[Truncate]" << std::endl;
   UNUSED(fname);
   UNUSED(size);
   UNUSED(opts);
@@ -344,6 +338,7 @@ IOStatus S2FileSystem::Truncate(const std::string &fname, size_t size, const IOO
 IOStatus S2FileSystem::CreateDir(const std::string &dirname,
                                  const IOOptions &options,
                                  __attribute__((unused)) IODebugContext *dbg) {
+  std::cerr << "[CreateDir]" << std::endl;
   UNUSED(dirname);
   UNUSED(options);
   return IOStatus::IOError(__FUNCTION__);
@@ -352,44 +347,45 @@ IOStatus S2FileSystem::CreateDir(const std::string &dirname,
 // If we cannot find the directory, we will create one and return the entry
 // for it
 struct ss_dnode_record *callback_missing_directory(const char *name,
-                                                   StoDir &parent,
+                                                   StoDir *parent,
                                                    void *user_data,
                                                    BlockManager *allocator) {
   UNUSED(user_data);
-  std::cerr << "Create missing directory " << name << " in " << parent.name
+  std::cerr << "Create missing directory " << name << " in " << parent->name
             << std::endl;
-  StoDir directory = StoDir((char *)name, parent.inode_number, allocator);
+  StoDir directory = StoDir((char *)name, parent->inode_number, allocator);
   directory.write_to_disk();
-  parent.add_entry(directory.inode_number, 12, name);
-  parent.write_to_disk();
-  return parent.find_entry(name);
+  parent->add_entry(directory.inode_number, 12, name);
+  parent->write_to_disk();
+  return parent->find_entry(name);
 }
 
 // Create a new directory if we cannot find it, we could also pass
 // the same function as missing directory.
 struct ss_inode *callback_missing_file_create_dir(const char *name,
-                                                  StoDir &parent,
+                                                  StoDir *parent,
                                                   void *user_data,
                                                   BlockManager *allocator) {
   UNUSED(user_data);
-  std::cerr << "Create the target directory " << name << " in " << parent.name
+  std::cerr << "Create the target directory " << name << " in " << parent->name
             << std::endl;
-  StoDir directory = StoDir((char *)name, parent.inode_number, allocator);
+  StoDir directory = StoDir((char *)name, parent->inode_number, allocator);
   directory.write_to_disk();
-  parent.add_entry(directory.inode_number, 12, name);
-  parent.write_to_disk();
+  parent->add_entry(directory.inode_number, 12, name);
+  parent->write_to_disk();
   return get_inode_by_id(directory.inode_number, allocator);
 }
 
-void callback_found_file_print(const char *name, StoDir &parent,
+void callback_found_file_print(const char *name, StoDir *parent,
                                struct ss_inode *inode,
-                               struct ss_dnode_record *entry, void *user_data, BlockManager *) {
+                               struct ss_dnode_record *entry, void *user_data,
+                               BlockManager *) {
   UNUSED(name);
   UNUSED(parent);
   UNUSED(inode);
   UNUSED(entry);
   UNUSED(user_data);
-  std::cerr << "Found file " << name << " in " << parent.name << std::endl;
+  std::cerr << "Found file " << name << " in " << parent->name << std::endl;
 }
 
 // Creates directory if missing. Return Ok if it exists, or successful in
@@ -398,6 +394,7 @@ IOStatus S2FileSystem::CreateDirIfMissing(const std::string &dirname,
                                           const IOOptions &options,
                                           __attribute__((unused))
                                           IODebugContext *dbg) {
+  std::cout << "[CreateDirIfMissing]" << std::endl;
   // Remove the starting and trailing /
   std::string cut = dirname.substr(1, dirname.size() - 1);
 
@@ -406,13 +403,14 @@ IOStatus S2FileSystem::CreateDirIfMissing(const std::string &dirname,
       .missing_directory_cb = callback_missing_directory,
       .missing_file_cb = callback_missing_file_create_dir,
       .found_file_cb = callback_found_file_print,
-	  .user_data = NULL
-  };
-  StoDir root = StoDir(2, get_dnode_by_id(2, this->allocator), this->allocator);
+      .user_data = NULL};
+  StoDir *root = get_directory_by_id(2, this->allocator);
   struct ss_inode found_inode;
-  enum DirectoryError error = find_inode(root, cut, &found_inode, &cbs, this->allocator);
-  if (error == DirectoryError::Dnode_not_found || error == DirectoryError::Directory_not_found) {
-	return IOStatus::IOError(__FUNCTION__);
+  enum DirectoryError error =
+      find_inode(root, cut, &found_inode, &cbs, this->allocator);
+  if (error == DirectoryError::Dnode_not_found ||
+      error == DirectoryError::Directory_not_found) {
+    return IOStatus::IOError(__FUNCTION__);
   }
   // Check if our inode is actually a directory, otherwise it is okay.
   if (!(found_inode.flags & FLAG_DIRECTORY)) {
@@ -427,6 +425,7 @@ IOStatus S2FileSystem::GetFileSize(const std::string &fname,
                                    uint64_t *file_size,
                                    __attribute__((unused))
                                    IODebugContext *dbg) {
+  std::cerr << "[GetFileSize]" << std::endl;
   UNUSED(fname);
   UNUSED(options);
   UNUSED(file_size);
@@ -434,12 +433,50 @@ IOStatus S2FileSystem::GetFileSize(const std::string &fname,
   return IOStatus::IOError(__FUNCTION__);
 }
 
+void callback_found_dir_delete(const char *name, StoDir *parent,
+                               struct ss_inode *ss_inode,
+                               struct ss_dnode_record *entry, void *user_data,
+                               BlockManager *allocator) {
+  // Copy the name to the inode and write it to disk. Somewhat
+  // inconvient to wrap it around a class.
+  parent->remove_entry(name);
+  printf("write to disk\n");
+  parent->write_to_disk();
+  printf("write to disk ok\n");
+}
+
 IOStatus S2FileSystem::DeleteDir(const std::string &dirname,
                                  const IOOptions &options,
                                  __attribute__((unused)) IODebugContext *dbg) {
-  UNUSED(dirname);
-  UNUSED(options);
-  UNUSED(dbg);
+  std::string delimiter = "/";
+  std::vector<StoDir> dirs;
+  std::cout << "[DeleteDir] " << dirname << std::endl;
+
+  size_t start = dirname.find(delimiter);
+  start += delimiter.length();
+  size_t end = dirname.find(delimiter, start);
+  std::string parent_dirname = dirname.substr(start, end - start);
+
+  StoDir *root = get_directory_by_id(2, this->allocator);
+  struct ss_inode found_inode;
+
+  struct find_inode_callbacks cbs = {.missing_directory_cb = NULL,
+                                     .missing_file_cb = NULL,
+                                     .found_file_cb = callback_found_dir_delete,
+                                     .user_data = NULL};
+
+  enum DirectoryError err =
+      find_inode(root, parent_dirname, &found_inode, &cbs, this->allocator);
+
+  if (err == DirectoryError::Found_inode) {
+    printf("status ok\n");
+    return IOStatus::OK();
+  } else if (err != DirectoryError::Created_inode) {
+    printf("status not ok\n");
+    return IOStatus::IOError(__FUNCTION__);
+  }
+
+  printf("status not ok1\n");
   return IOStatus::IOError(__FUNCTION__);
 }
 
@@ -448,6 +485,7 @@ IOStatus S2FileSystem::GetFileModificationTime(const std::string &fname,
                                                uint64_t *file_mtime,
                                                __attribute__((unused))
                                                IODebugContext *dbg) {
+  std::cerr << "[GetFileModificationTime]" << std::endl;
   UNUSED(fname);
   UNUSED(options);
   UNUSED(file_mtime);
@@ -455,39 +493,128 @@ IOStatus S2FileSystem::GetFileModificationTime(const std::string &fname,
   return IOStatus::IOError(__FUNCTION__);
 }
 
+void callback_found_directory_count(const char *name, StoDir *parent,
+                                    struct ss_inode *inode,
+                                    struct ss_dnode_record *entry,
+                                    void *user_data, BlockManager *) {
+  UNUSED(name);
+  UNUSED(inode);
+  UNUSED(entry);
+  std::vector<std::string> *children = (std::vector<std::string> *)user_data;
+
+  for (auto &entry : parent->records) {
+    if (entry.inum == 0) continue;
+    children->push_back(entry.name);
+  }
+}
+
 IOStatus S2FileSystem::GetAbsolutePath(const std::string &db_path,
                                        const IOOptions &options,
                                        std::string *output_path,
                                        __attribute__((unused))
                                        IODebugContext *dbg) {
-  UNUSED(db_path);
-  UNUSED(options);
-  UNUSED(output_path);
-  return IOStatus::IOError(__FUNCTION__);
+  printf("[GetAbsolutePath]\n");
+  *output_path = db_path;
+  std::cout << *output_path << std::endl;
+  return IOStatus::OK();
+}
+
+void callback_found_file_delete(const char *name, StoDir *parent,
+                                struct ss_inode *ss_inode,
+                                struct ss_dnode_record *entry, void *user_data,
+                                BlockManager *allocator) {
+  // Copy the name to the inode and write it to disk. Somewhat
+  // inconvient to wrap it around a class.
+  parent->remove_entry(name);
+  printf("write to disk\n");
+  parent->write_to_disk();
+  printf("write to disk ok\n");
 }
 
 IOStatus S2FileSystem::DeleteFile(const std::string &fname,
                                   const IOOptions &options,
                                   __attribute__((unused)) IODebugContext *dbg) {
-  UNUSED(fname);
-  UNUSED(options);
+  std::cerr << "[DeleteFile]" << fname << std::endl;
+
+  StoDir *root = get_directory_by_id(2, this->allocator);
+  struct ss_inode found_inode;
+  std::string cut = fname.substr(1, fname.size());
+
+  struct find_inode_callbacks cbs = {
+      .missing_directory_cb = NULL,
+      .missing_file_cb = NULL,
+      .found_file_cb = callback_found_file_delete,
+      .user_data = NULL};
+
+  enum DirectoryError err =
+      find_inode(root, cut, &found_inode, &cbs, this->allocator);
+
+  if (err == DirectoryError::Found_inode) {
+    printf("status ok\n");
+    return IOStatus::OK();
+  } else if (err != DirectoryError::Created_inode) {
+    printf("status not ok\n");
+    return IOStatus::IOError(__FUNCTION__);
+  }
+
+  printf("status not ok1\n");
   return IOStatus::IOError(__FUNCTION__);
+}
+
+struct ss_inode *callback_missing_file_create_logger(const char *name,
+                                                     StoDir *parent,
+                                                     void *user_data,
+                                                     BlockManager *allocator) {
+  // Our logger will only contain one block so we can hardcode it here
+  StoInode inode = StoInode(1, name, allocator);
+
+  std::cerr << "Lock created" << std::endl;
+
+  // Use an inode flag to avoid writing to disk
+  inode.flags |= FLAG_LOCK;
+  inode.dirty = true;
+  // Flush the inode. Since this file is new, we also flush the directory.
+  inode.write_to_disk(true);
+  parent->add_entry(inode.inode_number, 12, name);
+  parent->write_to_disk();
+
+  return get_inode_by_id(inode.inode_number, allocator);
 }
 
 IOStatus S2FileSystem::NewLogger(const std::string &fname,
                                  const IOOptions &io_opts,
                                  std::shared_ptr<Logger> *result,
                                  __attribute__((unused)) IODebugContext *dbg) {
-  UNUSED(fname);
-  UNUSED(io_opts);
-  UNUSED(result);
-  return IOStatus::IOError(__FUNCTION__);
+  std::cerr << "[NewLogger] " << fname << std::endl;
+
+  struct ss_inode found_inode;
+
+  struct find_inode_callbacks cbs = {
+      .missing_directory_cb = NULL,
+      .missing_file_cb = callback_missing_file_create_logger,
+      .found_file_cb = NULL,
+      .user_data = NULL};
+
+  StoDir *root = get_directory_by_id(2, this->allocator);
+  std::string cut = fname.substr(1, fname.size() - 1);
+  enum DirectoryError error =
+      find_inode(root, cut, &found_inode, &cbs, this->allocator);
+
+  if (error == DirectoryError::Created_inode) {
+    result->reset(new Logger());
+    return IOStatus::OK();
+  } else if (error != DirectoryError::Found_inode) {
+    return IOStatus::IOError("Path to " + fname + " does not exist");
+  }
+
+  return IOStatus::OK();
 }
 
 IOStatus S2FileSystem::GetTestDirectory(const IOOptions &options,
                                         std::string *path,
                                         __attribute__((unused))
                                         IODebugContext *dbg) {
+  std::cerr << "[GetTestDirectory]" << std::endl;
   UNUSED(options);
   UNUSED(path);
   return IOStatus::IOError(__FUNCTION__);
@@ -498,13 +625,23 @@ IOStatus S2FileSystem::GetTestDirectory(const IOOptions &options,
 // REQUIRES: lock has not already been unlocked.
 IOStatus S2FileSystem::UnlockFile(FileLock *lock, const IOOptions &options,
                                   __attribute__((unused)) IODebugContext *dbg) {
+  std::cerr << "[UnlockFile]" << std::endl;
+
+  StoFileLock *slock = reinterpret_cast<StoFileLock *>(lock);
+  std::cout << slock->inode_num << std::endl;
+  if (slock->inode_num == 0) {
+    return IOStatus::IOError(__FUNCTION__);
+  }
+  slock->Clear();
+  delete slock;
+
   UNUSED(lock);
   UNUSED(options);
   return IOStatus::IOError(__FUNCTION__);
 }
 
 struct ss_inode *callback_missing_file_create_lock(const char *name,
-                                                   StoDir &parent,
+                                                   StoDir *parent,
                                                    void *user_data,
                                                    BlockManager *allocator) {
   UNUSED(user_data);
@@ -513,13 +650,13 @@ struct ss_inode *callback_missing_file_create_lock(const char *name,
 
   std::cerr << "Lock created" << std::endl;
 
-  // Use an inode flag to avoid writing to disk    
+  // Use an inode flag to avoid writing to disk
   inode.flags |= FLAG_LOCK;
-	
+  inode.dirty = true;
   // Flush the inode. Since this file is new, we also flush the directory.
-  inode.write_to_disk();
-  parent.add_entry(inode.inode_number, 12, name);
-  parent.write_to_disk();
+  inode.write_to_disk(true);
+  parent->add_entry(inode.inode_number, 12, name);
+  parent->write_to_disk();
 
   return get_inode_by_id(inode.inode_number, allocator);
 }
@@ -546,15 +683,15 @@ IOStatus S2FileSystem::LockFile(const std::string &fname,
   struct ss_inode found_inode;
 
   struct find_inode_callbacks cbs = {
-	.missing_directory_cb = NULL,
-	.missing_file_cb = callback_missing_file_create_lock,
-	.found_file_cb = NULL,
-	.user_data = NULL	
-  };
+      .missing_directory_cb = NULL,
+      .missing_file_cb = callback_missing_file_create_lock,
+      .found_file_cb = NULL,
+      .user_data = NULL};
 
-  StoDir root = StoDir(2, get_dnode_by_id(2, this->allocator), this->allocator);
+  StoDir *root = get_directory_by_id(2, this->allocator);
   std::string cut = fname.substr(1, fname.size() - 1);
-  enum DirectoryError error = find_inode(root, cut, &found_inode, &cbs, this->allocator);
+  enum DirectoryError error =
+      find_inode(root, cut, &found_inode, &cbs, this->allocator);
 
   if (error == DirectoryError::Created_inode) {
     *lock = new StoFileLock(found_inode.id, fname);
@@ -566,7 +703,8 @@ IOStatus S2FileSystem::LockFile(const std::string &fname,
   return IOStatus::OK();
 }
 
-IOStatus S2FileSystem::AreFilesSame(const std::string &name1, const std::string &name2,
+IOStatus S2FileSystem::AreFilesSame(const std::string &name1,
+                                    const std::string &name2,
                                     const IOOptions &opts, bool *result,
                                     IODebugContext *dbg) {
   UNUSED(name1);
@@ -577,8 +715,9 @@ IOStatus S2FileSystem::AreFilesSame(const std::string &name1, const std::string 
   return IOStatus::IOError(__FUNCTION__);
 }
 
-IOStatus S2FileSystem::NumFileLinks(const std::string &fname, const IOOptions &opts,
-                                    uint64_t *result, IODebugContext *dbg) {
+IOStatus S2FileSystem::NumFileLinks(const std::string &fname,
+                                    const IOOptions &opts, uint64_t *result,
+                                    IODebugContext *dbg) {
   UNUSED(fname);
   UNUSED(opts);
   UNUSED(result);
@@ -586,7 +725,8 @@ IOStatus S2FileSystem::NumFileLinks(const std::string &fname, const IOOptions &o
   return IOStatus::IOError(__FUNCTION__);
 }
 
-IOStatus S2FileSystem::LinkFile(const std::string &src, const std::string &target,
+IOStatus S2FileSystem::LinkFile(const std::string &src,
+                                const std::string &target,
                                 const IOOptions &opts, IODebugContext *dbg) {
   UNUSED(src);
   UNUSED(target);
@@ -595,10 +735,9 @@ IOStatus S2FileSystem::LinkFile(const std::string &src, const std::string &targe
   return IOStatus::IOError(__FUNCTION__);
 }
 
-void callback_found_file_rename(const char *name, StoDir &parent,
+void callback_found_file_rename(const char *name, StoDir *parent,
                                 struct ss_inode *ss_inode,
-                                struct ss_dnode_record *entry,
-                                void *user_data,
+                                struct ss_dnode_record *entry, void *user_data,
                                 BlockManager *allocator) {
   UNUSED(name);
   char *new_name = (char *)user_data;
@@ -610,20 +749,21 @@ void callback_found_file_rename(const char *name, StoDir &parent,
   ss_inode->name[length] = '\0';
   ss_inode->strlen = length;
   StoInode inode = StoInode(ss_inode, allocator);
-  inode.write_to_disk();
+  inode.dirty = true;
+  inode.write_to_disk(false);
 
   // Update our directory entry and write to disk
   strncpy((char *)entry->name, new_name, length);
   entry->name[length] = '\0';
   entry->namelen = length;
-  parent.write_to_disk();
+  parent->write_to_disk();
 }
 
 IOStatus S2FileSystem::RenameFile(const std::string &src,
                                   const std::string &target,
                                   const IOOptions &options,
                                   __attribute__((unused)) IODebugContext *dbg) {
-  StoDir root = StoDir(2, get_dnode_by_id(2, this->allocator), this->allocator);
+  StoDir *root = get_directory_by_id(2, this->allocator);
   std::string cut = src.substr(1, src.size());
   std::cout << "[Rename] " << cut << " to " << target << std::endl;
 
@@ -644,14 +784,15 @@ IOStatus S2FileSystem::RenameFile(const std::string &src,
   }
 
   struct find_inode_callbacks cbs = {
-	.missing_directory_cb = NULL,
-	.missing_file_cb = NULL,
-	.found_file_cb = callback_found_file_rename,
-	.user_data = (void *)new_name.c_str()	  
-	  
+      .missing_directory_cb = NULL,
+      .missing_file_cb = NULL,
+      .found_file_cb = callback_found_file_rename,
+      .user_data = (void *)new_name.c_str()
+
   };
   struct ss_inode found_inode;
-  enum DirectoryError err = find_inode(root, cut, &found_inode, &cbs, this->allocator);
+  enum DirectoryError err =
+      find_inode(root, cut, &found_inode, &cbs, this->allocator);
   if (err == DirectoryError::Found_inode) {
     return IOStatus::OK();
   }
@@ -669,20 +810,6 @@ IOStatus S2FileSystem::GetChildrenFileAttributes(
   return FileSystem::GetChildrenFileAttributes(dir, options, result, dbg);
 }
 
-void callback_found_directory_count(const char *name, StoDir &parent,
-									struct ss_inode *inode,
-									struct ss_dnode_record *entry, void *user_data, BlockManager *) {
-  UNUSED(name);
-  UNUSED(inode);
-  UNUSED(entry);
-  std::vector<std::string> *children = (std::vector<std::string> *) user_data;
-
-  for (auto &entry : parent.records) {
-	if (entry.inum == 0) continue;
-	children->push_back(entry.name);
-  }
-}
-
 // Store in *result the names of the children of the specified directory.
 // The names are relative to "dir".
 // Original contents of *results are dropped.
@@ -695,20 +822,20 @@ IOStatus S2FileSystem::GetChildren(const std::string &dir,
                                    std::vector<std::string> *result,
                                    __attribute__((unused))
                                    IODebugContext *dbg) {
-  StoDir root = StoDir(2, get_dnode_by_id(2, this->allocator), this->allocator);
+  StoDir *root = get_directory_by_id(2, this->allocator);
   std::string cut = dir.substr(1, dir.size());
   std::cout << "[GetChildren] " << cut << std::endl;
 
   struct find_inode_callbacks cbs = {
-	.missing_directory_cb = NULL,
-	.missing_file_cb = NULL,
-	.found_file_cb = callback_found_directory_count,
-	.user_data = (void*) result
-  };
+      .missing_directory_cb = NULL,
+      .missing_file_cb = NULL,
+      .found_file_cb = callback_found_directory_count,
+      .user_data = (void *)result};
   struct ss_inode found_inode;
-  enum DirectoryError err = find_inode(root, cut, &found_inode, &cbs, this->allocator);
+  enum DirectoryError err =
+      find_inode(root, cut, &found_inode, &cbs, this->allocator);
   if (err == DirectoryError::Found_inode) {
-	return IOStatus::OK();
+    return IOStatus::OK();
   }
 
   return IOStatus::NotFound();
@@ -722,14 +849,15 @@ IOStatus S2FileSystem::GetChildren(const std::string &dir,
 IOStatus S2FileSystem::FileExists(const std::string &fname,
                                   const IOOptions &options,
                                   __attribute__((unused)) IODebugContext *dbg) {
-  StoDir root = StoDir(2, get_dnode_by_id(2, this->allocator), this->allocator);
+  StoDir *root = get_directory_by_id(2, this->allocator);
   std::string cut = fname.substr(1, fname.size());
   std::cout << "[FileExist] " << cut << std::endl;
 
   struct ss_inode found_inode;
   // TODO(valentijn): permission checking
   // TODO(valentijn): overzealous not found code
-  enum DirectoryError err = find_inode(root, cut, &found_inode, NULL, this->allocator);
+  enum DirectoryError err =
+      find_inode(root, cut, &found_inode, NULL, this->allocator);
   if (err == DirectoryError::Found_inode) {
     return IOStatus::OK();
   } else if (err == DirectoryError::Dnode_not_found) {
@@ -738,7 +866,6 @@ IOStatus S2FileSystem::FileExists(const std::string &fname,
 
   return IOStatus::NotFound();
 }
- 
 
 IOStatus S2FileSystem::ReuseWritableFile(
     const std::string &fname, const std::string &old_fname,

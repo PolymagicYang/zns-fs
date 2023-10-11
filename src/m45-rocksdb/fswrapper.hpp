@@ -17,6 +17,12 @@ class StoDirFS : public FSDirectory {
   StoDir *directory;
 };
 
+class StoLogger : public Logger {
+ public:
+  StoLogger();
+  ~StoLogger();
+};
+
 class StoFileLock : public FileLock {
  public:
   int64_t inode_num;

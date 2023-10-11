@@ -5,8 +5,10 @@
 
 #include "allocator.hpp"
 #include "inode.hpp"
+#include "structures.h"
 
-StoDir::StoDir(char *name, const uint64_t parent_inode, BlockManager *allocator) {
+StoDir::StoDir(char *name, const uint64_t parent_inode,
+               BlockManager *allocator) {
   this->inode_number = 0;
   this->parent_inode = parent_inode;
   size_t length = strlen(name) + 1;
@@ -17,7 +19,8 @@ StoDir::StoDir(char *name, const uint64_t parent_inode, BlockManager *allocator)
   this->allocator = allocator;
 }
 
-StoDir::StoDir(const uint64_t inum, const struct ss_dnode *node, BlockManager *allocator) {
+StoDir::StoDir(const uint64_t inum, const struct ss_dnode *node,
+               BlockManager *allocator) {
   this->inode_number = inum;
   this->namelen = node->strlen;
   strncpy(this->name, node->dirname, node->strlen);
@@ -49,16 +52,18 @@ void StoDir::write_to_disk() {
     this->add_entry(this->inode_number, 12, ".");
     this->add_entry(this->parent_inode, 12, "..");
 
+    struct ss_dnode dnode = this->create_dnode();
     const uint64_t lba =
-        add_dnode_to_storage(this->inode_number, this->create_dnode(), this->allocator);
+        add_dnode_to_storage(this->inode_number, &dnode, this->allocator);
 
     sinode.add_segment(lba, 1);
-    sinode.write_to_disk();
+    sinode.write_to_disk(true);
     return;
   }
 
-  // Use our stored
-  update_dnode_in_storage(this->inode_number, this->create_dnode(), this->allocator);
+  // Use our stored inode number
+  struct ss_dnode donode = this->create_dnode();
+  update_dnode_in_storage(this->inode_number, &dnode, this->allocator);
 }
 
 int StoDir::add_entry(const uint16_t inode_number, const uint16_t reclen,
@@ -66,10 +71,10 @@ int StoDir::add_entry(const uint16_t inode_number, const uint16_t reclen,
   // Find an empty spot in our directory structure
   uint16_t index = 0;
   for (auto &entry : this->records) {
-	  if (entry.inum == 0) break;
-	  index++;
+    if (entry.inum == 0) break;
+    index++;
   }
-									   
+
   struct ss_dnode_record drec;
   if (inode_number == 0) {
     std::cerr << "Invalid inode number '" << inode_number << "' for " << name
@@ -109,7 +114,7 @@ int StoDir::remove_entry(const char *name) {
   dnode->namelen = 0;
 }
 
-enum DirectoryError find_inode(StoDir &directory, std::string name,
+enum DirectoryError find_inode(StoDir *directory, std::string name,
                                struct ss_inode *found,
                                struct find_inode_callbacks *cbs,
                                BlockManager *allocator) {
@@ -119,16 +124,26 @@ enum DirectoryError find_inode(StoDir &directory, std::string name,
   // Split our string until the next delimiter and find it in the
   // current directory
   std::string delimiter = "/";
+  struct ss_dnode_record *entry;
+
   auto location = name.find(delimiter);
   auto current = name.substr(0, location);
-  struct ss_dnode_record *entry = directory.find_entry(current.c_str());
-  
-  // Iterate to the next level in our directory hierarchy
-  if (location != std::string::npos) {
+  auto prev = location;
+
+  do {
+    prev = location;
+    location = name.find(delimiter);
+    current = name.substr(0, location);
+    entry = directory->find_entry(current.c_str());
+
+    // We don't need to iterate if we found the inode
+    if (name == current) break;
+
+    // Iterate to the next level in our directory hierarchy
     auto next = name.substr(location + 1, name.size());
     if (entry == NULL && cbs && cbs->missing_directory_cb) {
-      entry =
-          cbs->missing_directory_cb(current.c_str(), directory, cbs->user_data, allocator);
+      entry = cbs->missing_directory_cb(current.c_str(), directory,
+                                        cbs->user_data, allocator);
     } else if (entry == NULL) {
       return DirectoryError::Directory_not_found;
     }
@@ -140,24 +155,29 @@ enum DirectoryError find_inode(StoDir &directory, std::string name,
       return DirectoryError::Dnode_not_found;
     }
 
-    StoDir next_dir = StoDir(entry->inum, next_dir_inode, allocator);
-    return find_inode(next_dir, next, found, cbs, allocator);
-  }
+    directory = get_directory_by_id(entry->inum, allocator);
+    name = next;
+  } while (prev != std::string::npos);
 
   // If we reach the end of the hierarchy and we found something,
   // then we can just return our inode directly, no harm done.
   if (entry != NULL) {
     if (cbs && cbs->found_file_cb) {
       cbs->found_file_cb(current.c_str(), directory,
-                         get_inode_by_id(entry->inum, allocator), entry, cbs->user_data, allocator);
+                         get_inode_by_id(entry->inum, allocator), entry,
+                         cbs->user_data, allocator);
     }
 
-    *found = *get_inode_by_id(entry->inum, allocator);
+    if (entry->inum != 0) {
+      // not deleted.
+      *found = *get_inode_by_id(entry->inum, allocator);
+    }
     return DirectoryError::Found_inode;
   }
 
   if (cbs && cbs->missing_file_cb) {
-    *found = *cbs->missing_file_cb(current.c_str(), directory, cbs->user_data, allocator);
+    *found = *cbs->missing_file_cb(current.c_str(), directory, cbs->user_data,
+                                   allocator);
     return DirectoryError::Created_inode;
   }
 

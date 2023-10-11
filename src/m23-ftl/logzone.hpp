@@ -1,7 +1,9 @@
 #ifndef STOSYS_PROJECT_LOG_ZNS_ZONE_H
 #define STOSYS_PROJECT_LOG_ZNS_ZONE_H
-#include <cstdint>
 #include <pthread.h>
+
+#include <cstdint>
+
 #pragma once
 
 #include "zone.hpp"
@@ -12,11 +14,11 @@ class ZNSLogZone {
   uint32_t nsid;
 
   ZNSLogZone(const int zns_fd, const uint32_t nsisd, const uint32_t zone_id,
-          const uint64_t size, const uint64_t capacity,
-          const enum ZoneState state, const enum ZoneZNSType zns_type,
-          const uint64_t slba, 
-          const enum ZoneModel model, const uint64_t position,
-          const uint64_t lba_size, const uint64_t mdts_size);
+             const uint64_t size, const uint64_t capacity,
+             const enum ZoneState state, const enum ZoneZNSType zns_type,
+             const uint64_t slba, const enum ZoneModel model,
+             const uint64_t position, const uint64_t lba_size,
+             const uint64_t mdts_size);
 
   /** Zone capacity is the total optimized number of blocks in the
           region. This is always less than the zone size. */
@@ -39,7 +41,8 @@ class ZNSLogZone {
   /** Gets a block from the zone based on the block id. */
   uint32_t read(const uint64_t lba, const void *buffer, uint32_t size,
                 uint32_t *read_size);
-  uint32_t write(void *buffer, uint32_t size, uint32_t *write_size, uint64_t lba);
+  uint32_t write(void *buffer, uint32_t size, uint32_t *write_size,
+                 uint64_t lba);
 
   /** Reset the write pointer to the start. */
   int reset_zone(void);
@@ -56,17 +59,18 @@ class ZNSLogZone {
   friend std::ostream &operator<<(std::ostream &os, ZNSLogZone const &tc);
 
   friend std::vector<ZNSLogZone> create_logzones(const int zns_fd,
-                                           const uint32_t nsid,
-                                           const uint64_t lba_size,
-                                           const uint64_t mdts_size);
+                                                 const uint32_t nsid,
+                                                 const uint64_t lba_size,
+                                                 const uint64_t mdts_size);
 
   /** Returns the number of blocks which are still valid */
   uint64_t get_alive_capacity() const;
 
   /** Gets the index or id of the zone*/
   int get_index();
-  
-  /** Resets the zone and performs additional checking compared to ZNSZone::reset_zone */
+
+  /** Resets the zone and performs additional checking compared to
+   * ZNSZone::reset_zone */
   int reset();
 
   /** Checks if the zone is full*/
@@ -83,14 +87,14 @@ class ZNSLogZone {
 
   /** Size of a block */
   uint64_t lba_size;
-  
+
   /** Maximum transfer size */
   uint64_t mdts_size;
 
   /** Map of the physical addresses to the buffer and state */
   ZoneMap block_map;
 
-  /** Set the block to being free based on the physical address */  
+  /** Set the block to being free based on the physical address */
   int invalidate_block(const uint64_t pa);
 
   /** Gets the blocks that are still valid */
@@ -102,7 +106,7 @@ class ZNSLogZone {
 
   /** Resets all the zones in the device. */
   int reset_all_zones();
-  
+
  private:
   int zns_fd;
 

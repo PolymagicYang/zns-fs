@@ -1,5 +1,6 @@
 #ifndef STOSYS_PROJECT_STRUCTURES_H
 #define STOSYS_PROJECT_STRUCTURES_H
+#include <cstdint>
 #pragma once
 
 #include <pthread.h>
@@ -12,10 +13,10 @@
 #include <map>
 #include <vector>
 
-#define SEGMENT_SIZE 1000 
+#define SEGMENT_SIZE 64
 #define NAMELEN 256
-#define DIRSIZE 32 
-#define TEST_LBA_SIZE 4096 
+#define DIRSIZE 32
+#define TEST_LBA_SIZE 4096
 
 // 4th bit
 #define FLAG_DIRECTORY (1 << 4)
@@ -33,6 +34,7 @@ struct ss_inode {
   uint16_t uuid;
   uint32_t size;
   uint64_t time;
+  uint64_t inserted;
   bool deleted;
   struct ss_segment segments[SEGMENT_SIZE];
   uint32_t flags;

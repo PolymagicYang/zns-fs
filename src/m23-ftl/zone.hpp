@@ -30,11 +30,12 @@ SOFTWARE.
 #include <iostream>
 #include <map>
 #include <mutex>
+#include <unordered_map>
 #include <vector>
 
 #include "znsblock.hpp"
 
-using BlockMap = std::map<uint64_t, ZNSBlock>;
+using BlockMap = std::unordered_map<uint64_t, ZNSBlock>;
 
 struct ZoneMap {
   pthread_rwlock_t lock;

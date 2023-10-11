@@ -39,7 +39,7 @@ struct Addr {
   bool alive;
 };
 
-using raw_map = std::map<uint64_t, struct Addr>;
+using raw_map = std::unordered_map<uint64_t, struct Addr>;
 
 struct Ftlmap {
   pthread_rwlock_t lock;
@@ -96,7 +96,7 @@ class FTL {
   std::vector<int> get_free_datazones();
 
   /** Get a free zone with enough space to hold a number of blocks. */
-  ZNSLogZone* get_free_log_zone(const uint32_t needed);
+  ZNSLogZone* get_free_log_zone();
 
   ZNSDataZone* get_free_data_zone(const uint32_t needed);
 
@@ -126,6 +126,10 @@ class FTL {
 
   // Given a base address to check the existence of the data entry.
   bool pba_exist(uint64_t);
+
+  pthread_rwlock_t zones_lock;
+  std::vector<ZNSLogZone*> free_log_zones;
+  std::vector<ZNSDataZone*> free_data_zones;
 };
 
 #endif

@@ -82,7 +82,7 @@ void create_zones(const int zns_fd, const uint32_t nsid,
     // TODO(valentijn): zone attributes (p.28 ZNS Command specification)
     const uint64_t capacity = le64_to_cpu(current.zcap);
     const uint64_t zone_slba = le64_to_cpu(current.zslba);
-    uint64_t write_pointer = le64_to_cpu(current.wp);
+    uint64_t write_pointer = le64_to_cpu(current.zslba);
 
     if (RESET_ZONE) {
       write_pointer = zone_slba;
@@ -136,16 +136,24 @@ FTL::FTL(int fd, uint64_t mdts, uint32_t nsid, uint16_t lba_size, int gc_wmark,
                                 &this->clean_finish, &this->clean_finish_lock);
   mori->initialize();
   this->mori = &mori;
+
+  // Setup the free zone logs
+  this->zones_lock = PTHREAD_RWLOCK_INITIALIZER;
+
+  this->free_log_zones = std::vector<ZNSLogZone *>();
+  this->free_data_zones = std::vector<ZNSDataZone *>();
+
+  for (size_t i = 0; i < this->zones_log.size(); i++) {
+    this->free_log_zones.push_back(&this->zones_log[i]);
+  }
+
+  for (size_t i = 0; i < this->zones_data.size(); i++) {
+    this->free_data_zones.push_back(&this->zones_data[i]);
+  }
 }
 
-ZNSLogZone *FTL::get_free_log_zone(const uint32_t needed) {
-  // The unit of needed size if lba.
-  for (uint16_t i = 0; i < this->zones_log.size(); i++) {
-    if ((&this->zones_log[i])->get_current_capacity() >= needed) {
-      return &this->zones_log[i];
-    }
-  }
-  return nullptr;
+ZNSLogZone *FTL::get_free_log_zone() {
+  return this->free_log_zones.empty() ? nullptr : this->free_log_zones.front();
 }
 
 ZNSDataZone *FTL::get_free_data_zone(const uint32_t needed) {
@@ -260,14 +268,7 @@ int FTL::read(uint64_t lba, void *buffer, uint32_t size) {
   return 0;
 }
 
-int16_t FTL::get_free_log_regions() {
-  uint16_t free_count = 0;
-  for (uint16_t i = 0; i < this->zones_log.size(); i++) {
-    const ZNSLogZone *zone = &this->zones_log[i];
-    if (!(zone->get_current_capacity() == 0)) free_count++;
-  }
-  return free_count;
-}
+int16_t FTL::get_free_log_regions() { return this->free_log_zones.size(); }
 
 bool FTL::pba_exist(uint64_t base_addr) {
   pthread_rwlock_rdlock(&this->data_map.lock);
@@ -281,7 +282,7 @@ int FTL::write(uint64_t lba, void *buffer, uint32_t size) {
   // to clean our mess. Until that time we are locking the
   // zone since we are reading to it.
 
-  // why use volitile here?
+  // why use volatile here?
   // We have a lock to sync and data dependency, compiler won't reorder this.
 
   // get none full zone.
@@ -295,19 +296,26 @@ int FTL::write(uint64_t lba, void *buffer, uint32_t size) {
     }
 
     // wait until gc clean up.
-    ZNSLogZone *zone = get_free_log_zone(1);
+    ZNSLogZone *zone = get_free_log_zone();
     while (zone == nullptr) {
       // wait gc cleans up.
       pthread_mutex_lock(&this->clean_finish_lock);
       pthread_cond_wait(&this->clean_finish, &this->clean_finish_lock);
       pthread_mutex_unlock(&this->clean_finish_lock);
-      zone = get_free_log_zone(1);
+      zone = get_free_log_zone();
     }
 
     uint64_t wp_starts = zone->get_wp();
     uint32_t write_size;
     int ret = zone->write(buffer, size, &write_size, lba);
 
+    // If we haven't written the entire buffer then we know that the
+    // log is full and that we can move on to the next zone
+    if (zone->get_current_capacity() == 0) {
+      pthread_rwlock_wrlock(&this->zones_lock);
+      this->free_log_zones.erase(this->free_log_zones.begin());
+      pthread_rwlock_unlock(&this->zones_lock);
+    }
     if (ret != 0) {
       return ret;
     }
