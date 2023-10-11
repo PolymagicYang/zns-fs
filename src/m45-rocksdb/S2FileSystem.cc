@@ -124,11 +124,13 @@ struct ss_inode *callback_missing_file_create(const char *name, StoDir *parent,
   std::cerr << "Create " << name << " as sequential file" << std::endl;
   // We don't know how large this will end up being, but
   // we start off with one block
-  StoInode inode = StoInode(1, name, allocator);
-  inode.write_to_disk(true);
-  parent->add_entry(inode.inode_number, 12, name);
+  StoInode *inode = new StoInode(1, name, allocator);
+  inode->write_to_disk(true);
+  parent->add_entry(inode->inode_number, 12, name);
   parent->write_to_disk();
-  return get_inode_by_id(inode.inode_number, allocator);
+  inode_cache[inode->inode_number] = inode;
+  
+  return get_inode_by_id(inode->inode_number, allocator);
 }
 
 // Create a brand new sequentially-readable file with the specified name.

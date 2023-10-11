@@ -16,7 +16,8 @@ StoFile::StoFile(const ss_inode *inode, BlockManager *allocator) {
   // TODO(valentijn): memory leak or something
   this->inode.lock = PTHREAD_MUTEX_INITIALIZER;
   this->inode.node = get_stoinode_by_id(inode->id, allocator);
-  this->name = inode->name;
+  std::string str(inode->name, inode->strlen);
+  this->name = str;
   this->allocator = allocator;
 }
 
