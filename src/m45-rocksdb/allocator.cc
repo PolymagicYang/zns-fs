@@ -103,6 +103,7 @@ int BlockManager::read(uint64_t lba, void *buffer, uint32_t size) {
   }
   char *buf = static_cast<char *>(calloc(1, padding_size));
   int ret = zns_udevice_read(this->disk, wp_base, buf, padding_size);
+  free(buf);
 
   if (ret != 0) {
     printf("error!\n");
@@ -159,6 +160,7 @@ int BlockManager::write(uint64_t lba, void *buffer, uint32_t size) {
     uint64_t after_index = size + lba - after_base;
     int ret1 = zns_udevice_read(this->disk, after_base, after, lba_size);
 
+    printf("block size %d, buffer size %d\n", padding_size, size);
     memcpy(new_blocks, buffer, size);
     memcpy(new_blocks + size, after + after_index, padding_size - size);
     int ret2 = zns_udevice_write(this->disk, lba, new_blocks, padding_size);
