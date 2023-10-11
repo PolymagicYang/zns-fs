@@ -49,14 +49,18 @@ SOFTWARE.
 #include "zone.hpp"
 
 extern "C" {
-// TODO(valentijn): Implement this function
+// TODO(valentijn): Implement this functionh
 int deinit_ss_zns_device(struct user_zns_device *my_dev) {
   int ret = -ENOSYS;
   // cppcheck-suppress cstyleCast
   FTL *ftl = (FTL *)my_dev->_private;
   Calliope *mori = (Calliope *)ftl->mori;
+  
   mori->terminated = true;
-  pthread_cancel(mori->thread.native_handle());
+  if(mori->thread.native_handle() != NULL) {
+	  // pthread_cancel(mori->thread.native_handle());
+  }
+  
   delete ftl;
   return ret;
 }

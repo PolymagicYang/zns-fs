@@ -52,7 +52,7 @@ int BlockManager::append(void *buffer, uint32_t size, uint64_t *start_addr,
     uint64_t curr_data_size_in_block = wp - wp_base;
 	size_t current_size = size + curr_data_size_in_block;
 	size_t padding_size = current_size - (current_size % lba_size) + lba_size;
-	
+   
 	char blocks[padding_size];
     ret = zns_udevice_read(this->disk, wp_base, blocks, lba_size);
 	memcpy(blocks + curr_data_size_in_block, buffer, size);	
@@ -87,7 +87,6 @@ int BlockManager::read(uint64_t lba, void *buffer, uint32_t size) {
 
   memcpy(buffer, buf + curr_data_size_in_block, size);
   free(buf);
-  printf("size is %d\n", padding_size);
   return ret;
 }
 

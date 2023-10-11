@@ -74,7 +74,9 @@ struct ss_inode *StoInode::get_inode_struct() {
 void StoInode::write_to_disk(bool update) {
   // If we never change the inode then we don't actually need to write
   // it to disk
-  if (!this->dirty) return;
+  if (!this->dirty) {
+	return;
+  }
 
   // Enter the data into the system maps so we know where to find it.
   struct ss_inode *inode = this->get_inode_struct();
@@ -82,7 +84,6 @@ void StoInode::write_to_disk(bool update) {
 
   inode->inserted = true;
   this->allocator->append((void *)inode, sizeof(struct ss_inode), &lba, true);
-
   pthread_mutex_lock(&inode_map_lock);
   inode_map[this->inode_number] = lba;
   pthread_mutex_unlock(&inode_map_lock);
@@ -98,14 +99,13 @@ void StoInode::add_segment(const uint64_t lba, const size_t nblocks) {
   if (this->segment_index != 0) {	  
 	  struct ss_segment *old = &this->inode.segments[this->segment_index - 1];
 	  uint64_t slba = Round_down(lba, g_lba_size);
-  
 	  // Calculate the last written LBA by adding the difference between
 	  // LBA numbers together with the number of blocks. We can save two
 	  // subtractions if we are so inclined.
 	  uint64_t last_lba = Round_down(old->start_lba, g_lba_size) +
-		  (g_lba_size * (old->nblocks - 1));
-  
+		  (g_lba_size * (old->nblocks - 1));  
 	  if (last_lba == slba) {
+		  this->dirty = false;
 		  return;
 	  } else if ((last_lba + g_lba_size) == slba) {
 		  this->inode.segments[this->segment_index - 1] = {.start_lba = old->start_lba,

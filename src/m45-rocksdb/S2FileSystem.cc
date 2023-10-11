@@ -55,6 +55,7 @@ namespace ROCKSDB_NAMESPACE {
 std::map<const std::string, std::mutex> file_locks;
 
 S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
+  std::cout << sizeof(struct ss_inode) << " " << sizeof(struct ss_dnode) << std::endl;
   FileSystem::Default();
   std::string sdelimiter = ":";
   std::string edelimiter = "://";

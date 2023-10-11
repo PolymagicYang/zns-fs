@@ -13,9 +13,11 @@
 #include <map>
 #include <vector>
 
-#define SEGMENT_SIZE 64
-#define NAMELEN 256
-#define DIRSIZE 32
+#define Round_up(num, mul) ((num + mul - 1) / mul) * mul
+
+#define SEGMENT_SIZE 16
+#define NAMELEN 128
+#define DIRSIZE 16
 #define TEST_LBA_SIZE 4096
 
 #define Round_up(num, round) (((num) + (round) - 1) / (round)) * (round)
@@ -36,11 +38,11 @@ struct ss_inode {
   uint32_t size;
   uint64_t time;
   uint64_t inserted;
-  bool deleted = false; 
+  bool deleted;
   struct ss_segment segments[SEGMENT_SIZE];
   uint32_t flags;
   uint16_t strlen;
-  char name[NAMELEN];
+  char name[NAMELEN];  
 };
 
 struct ss_dnode_record {
@@ -52,7 +54,7 @@ struct ss_dnode_record {
 
 struct ss_dnode {
   struct ss_dnode_record entries[DIRSIZE];
-  uint16_t strlen;
+  uint64_t strlen;
   char dirname[NAMELEN];
 };
 
