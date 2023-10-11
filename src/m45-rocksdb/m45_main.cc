@@ -277,7 +277,7 @@ int main(int argc, char **argv) {
 
   if (deleteall) {
     ret = delete_rocksdb(ctx_test, delimiter);
-	
+
     if (0 != ret) {
       return -1;
     }

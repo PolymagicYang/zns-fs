@@ -30,8 +30,8 @@ SOFTWARE.
 #include <iostream>
 #include <map>
 #include <mutex>
-#include <vector>
 #include <unordered_map>
+#include <vector>
 
 #include "znsblock.hpp"
 

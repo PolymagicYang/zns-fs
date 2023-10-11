@@ -32,7 +32,7 @@ class StoDir {
 
   void write_to_disk();
   BlockManager *allocator;
-	struct ss_dnode dnode;
+  struct ss_dnode dnode;
 };
 
 struct find_inode_callbacks {

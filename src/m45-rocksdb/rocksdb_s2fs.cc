@@ -44,7 +44,7 @@ FactoryFunc<FileSystem> stosys_s2fs_reg =
           // then the other that we can use to debug
           if (true) {
             S2FileSystem *z = new S2FileSystem(uri, true);
-            ret_fs->reset(z);			
+            ret_fs->reset(z);
           } else {
             // DummyFSForward is forwarding implementation - I should be left in
             // peace

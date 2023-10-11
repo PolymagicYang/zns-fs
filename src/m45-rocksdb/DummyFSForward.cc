@@ -301,7 +301,8 @@ IOStatus DummyFSForward::RenameFile(const std::string &src,
                                     __attribute__((unused))
                                     IODebugContext *dbg) {
   std::cout << get_seq_id() << " func: " << __FUNCTION__
-            << " line: " << __LINE__ << " src " << src << " target " << target << std::endl;
+            << " line: " << __LINE__ << " src " << src << " target " << target
+            << std::endl;
   return this->_private_fs->RenameFile(src, target, options, dbg);
 }
 
@@ -401,8 +402,10 @@ IOStatus DummyFSForward::GetAbsolutePath(const std::string &db_path,
                                          IODebugContext *dbg) {
   std::cout << get_seq_id() << " func: " << __FUNCTION__
             << " line: " << __LINE__ << " " << std::endl;
-  IOStatus ret = this->_private_fs->GetAbsolutePath(db_path, options, output_path, dbg);
-  std::cout << "db_path is: " << db_path << " output path is: " << *output_path << std::endl;
+  IOStatus ret =
+      this->_private_fs->GetAbsolutePath(db_path, options, output_path, dbg);
+  std::cout << "db_path is: " << db_path << " output path is: " << *output_path
+            << std::endl;
   return ret;
 }
 

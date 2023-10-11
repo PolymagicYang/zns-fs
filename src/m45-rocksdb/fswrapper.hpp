@@ -18,9 +18,9 @@ class StoDirFS : public FSDirectory {
 };
 
 class StoLogger : public Logger {
-  public:
-    StoLogger();
-    ~StoLogger();
+ public:
+  StoLogger();
+  ~StoLogger();
 };
 
 class StoFileLock : public FileLock {

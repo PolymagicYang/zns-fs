@@ -1,5 +1,7 @@
 #include "file.hpp"
 
+#include <pthread.h>
+
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -7,7 +9,6 @@
 
 #include "allocator.hpp"
 #include "structures.h"
-#include <pthread.h>
 
 #define Min(x, y) ((x) > (y) ? (y) : (x))
 
@@ -44,7 +45,7 @@ void StoFile::write(size_t size, void *data) {
 void StoFile::read(const size_t size, void *result) {
   pthread_mutex_lock(&this->inode.lock);
   std::cout << g_magic_offset << std::endl;
-  size_t current_size = Min(size, this->inode.node->size-g_magic_offset);
+  size_t current_size = Min(size, this->inode.node->size - g_magic_offset);
   void *copy = (char *)result;
   for (auto &segment : inode.node->segments) {
     for (uint8_t i = 0; i < segment.nblocks; i++) {
@@ -57,13 +58,13 @@ void StoFile::read(const size_t size, void *result) {
       result += segment_size;
     }
   }
-  
+
   pthread_mutex_unlock(&this->inode.lock);
   std::cout << "Data read " << size << " " << copy << std::endl;
 }
 
-void StoFile::write_to_disk(bool update) { 
+void StoFile::write_to_disk(bool update) {
   pthread_mutex_lock(&this->inode.lock);
-  this->inode.node->write_to_disk(update); 
+  this->inode.node->write_to_disk(update);
   pthread_mutex_unlock(&this->inode.lock);
 }

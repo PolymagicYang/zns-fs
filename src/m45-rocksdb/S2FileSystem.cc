@@ -23,12 +23,12 @@ SOFTWARE.
 #include "S2FileSystem.h"
 // #include "allocator.hpp"
 
-#include <cstdlib>
 #include <stosys_debug.h>
 #include <sys/mman.h>
 #include <utils.h>
 
 #include <cstdint>
+#include <cstdlib>
 #include <iostream>
 #include <regex>
 #include <string>
@@ -53,7 +53,7 @@ namespace ROCKSDB_NAMESPACE {
 // Maps inode numbers to locks. They are not automatically populated,
 // so a lock must be inserted for first use.
 std::map<const std::string, std::mutex> file_locks;
-  
+
 S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
   FileSystem::Default();
   std::string sdelimiter = ":";
@@ -102,7 +102,7 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
   // is called
   StoDir root = StoDir((char *)"/", 2, this->allocator);
   root.write_to_disk();
-  
+
   ss_dprintf(DBG_FS_1,
              "device %s is opened and initialized, reported LBA size is %u and "
              "capacity %lu \n",
@@ -434,10 +434,9 @@ IOStatus S2FileSystem::GetFileSize(const std::string &fname,
 }
 
 void callback_found_dir_delete(const char *name, StoDir *parent,
-                                struct ss_inode *ss_inode,
-                                struct ss_dnode_record *entry, void *user_data,
-                                BlockManager *allocator) {
-
+                               struct ss_inode *ss_inode,
+                               struct ss_dnode_record *entry, void *user_data,
+                               BlockManager *allocator) {
   // Copy the name to the inode and write it to disk. Somewhat
   // inconvient to wrap it around a class.
   parent->remove_entry(name);
@@ -449,11 +448,10 @@ void callback_found_dir_delete(const char *name, StoDir *parent,
 IOStatus S2FileSystem::DeleteDir(const std::string &dirname,
                                  const IOOptions &options,
                                  __attribute__((unused)) IODebugContext *dbg) {
-
   std::string delimiter = "/";
   std::vector<StoDir> dirs;
   std::cout << "[DeleteDir] " << dirname << std::endl;
-  
+
   size_t start = dirname.find(delimiter);
   start += delimiter.length();
   size_t end = dirname.find(delimiter, start);
@@ -462,11 +460,10 @@ IOStatus S2FileSystem::DeleteDir(const std::string &dirname,
   StoDir *root = get_directory_by_id(2, this->allocator);
   struct ss_inode found_inode;
 
-  struct find_inode_callbacks cbs = {
-      .missing_directory_cb = NULL,
-      .missing_file_cb = NULL,
-      .found_file_cb = callback_found_dir_delete,
-      .user_data = NULL};
+  struct find_inode_callbacks cbs = {.missing_directory_cb = NULL,
+                                     .missing_file_cb = NULL,
+                                     .found_file_cb = callback_found_dir_delete,
+                                     .user_data = NULL};
 
   enum DirectoryError err =
       find_inode(root, parent_dirname, &found_inode, &cbs, this->allocator);
@@ -516,7 +513,6 @@ IOStatus S2FileSystem::GetAbsolutePath(const std::string &db_path,
                                        std::string *output_path,
                                        __attribute__((unused))
                                        IODebugContext *dbg) {
-  
   printf("[GetAbsolutePath]\n");
   *output_path = db_path;
   std::cout << *output_path << std::endl;
@@ -527,7 +523,6 @@ void callback_found_file_delete(const char *name, StoDir *parent,
                                 struct ss_inode *ss_inode,
                                 struct ss_dnode_record *entry, void *user_data,
                                 BlockManager *allocator) {
-
   // Copy the name to the inode and write it to disk. Somewhat
   // inconvient to wrap it around a class.
   parent->remove_entry(name);
@@ -567,9 +562,9 @@ IOStatus S2FileSystem::DeleteFile(const std::string &fname,
 }
 
 struct ss_inode *callback_missing_file_create_logger(const char *name,
-                                                   StoDir *parent,
-                                                   void *user_data,
-                                                   BlockManager *allocator) {
+                                                     StoDir *parent,
+                                                     void *user_data,
+                                                     BlockManager *allocator) {
   // Our logger will only contain one block so we can hardcode it here
   StoInode inode = StoInode(1, name, allocator);
 
@@ -613,7 +608,6 @@ IOStatus S2FileSystem::NewLogger(const std::string &fname,
   }
 
   return IOStatus::OK();
-
 }
 
 IOStatus S2FileSystem::GetTestDirectory(const IOOptions &options,
@@ -630,17 +624,17 @@ IOStatus S2FileSystem::GetTestDirectory(const IOOptions &options,
 // REQUIRES: lock was returned by a successful LockFile() call
 // REQUIRES: lock has not already been unlocked.
 IOStatus S2FileSystem::UnlockFile(FileLock *lock, const IOOptions &options,
-                                  __attribute__((unused)) IODebugContext *dbg) { 
+                                  __attribute__((unused)) IODebugContext *dbg) {
   std::cerr << "[UnlockFile]" << std::endl;
-  
-  StoFileLock* slock = reinterpret_cast<StoFileLock*>(lock);
+
+  StoFileLock *slock = reinterpret_cast<StoFileLock *>(lock);
   std::cout << slock->inode_num << std::endl;
   if (slock->inode_num == 0) {
-	  return IOStatus::IOError(__FUNCTION__);
-  }  
+    return IOStatus::IOError(__FUNCTION__);
+  }
   slock->Clear();
   delete slock;
-  
+
   UNUSED(lock);
   UNUSED(options);
   return IOStatus::IOError(__FUNCTION__);
@@ -815,8 +809,6 @@ IOStatus S2FileSystem::GetChildrenFileAttributes(
   UNUSED(result);
   return FileSystem::GetChildrenFileAttributes(dir, options, result, dbg);
 }
-
-
 
 // Store in *result the names of the children of the specified directory.
 // The names are relative to "dir".

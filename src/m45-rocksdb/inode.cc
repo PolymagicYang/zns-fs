@@ -1,11 +1,12 @@
 #include "inode.hpp"
 
+#include <pthread.h>
+
 #include <cassert>
 #include <chrono>
 #include <cstring>
 #include <ctime>
 #include <iostream>
-#include <pthread.h>
 #include <random>
 
 #include "allocator.hpp"
@@ -17,14 +18,17 @@
 
 // Inode map that keeps track of where the inodes are in disk (43.5 OSTEP)
 // It maps the inode with the physical logical block address
-std::unordered_map<uint64_t, uint64_t> inode_map = std::unordered_map<uint64_t, uint64_t>();
+std::unordered_map<uint64_t, uint64_t> inode_map =
+    std::unordered_map<uint64_t, uint64_t>();
 pthread_mutex_t inode_map_lock = PTHREAD_MUTEX_INITIALIZER;
 
 // Vector containing the physical address of each of the inode maps
 std::vector<uint64_t> checkpoint_region = std::vector<uint64_t>();
 
-std::unordered_map<uint64_t, StoInode *> inode_cache = std::unordered_map<uint64_t, StoInode *>();
-std::unordered_map<uint64_t, StoDir *> dir_cache = std::unordered_map<uint64_t, StoDir *>();
+std::unordered_map<uint64_t, StoInode *> inode_cache =
+    std::unordered_map<uint64_t, StoInode *>();
+std::unordered_map<uint64_t, StoDir *> dir_cache =
+    std::unordered_map<uint64_t, StoDir *>();
 
 StoInode::StoInode(const uint32_t size, std::string name,
                    BlockManager *allocator) {
@@ -81,7 +85,7 @@ struct ss_inode StoInode::get_inode_struct() {
 }
 
 void StoInode::write_to_disk(bool update) {
-    // If we never change the inode then we don't actually need to write
+  // If we never change the inode then we don't actually need to write
   // it to disk
   if (!this->dirty) return;
 
@@ -115,7 +119,7 @@ void StoInode::add_segment(const uint64_t lba, const size_t nblocks) {
   uint64_t last_lba = Round_down(old->start_lba, g_lba_size) +
                       (g_lba_size * (old->nblocks - 1));
   if (last_lba == slba) {
-	this->dirty = true;
+    this->dirty = true;
     this->segments[this->segment_index - 1] = {.start_lba = old->start_lba,
                                                .nblocks = old->nblocks};
     return;
@@ -137,8 +141,8 @@ void setup_test_system() {
   checkpoint_region.push_back(0xDEADBEEF);
 }
 
-std::unordered_map<uint64_t, uint64_t> get_imap(const uint64_t lba) { 
-  return inode_map; 
+std::unordered_map<uint64_t, uint64_t> get_imap(const uint64_t lba) {
+  return inode_map;
 }
 
 struct ss_inode *get_inode_from_disk(const uint64_t lba,
@@ -181,9 +185,10 @@ uint64_t add_dnode_to_storage(const uint64_t inum,
 
 StoDir *get_directory_by_id(const uint64_t inum, BlockManager *allocator) {
   if (dir_cache.count(inum) == 1) {
-	return dir_cache[inum];
+    return dir_cache[inum];
   }
-  std::cout << "new" << " " << inum <<  std::endl;
+  std::cout << "new"
+            << " " << inum << std::endl;
   struct ss_inode *inode = get_inode_by_id(inum, allocator);
 
   // Return NULL if the inode does not contain a directory
@@ -193,12 +198,12 @@ StoDir *get_directory_by_id(const uint64_t inum, BlockManager *allocator) {
 
   // A directory can only contain one block
   struct ss_segment *segment = &inode->segments[0];
-  
+
   // Fetch the start ID from memory
   void *buffer = malloc(sizeof(struct ss_dnode));
 
   allocator->read(segment->start_lba, buffer, sizeof(struct ss_dnode));
-  struct ss_dnode *dnode = (struct ss_dnode*) buffer;
+  struct ss_dnode *dnode = (struct ss_dnode *)buffer;
 
   dir_cache[inum] = new StoDir(inum, dnode, allocator);
   dir_cache[inum]->dnode = *dnode;
@@ -219,7 +224,6 @@ StoInode *get_stoinode_by_id(const uint64_t inum, BlockManager *allocator) {
     return inode_cache[inum];
   }
 
-  
   for (auto &lba : checkpoint_region) {
     pthread_mutex_lock(&inode_map_lock);
     std::unordered_map<uint64_t, uint64_t> map = get_imap(lba);

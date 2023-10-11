@@ -239,9 +239,9 @@ uint32_t ZNSLogZone::write(void *buffer, uint32_t size, uint32_t *write_size,
     uint64_t pa = address + i;
     uint64_t local_lba = lba + i * this->lba_size;
     this->block_map.map[pa] = {.address = pa,
-							   .logical_address = local_lba,
-							   .buffer = buffer,
-							   .valid = true};
+                               .logical_address = local_lba,
+                               .buffer = buffer,
+                               .valid = true};
   }
 
   return 0;
@@ -295,8 +295,9 @@ std::vector<ZNSLogZone> create_logzones(const int zns_fd, const uint32_t nsid,
       write_pointer = zone_slba;
     }
 
-    zones.push_back(ZNSLogZone(zns_fd, nsid, i, capacity, capacity, zstate, ztype,
-							   zone_slba, HostManaged, write_pointer, lba_size, mdts_size));
+    zones.push_back(ZNSLogZone(zns_fd, nsid, i, capacity, capacity, zstate,
+                               ztype, zone_slba, HostManaged, write_pointer,
+                               lba_size, mdts_size));
   }
 
   // Reset all the zones in one go so that we are in a valid initial state

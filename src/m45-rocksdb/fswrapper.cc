@@ -1,7 +1,8 @@
 #include "fswrapper.hpp"
 
-#include <cassert>
 #include <pthread.h>
+
+#include <cassert>
 
 #include "../common/unused.h"
 #include "allocator.hpp"
@@ -58,9 +59,10 @@ IOStatus StoRAFile::Read(uint64_t offset, size_t size, const IOOptions &options,
   std::cout << "RA read" << std::endl;
   // Read a total offset + size bytes from the underlying file
   // TODO(valentijn): memory leak?
-pthread_mutex_lock(&this->file->inode.lock);
-  char *buffer = (char *)malloc(Min(offset + size, this->file->inode.node->size));
-pthread_mutex_unlock(&this->file->inode.lock);
+  pthread_mutex_lock(&this->file->inode.lock);
+  char *buffer =
+      (char *)malloc(Min(offset + size, this->file->inode.node->size));
+  pthread_mutex_unlock(&this->file->inode.lock);
   file->read(size + offset, (void *)buffer);
 
   // Skip the offset
@@ -93,17 +95,18 @@ IOStatus StoSeqFile::Read(size_t size, const IOOptions &options, Slice *result,
   }
   // We read throw away our offset, this is an inefficient way of
   // doing things
-pthread_mutex_lock(&this->file->inode.lock);
+  pthread_mutex_lock(&this->file->inode.lock);
   size_t adjusted = Min(offset + size, this->file->inode.node->size);
   char *buffer = (char *)malloc(adjusted);
-pthread_mutex_unlock(&this->file->inode.lock);
+  pthread_mutex_unlock(&this->file->inode.lock);
   this->file->read(adjusted, (void *)buffer);
   *buffer += offset;
 
   // Clasp the amount we store based on the current size of our inode
   // TODO(everyone): make this more generic so we don't overallocate memory
   //   as badly as we do atm.
-  *result = Slice(buffer, std::min(this->file->inode.node->size - offset - 1, size));
+  *result =
+      Slice(buffer, std::min(this->file->inode.node->size - offset - 1, size));
 
   this->offset = adjusted;
 
