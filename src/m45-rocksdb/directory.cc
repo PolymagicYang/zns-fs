@@ -47,8 +47,6 @@ void StoDir::write_to_disk() {
     StoInode sinode = StoInode(DIRSIZE, name, this->allocator);
     sinode.flags |= FLAG_DIRECTORY;
 
-    std::cout << "get segment index: " << sinode.segment_index << std::endl;
-
     this->inode_number = sinode.inode_number;
     // Add the parent and self referential files to our system
     this->add_entry(this->inode_number, 12, ".");
