@@ -87,7 +87,6 @@ int BlockManager::append(void *buffer, uint32_t size, uint64_t *start_addr,
     this->update_current_position(wp + size);
   }
   pthread_rwlock_unlock(&this->wp.wp_lock);
-  printf("finish\n");
   return ret;
 }
 
@@ -103,7 +102,7 @@ int BlockManager::read(uint64_t lba, void *buffer, uint32_t size) {
   } else {
     padding_size = read_size;
   }
-  char buf[padding_size];
+  char *buf = static_cast<char *>(calloc(1, padding_size));
   int ret = zns_udevice_read(this->disk, wp_base, buf, padding_size);
 
   if (ret != 0) {
