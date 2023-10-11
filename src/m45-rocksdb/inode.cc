@@ -176,7 +176,7 @@ uint64_t add_dnode_to_storage(const uint64_t inum,
                               BlockManager *allocator) {
   uint64_t lba;
   printf("append dnode\n");
-  allocator->append(&drecord, sizeof(struct ss_dnode), &lba, true);
+  allocator->append((void*) drecord, sizeof(struct ss_dnode), &lba, true);
   pthread_mutex_lock(&inode_map_lock);
   inode_map[inum] = lba;
   pthread_mutex_unlock(&inode_map_lock);

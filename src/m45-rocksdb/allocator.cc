@@ -51,6 +51,7 @@ int BlockManager::append(void *buffer, uint32_t size, uint64_t *start_addr,
     if (size % lba_size != 0) {
       padding_size = (size / lba_size) * (lba_size) + lba_size;
       char buf[padding_size];
+      printf("padding size is %d, buf size is %d\n", padding_size, size);
       memcpy(buf, buffer, size);
       ret = zns_udevice_write(this->disk, wp, buf, padding_size);
     } else {
@@ -208,4 +209,5 @@ uint64_t BlockManager::get_current_position() {
 
 int BlockManager::update_current_position(uint64_t addr) {
   this->wp.position = addr;
+  return 1;
 }

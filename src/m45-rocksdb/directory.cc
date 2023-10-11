@@ -47,15 +47,20 @@ void StoDir::write_to_disk() {
     StoInode sinode = StoInode(DIRSIZE, name, this->allocator);
     sinode.flags |= FLAG_DIRECTORY;
 
+    std::cout << "get segment index: " << sinode.segment_index << std::endl;
+
     this->inode_number = sinode.inode_number;
     // Add the parent and self referential files to our system
     this->add_entry(this->inode_number, 12, ".");
     this->add_entry(this->parent_inode, 12, "..");
 
+    printf("get segment index: %d", sinode.segment_index);
+
     struct ss_dnode dnode = this->create_dnode();
     const uint64_t lba =
         add_dnode_to_storage(this->inode_number, &dnode, this->allocator);
 
+    std::cout << "get segment index: " << sinode.segment_index << std::endl;
     sinode.add_segment(lba, 1);
     sinode.write_to_disk(true);
     return;

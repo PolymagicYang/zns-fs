@@ -47,8 +47,7 @@ class StoInode {
   void write_to_disk(bool update);
   struct ss_inode inode;
 
- private:
-  uint8_t segment_index = 0;
+  uint8_t segment_index = 1;
   BlockManager *allocator;
 };
 
