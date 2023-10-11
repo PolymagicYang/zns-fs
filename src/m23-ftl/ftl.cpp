@@ -30,7 +30,6 @@ SOFTWARE.
 #include <cstdint>
 #include <cstdio>
 #include <vector>
-
 #include "datazone.hpp"
 #include "ftlgc.hpp"
 #include "logzone.hpp"
@@ -82,7 +81,7 @@ void create_zones(const int zns_fd, const uint32_t nsid,
     // TODO(valentijn): zone attributes (p.28 ZNS Command specification)
     const uint64_t capacity = le64_to_cpu(current.zcap);
     const uint64_t zone_slba = le64_to_cpu(current.zslba);
-    uint64_t write_pointer = le64_to_cpu(current.wp);
+    uint64_t write_pointer = le64_to_cpu(current.zslba);
 
     if (RESET_ZONE) {
       write_pointer = zone_slba;

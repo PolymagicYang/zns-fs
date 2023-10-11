@@ -39,7 +39,7 @@ void StoFileLock::Clear() {
   this->inode_num = 0;
 }
 
-StoFileLock::~StoFileLock() { assert(this->inode_num != 0); }
+StoFileLock::~StoFileLock() { assert(this->inode_num == 0); }
 
 StoRAFile::StoRAFile(struct ss_inode *inode, BlockManager *allocator) {
   this->file = new StoFile(inode, allocator);

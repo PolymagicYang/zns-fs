@@ -34,8 +34,6 @@ void StoFile::write(size_t size, void *data) {
   this->inode.node->size += size;
 
   uint8_t total_blocks = std::ceil(size / (float)g_lba_size);
-
-  // Writes the range of blocks to the disk
   bool overwrite = this->inode.node->inserted;
   uint64_t slba = store_segment_on_disk(size, data, this->allocator, overwrite);
 
@@ -45,21 +43,21 @@ void StoFile::write(size_t size, void *data) {
 
 void StoFile::read(const size_t size, void *result) {
   pthread_mutex_lock(&this->inode.lock);
-  size_t current_size = Min(size, this->inode.node->size);
+  std::cout << g_magic_offset << std::endl;
+  size_t current_size = Min(size, this->inode.node->size-g_magic_offset);
   void *copy = (char *)result;
   for (auto &segment : inode.node->segments) {
     for (uint8_t i = 0; i < segment.nblocks; i++) {
       size_t segment_size =
           std::min(g_lba_size * segment.nblocks, current_size);
       get_from_disk(segment.start_lba, segment_size, result, this->allocator);
-
       ((char *)result)[segment_size] = '\0';
       // Move up by the amount we have read
       current_size += segment_size;
       result += segment_size;
     }
   }
-
+  
   pthread_mutex_unlock(&this->inode.lock);
   std::cout << "Data read " << size << " " << copy << std::endl;
 }

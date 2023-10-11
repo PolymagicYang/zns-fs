@@ -44,11 +44,16 @@ SOFTWARE.
 
 uint64_t g_lba_size;
 
+// Magical offset that increments by one for each FTL deinit to account
+// for... something that causes all reads to be offset by one for...
+// some reason
+uint32_t g_magic_offset = 0;
+
 namespace ROCKSDB_NAMESPACE {
 // Maps inode numbers to locks. They are not automatically populated,
 // so a lock must be inserted for first use.
 std::map<const std::string, std::mutex> file_locks;
-
+  
 S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
   FileSystem::Default();
   std::string sdelimiter = ":";
@@ -96,34 +101,8 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
   // only rely on the inode number being there after the write_to_disk
   // is called
   StoDir root = StoDir((char *)"/", 2, this->allocator);
-  StoDir foo = StoDir((char *)"foo", 2, this->allocator);
-
   root.write_to_disk();
-  foo.write_to_disk();
-  root.add_entry(foo.inode_number, 1, "foo");
-  root.write_to_disk();
-
-  // root.add_entry(4, 2, "foo/bar");
-  // root.add_entry(5, 3, "foo/baz");
-  root.add_entry(6, 2, "queef");
-  std::cout << "Added all the entries" << std::endl;
-  struct ss_inode new_inode;
-  enum DirectoryError err =
-      find_inode(&root, "/foo", &new_inode, NULL, this->allocator);
-  if (err == DirectoryError::Dnode_not_found) {
-    std::cerr << "Cannot find dnode" << std::endl;
-  } else if (err == DirectoryError::Directory_not_found) {
-    std::cerr << "Cannot find parent directory" << std::endl;
-  } else if (err == DirectoryError::Created_inode) {
-    std::cerr << "Created a new inode for the file" << std::endl;
-  } else if (err == DirectoryError::Found_inode) {
-    std::cerr << "Found the inode" << std::endl;
-  } else if (err == DirectoryError::Inode_not_found) {
-    std::cerr << "Did not find the inode" << std::endl;
-  }
-
-  std::cout << "Find file in root" << std::endl;
-
+  
   ss_dprintf(DBG_FS_1,
              "device %s is opened and initialized, reported LBA size is %u and "
              "capacity %lu \n",
@@ -132,8 +111,9 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
 }
 
 S2FileSystem::~S2FileSystem() {
-	std::cout << "Deconstructor" << std::endl;
-	deinit_ss_zns_device(this->_zns_dev);
+  g_magic_offset++;
+  std::cout << "D	econstructor" << std::endl;
+  deinit_ss_zns_device(this->_zns_dev);
 }
 
 struct ss_inode *callback_missing_file_create(const char *name, StoDir *parent,
@@ -192,6 +172,7 @@ IOStatus S2FileSystem::NewSequentialFile(
 IOStatus S2FileSystem::IsDirectory(const std::string &dname,
                                    const IOOptions &options, bool *is_dir,
                                    IODebugContext *dbg) {
+  std::cout << "[IsDirectory]" << std::endl;
   UNUSED(dname);
   UNUSED(options);
   UNUSED(is_dir);
@@ -413,6 +394,7 @@ IOStatus S2FileSystem::CreateDirIfMissing(const std::string &dirname,
                                           const IOOptions &options,
                                           __attribute__((unused))
                                           IODebugContext *dbg) {
+  std::cout << "[CreateDirIfMissing]" << std::endl;
   // Remove the starting and trailing /
   std::string cut = dirname.substr(1, dirname.size() - 1);
 
@@ -470,7 +452,7 @@ IOStatus S2FileSystem::DeleteDir(const std::string &dirname,
 
   std::string delimiter = "/";
   std::vector<StoDir> dirs;
-  std::cout << "delete dir " << dirname << std::endl;
+  std::cout << "[DeleteDir] " << dirname << std::endl;
   
   size_t start = dirname.find(delimiter);
   start += delimiter.length();
@@ -638,6 +620,7 @@ IOStatus S2FileSystem::GetTestDirectory(const IOOptions &options,
                                         std::string *path,
                                         __attribute__((unused))
                                         IODebugContext *dbg) {
+  std::cerr << "[GetTestDirectory]" << std::endl;
   UNUSED(options);
   UNUSED(path);
   return IOStatus::IOError(__FUNCTION__);
@@ -649,6 +632,15 @@ IOStatus S2FileSystem::GetTestDirectory(const IOOptions &options,
 IOStatus S2FileSystem::UnlockFile(FileLock *lock, const IOOptions &options,
                                   __attribute__((unused)) IODebugContext *dbg) { 
   std::cerr << "[UnlockFile]" << std::endl;
+  
+  StoFileLock* slock = reinterpret_cast<StoFileLock*>(lock);
+  std::cout << slock->inode_num << std::endl;
+  if (slock->inode_num == 0) {
+	  return IOStatus::IOError(__FUNCTION__);
+  }  
+  slock->Clear();
+  delete slock;
+  
   UNUSED(lock);
   UNUSED(options);
   return IOStatus::IOError(__FUNCTION__);

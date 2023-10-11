@@ -9,6 +9,9 @@
 
 static uint32_t g_inode_num = 2;
 
+// Our reads need to be offset by this number whenever the
+// deallocation is called.  Don't ask.
+extern uint32_t g_magic_offset;
 extern "C" {
 void update_dnode_in_storage(const uint64_t inum, const struct ss_dnode *dnode,
                              BlockManager *);

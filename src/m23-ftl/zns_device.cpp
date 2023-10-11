@@ -58,7 +58,6 @@ int deinit_ss_zns_device(struct user_zns_device *my_dev) {
   mori->terminated = true;
   pthread_cancel(mori->thread.native_handle());
   delete ftl;
-
   return ret;
 }
 
