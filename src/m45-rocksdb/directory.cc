@@ -170,7 +170,10 @@ enum DirectoryError find_inode(StoDir *directory, std::string name,
                          cbs->user_data, allocator);
     }
 
-    *found = *get_inode_by_id(entry->inum, allocator);
+    if (entry->inum != 0) {
+      // not deleted.
+      *found = *get_inode_by_id(entry->inum, allocator);
+    }
     return DirectoryError::Found_inode;
   }
 

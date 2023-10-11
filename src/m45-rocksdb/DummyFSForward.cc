@@ -180,7 +180,7 @@ IOStatus DummyFSForward::FileExists(const std::string &fname,
                                     __attribute__((unused))
                                     IODebugContext *dbg) {
   std::cout << get_seq_id() << " func: " << __FUNCTION__
-            << " line: " << __LINE__ << " " << std::endl;
+            << " line: " << __LINE__ << " " << fname << std::endl;
   return this->_private_fs->FileExists(fname, options, dbg);
 }
 
@@ -197,7 +197,7 @@ IOStatus DummyFSForward::GetChildren(const std::string &dir,
                                      __attribute__((unused))
                                      IODebugContext *dbg) {
   std::cout << get_seq_id() << " func: " << __FUNCTION__
-            << " line: " << __LINE__ << " " << std::endl;
+            << " line: " << __LINE__ << " " << dir << std::endl;
   return this->_private_fs->GetChildren(dir, options, result, dbg);
 }
 
@@ -227,7 +227,7 @@ IOStatus DummyFSForward::DeleteFile(const std::string &fname,
                                     __attribute__((unused))
                                     IODebugContext *dbg) {
   std::cout << get_seq_id() << " func: " << __FUNCTION__
-            << " line: " << __LINE__ << " " << std::endl;
+            << " line: " << __LINE__ << " " << fname << std::endl;
   return this->_private_fs->DeleteFile(fname, options, dbg);
 }
 
@@ -236,7 +236,7 @@ IOStatus DummyFSForward::Truncate(const std::string &fname, size_t size,
                                   const IOOptions &options,
                                   __attribute__((unused)) IODebugContext *dbg) {
   std::cout << get_seq_id() << " func: " << __FUNCTION__
-            << " line: " << __LINE__ << " " << std::endl;
+            << " line: " << __LINE__ << " " << fname << std::endl;
   return this->_private_fs->Truncate(fname, size, options, dbg);
 }
 
@@ -257,7 +257,7 @@ IOStatus DummyFSForward::CreateDirIfMissing(const std::string &dirname,
                                             __attribute__((unused))
                                             IODebugContext *dbg) {
   std::cout << get_seq_id() << " func: " << __FUNCTION__
-            << " line: " << __LINE__ << " " << std::endl;
+            << " line: " << __LINE__ << " " << dirname << std::endl;
   return this->_private_fs->CreateDirIfMissing(dirname, options, dbg);
 }
 
@@ -267,7 +267,7 @@ IOStatus DummyFSForward::DeleteDir(const std::string &dirname,
                                    __attribute__((unused))
                                    IODebugContext *dbg) {
   std::cout << get_seq_id() << " func: " << __FUNCTION__
-            << " line: " << __LINE__ << " " << std::endl;
+            << " line: " << __LINE__ << " " << dirname << std::endl;
   return this->_private_fs->DeleteDir(dirname, options, dbg);
 }
 
@@ -301,7 +301,7 @@ IOStatus DummyFSForward::RenameFile(const std::string &src,
                                     __attribute__((unused))
                                     IODebugContext *dbg) {
   std::cout << get_seq_id() << " func: " << __FUNCTION__
-            << " line: " << __LINE__ << " " << std::endl;
+            << " line: " << __LINE__ << " src " << src << " target " << target << std::endl;
   return this->_private_fs->RenameFile(src, target, options, dbg);
 }
 
@@ -401,7 +401,9 @@ IOStatus DummyFSForward::GetAbsolutePath(const std::string &db_path,
                                          IODebugContext *dbg) {
   std::cout << get_seq_id() << " func: " << __FUNCTION__
             << " line: " << __LINE__ << " " << std::endl;
-  return this->_private_fs->GetAbsolutePath(db_path, options, output_path, dbg);
+  IOStatus ret = this->_private_fs->GetAbsolutePath(db_path, options, output_path, dbg);
+  std::cout << "db_path is: " << db_path << " output path is: " << *output_path << std::endl;
+  return ret;
 }
 
 // Get the amount of free disk space
