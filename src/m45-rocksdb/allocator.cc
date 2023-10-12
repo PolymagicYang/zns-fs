@@ -36,7 +36,7 @@ int BlockManager::append(void *buffer, uint32_t size, uint64_t *start_addr,
   int ret = 0;
   pthread_rwlock_wrlock(&this->wp.wp_lock);
   uint64_t wp = this->get_current_position();
-  // printf("append to %ld, size is %d!\n", wp, size);
+  printf("append to %ld, size is %d!\n", wp, size);
   uint32_t lba_size = this->disk->lba_size_bytes;
   *start_addr = wp;
   if (wp + size >= disk->capacity_bytes) {

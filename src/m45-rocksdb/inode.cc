@@ -221,7 +221,7 @@ StoInode *get_stoinode_by_id(const uint64_t inum, BlockManager *allocator) {
     pthread_mutex_unlock(&inode_map_lock);
     struct ss_inode *ret = get_inode_from_disk(found->second, allocator);
     inode_cache[inum] = new StoInode(ret, allocator);
-    ret->segments;
+    free(ret);
     return inode_cache[inum];
   }
 

@@ -83,6 +83,7 @@ StoSeqFile::StoSeqFile(struct ss_inode *inode, BlockManager *allocator) {
 
 StoSeqFile::~StoSeqFile() {
   // something
+  delete this->file;
 }
 
 IOStatus StoSeqFile::Read(size_t size, const IOOptions &options, Slice *result,
@@ -130,6 +131,7 @@ StoWriteFile::StoWriteFile(struct ss_inode *inode, BlockManager *allocator) {
 
 StoWriteFile::~StoWriteFile() {
   // Something
+  delete this->file;
 }
 
 // Append data to the end of the file
