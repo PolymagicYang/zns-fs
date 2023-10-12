@@ -97,6 +97,7 @@ struct ss_dnode_record *StoDir::find_entry(const char *name) {
     // Weird C++ behaviour, we force it to be boolean.
     // We want to check whether they have the same length and if the entry
     // is still valid.
+    // TODO(Zhiyang): Delete Comments.
     bool condition = needle_size == entry.namelen && entry.reclen != 0 &&
                      (strncmp(entry.name, name, entry.namelen) == 0);
 

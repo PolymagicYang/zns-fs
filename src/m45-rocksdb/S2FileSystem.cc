@@ -73,6 +73,7 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
   params.gc_wmark = 1;
   params.force_reset = false;
   int ret = init_ss_zns_device(&params, &this->_zns_dev);
+  free(params.name);
 
   this->allocator = new BlockManager(this->_zns_dev);
   if (ret != 0) {
@@ -121,6 +122,7 @@ S2FileSystem::~S2FileSystem() {
   for (auto &inode : inode_cache) {
     delete inode.second;
   }
+  delete this->allocator;
 }
 
 struct ss_inode *callback_missing_file_create(const char *name, StoDir *parent,
@@ -413,6 +415,7 @@ IOStatus S2FileSystem::CreateDirIfMissing(const std::string &dirname,
       .missing_file_cb = callback_missing_file_create_dir,
       .found_file_cb = callback_found_file_print,
       .user_data = NULL};
+    
   StoDir *root = get_directory_by_id(2, this->allocator);
   struct ss_inode found_inode;
   enum DirectoryError error =
