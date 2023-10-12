@@ -36,7 +36,6 @@ int BlockManager::append(void *buffer, uint32_t size, uint64_t *start_addr,
   int ret = 0;
   pthread_rwlock_wrlock(&this->wp.wp_lock);
   uint64_t wp = this->get_current_position();
-  // printf("append to %ld, size is %d!\n", wp, size);
   uint32_t lba_size = this->disk->lba_size_bytes;
   *start_addr = wp;
   if (wp + size >= disk->capacity_bytes) {
@@ -44,41 +43,19 @@ int BlockManager::append(void *buffer, uint32_t size, uint64_t *start_addr,
     return -1;
   }
 
-  // zns nvme write one block at a time.
-  uint64_t padding_size;
-
   if (wp % lba_size == 0) {
-    if (size % lba_size != 0) {
-      padding_size = (size / lba_size) * (lba_size) + lba_size;
-      char buf[padding_size];
-      memcpy(buf, buffer, size);
-      ret = zns_udevice_write(this->disk, wp, buf, padding_size);
-    } else {
-      ret = zns_udevice_write(this->disk, wp, buffer, size);
-    }
+    size_t padding_size = Round_up(size, lba_size);
+    ret = zns_udevice_write(this->disk, wp, buffer, padding_size);
   } else {
-    // printf("needs padding\n");
     uint64_t wp_base = (wp / lba_size) * lba_size;
     uint64_t curr_data_size_in_block = wp - wp_base;
+    size_t current_size = size + curr_data_size_in_block;
+    size_t padding_size = current_size - (current_size % lba_size) + lba_size;
 
-    if ((size + curr_data_size_in_block) % lba_size != 0) {
-      padding_size =
-          ((size + curr_data_size_in_block) / lba_size) * (lba_size) + lba_size;
-    } else {
-      padding_size = size;
-    }
-    char curr_block[lba_size];
-    char new_blocks[padding_size];
-    ret = zns_udevice_read(this->disk, wp_base, curr_block, lba_size);
-
-    memcpy(new_blocks, curr_block, curr_data_size_in_block);
-    memcpy(new_blocks + curr_data_size_in_block, buffer, size);
-    ret = zns_udevice_write(this->disk, wp_base, new_blocks, padding_size);
-    // printf("lba is %lx\n", wp);
-    // for (int i = 0; i < size; i++) {
-    //     printf("%x", ((char*)buffer)[i]);
-    // }
-    // printf("end for\n");
+    char blocks[padding_size];
+    ret = zns_udevice_read(this->disk, wp_base, blocks, lba_size);
+    memcpy(blocks + curr_data_size_in_block, buffer, size);
+    ret = zns_udevice_write(this->disk, wp_base, blocks, padding_size);
   }
 
   if (update) {
@@ -107,15 +84,8 @@ int BlockManager::read(uint64_t lba, void *buffer, uint32_t size) {
     printf("error!\n");
   }
 
-  // printf("read end\n");
   memcpy(buffer, buf + curr_data_size_in_block, size);
-
-  // printf("lba is %x, read from wp_base %x\n", lba, wp_base);
-  // for (int i = 0; i < size; i++) {
-  //     printf("%x", ((char*)buffer)[i]);
-  // }
-  // printf("end for\n");
-
+  free(buf);
   return ret;
 }
 
@@ -158,6 +128,7 @@ int BlockManager::write(uint64_t lba, void *buffer, uint32_t size) {
     uint64_t after_index = size + lba - after_base;
     int ret1 = zns_udevice_read(this->disk, after_base, after, lba_size);
 
+    printf("block size %d, buffer size %d\n", padding_size, size);
     memcpy(new_blocks, buffer, size);
     memcpy(new_blocks + size, after + after_index, padding_size - size);
     int ret2 = zns_udevice_write(this->disk, lba, new_blocks, padding_size);
@@ -208,4 +179,5 @@ uint64_t BlockManager::get_current_position() {
 
 int BlockManager::update_current_position(uint64_t addr) {
   this->wp.position = addr;
+  return 1;
 }

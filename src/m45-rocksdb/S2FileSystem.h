@@ -160,8 +160,6 @@ class S2FileSystem : public FileSystem {
   BlockManager *allocator;
   std::string _uri;
   const std::string _fs_delimiter = "/";
-  struct InodeMap inodes;
-  struct DirMap dnodes;
 };
 }  // namespace ROCKSDB_NAMESPACE
 

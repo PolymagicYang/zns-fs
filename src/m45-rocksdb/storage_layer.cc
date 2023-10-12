@@ -20,7 +20,7 @@ uint64_t store_segment_on_disk(const size_t size, void *data,
     // printf("curr addr is %ld.\n", inode_addr - sizeof(struct ss_inode));
     pthread_rwlock_unlock(&allocator->wp.wp_lock);
   }
-  int ret = allocator->append((void *)data, size, &lba, true);
+  int ret = allocator->append(data, size, &lba, true);
 
   // ret == 0 => No space for writing.
   assertm(ret == 0, "write failed");

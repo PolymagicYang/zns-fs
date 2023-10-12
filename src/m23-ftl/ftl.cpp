@@ -135,7 +135,7 @@ FTL::FTL(int fd, uint64_t mdts, uint32_t nsid, uint16_t lba_size, int gc_wmark,
   Calliope *mori = new Calliope(this, &this->need_gc, &this->need_gc_lock,
                                 &this->clean_finish, &this->clean_finish_lock);
   mori->initialize();
-  this->mori = &mori;
+  this->mori = mori;
 
   // Setup the free zone logs
   this->zones_lock = PTHREAD_RWLOCK_INITIALIZER;
