@@ -136,6 +136,7 @@ IOStatus StoSeqFile::Skip(uint64_t size) {
 
 StoWriteFile::StoWriteFile(struct ss_inode *inode, BlockManager *allocator) {
   this->file = new StoFile(inode, allocator);
+
   this->offset = 0;
 }
 
@@ -147,42 +148,24 @@ StoWriteFile::~StoWriteFile() {
 // Append data to the end of the file
 IOStatus StoWriteFile::Append(const Slice &data, const IOOptions &options,
                               IODebugContext *dbg) {
-  UNUSED(options);
-  UNUSED(dbg);
-
-  if (!this->file) return IOStatus::IOError("File closed");
-
   this->file->write(data.size(), (void *)data.data());
   return IOStatus::OK();
 }
 
 // Flush writes the application data to the filesystem
 IOStatus StoWriteFile::Flush(const IOOptions &options, IODebugContext *dbg) {
-  if (!this->file) return IOStatus::IOError("File closed");
-
   this->file->write_to_disk(true);
   return IOStatus::OK();
 }
 
 // Sync writes the filesystem data to the FTL
 IOStatus StoWriteFile::Sync(const IOOptions &options, IODebugContext *dbg) {
-  UNUSED(options);
-  UNUSED(dbg);
-
-  if (!this->file) return IOStatus::IOError("File closed");
-
   this->file->write_to_disk(true);
   return IOStatus::OK();
 }
 
 // Close our file
 IOStatus StoWriteFile::Close(const IOOptions &options, IODebugContext *dbg) {
-  UNUSED(options);
-  UNUSED(dbg);
-
-  if (!this->file) return IOStatus::IOError("File closed");
-
-  this->file = nullptr;
   return IOStatus::OK();
 }
 
