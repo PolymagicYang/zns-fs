@@ -169,6 +169,14 @@ uint64_t add_dnode_to_storage(const uint64_t inum,
 }
 
 StoDir *get_directory_by_id(const uint64_t inum, BlockManager *allocator) {
+  // If our cache is totally empty, we must be in a new file system
+  // and we should recreate the root directory
+  if (dir_cache.size() == 0) {
+    StoDir *root = new StoDir((char *)"/", 2, allocator);
+    root->write_to_disk();
+    dir_cache[root->inode_number] = root;
+  }
+
   if (dir_cache.count(inum) == 1) {
     return dir_cache[inum];
   }

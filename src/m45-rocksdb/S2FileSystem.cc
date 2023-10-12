@@ -102,10 +102,6 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
   // not generated until the directory is written to disk. So you can
   // only rely on the inode number being there after the write_to_disk
   // is called
-  StoDir *root = new StoDir((char *)"/", 2, this->allocator);
-  root->write_to_disk();
-  dir_cache[root->inode_number] = root;
-
   ss_dprintf(DBG_FS_1,
              "device %s is opened and initialized, reported LBA size is %u and "
              "capacity %lu \n",
