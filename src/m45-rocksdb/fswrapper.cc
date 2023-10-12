@@ -53,7 +53,7 @@ StoRAFile::~StoRAFile() {
   if (this->clean_slice) {
     free(this->buffer);
   }
-} 
+}
 
 IOStatus StoRAFile::Read(uint64_t offset, size_t size, const IOOptions &options,
                          Slice *result, char *scratch,
@@ -66,8 +66,9 @@ IOStatus StoRAFile::Read(uint64_t offset, size_t size, const IOOptions &options,
   // TODO(valentijn): memory leak?
   pthread_mutex_lock(&this->file->inode.lock);
 
-  char *buffer =
-      (char *)malloc(Round_up(Min(offset + size, this->file->inode.node->size), g_lba_size) * 2);
+  char *buffer = (char *)malloc(
+      Round_up(Min(offset + size, this->file->inode.node->size), g_lba_size) *
+      2);
   this->buffer = buffer;
   this->clean_slice = true;
 

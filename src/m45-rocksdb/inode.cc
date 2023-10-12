@@ -12,18 +12,12 @@
 #include "allocator.hpp"
 #include "structures.h"
 
-// This number is dependent on SEGMENT_SIZE, please recalculate if you
-// change that.
-#define LBA_SIZE_DIFF 8192
-
+uint32_t g_inode_num = 2;
 // Inode map that keeps track of where the inodes are in disk (43.5 OSTEP)
 // It maps the inode with the physical logical block address
 std::unordered_map<uint64_t, uint64_t> inode_map =
     std::unordered_map<uint64_t, uint64_t>();
 pthread_mutex_t inode_map_lock = PTHREAD_MUTEX_INITIALIZER;
-
-// Vector containing the physical address of each of the inode maps
-std::vector<uint64_t> checkpoint_region = std::vector<uint64_t>();
 
 std::unordered_map<uint64_t, StoInode *> inode_cache =
     std::unordered_map<uint64_t, StoInode *>();
@@ -122,15 +116,6 @@ StoInode::~StoInode() {
   // free(this->name);
 }
 
-void setup_test_system() {
-  // This value is ignored
-  checkpoint_region.push_back(0xDEADBEEF);
-}
-
-std::unordered_map<uint64_t, uint64_t> get_imap(const uint64_t lba) {
-  return inode_map;
-}
-
 struct ss_inode *get_inode_from_disk(const uint64_t lba,
                                      BlockManager *allocator) {
   struct ss_inode *buffer = (struct ss_inode *)malloc(sizeof(struct ss_inode));
@@ -217,22 +202,17 @@ StoInode *get_stoinode_by_id(const uint64_t inum, BlockManager *allocator) {
     return inode_cache[inum];
   }
 
-  for (auto &lba : checkpoint_region) {
-    pthread_mutex_lock(&inode_map_lock);
-    std::unordered_map<uint64_t, uint64_t> map = get_imap(lba);
+  pthread_mutex_lock(&inode_map_lock);
 
-    auto found = map.find(inum);
-    if (found == map.end()) {
-      pthread_mutex_unlock(&inode_map_lock);
-      continue;
-    }
-
+  auto found = inode_map.find(inum);
+  if (found == inode_map.end()) {
     pthread_mutex_unlock(&inode_map_lock);
-    struct ss_inode *ret = get_inode_from_disk(found->second, allocator);
-    inode_cache[inum] = new StoInode(ret, allocator);
-    free(ret);
-    return inode_cache[inum];
+    return NULL;
   }
 
-  return NULL;
+  pthread_mutex_unlock(&inode_map_lock);
+  struct ss_inode *ret = get_inode_from_disk(found->second, allocator);
+  inode_cache[inum] = new StoInode(ret, allocator);
+  free(ret);
+  return inode_cache[inum];
 }

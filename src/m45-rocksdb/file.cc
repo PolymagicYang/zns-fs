@@ -31,7 +31,7 @@ StoFile::StoFile(StoInode *inode, BlockManager *allocator) {
 StoFile::~StoFile() {}
 
 void StoFile::write(size_t size, void *data) {
-  // Move the size of our inode up by the number of bytes in our write
+  // Move the size of our inode up by the number eof bytes in our write
   pthread_mutex_lock(&this->inode.lock);
   this->inode.node->size += size;
   uint8_t total_blocks = std::ceil(size / (float)g_lba_size);

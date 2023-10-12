@@ -183,7 +183,11 @@ void Calliope::insert_new_zone(ZNSLogZone *reapable, uint64_t base_addr,
 void Calliope::reap() {
   while (true) {
     uint16_t log_zone_num = this->wait_for_mutex();
-    if (death_sensei) return;
+
+    if (death_sensei) {
+      death_sensei = false;
+      return;
+    }
 
     // Get the zone with the highest win of free blocks, if none is
     // found we just wait until the next loop. This can happen if no

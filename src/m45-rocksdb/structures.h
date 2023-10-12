@@ -18,7 +18,6 @@
 #define SEGMENT_SIZE 16
 #define NAMELEN 128
 #define DIRSIZE 16
-#define TEST_LBA_SIZE 4096
 
 #define Round_up(num, round) (((num) + (round)-1) / (round)) * (round)
 // 4th bit
@@ -57,22 +56,4 @@ struct ss_dnode {
   uint64_t strlen;
   char dirname[NAMELEN];
 };
-
-using __inode_map = std::map<uint64_t, struct ss_inode>;
-using __dir_map = std::map<uint64_t, struct ss_dnode>;
-
-struct InodeMap {
-  pthread_rwlock_t lock;
-  __inode_map inodes;
-};
-
-struct DirMap {
-  pthread_rwlock_t lock;
-  __dir_map dnodes;
-};
-
-struct ss_data {
-  char data[TEST_LBA_SIZE];
-};
-
 #endif

@@ -82,11 +82,6 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
     std::cout << "Error: ret " << ret << "\n";
   }
 
-  // Setup the inode and dnode map
-  this->inodes = {.lock = PTHREAD_RWLOCK_INITIALIZER, .inodes = __inode_map()};
-  this->dnodes = {.lock = PTHREAD_RWLOCK_INITIALIZER, .dnodes = __dir_map()};
-
-  setup_test_system();
   file_locks = std::map<const std::string, std::mutex>();
 
   // Create the root directory node
@@ -111,7 +106,7 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
 }
 
 S2FileSystem::~S2FileSystem() {
-  g_magic_offset++;
+  // g_magic_offset++;
   std::cout << "Deconstructor" << std::endl;
   deinit_ss_zns_device(this->_zns_dev);
 
@@ -122,6 +117,13 @@ S2FileSystem::~S2FileSystem() {
   for (auto &inode : inode_cache) {
     delete inode.second;
   }
+
+  // Reset our global variables
+  dir_cache.clear();
+  inode_cache.clear();
+  inode_map.clear();
+  g_inode_num = 2;
+
   delete this->allocator;
 }
 
@@ -415,7 +417,7 @@ IOStatus S2FileSystem::CreateDirIfMissing(const std::string &dirname,
       .missing_file_cb = callback_missing_file_create_dir,
       .found_file_cb = callback_found_file_print,
       .user_data = NULL};
-    
+
   StoDir *root = get_directory_by_id(2, this->allocator);
   struct ss_inode found_inode;
   enum DirectoryError error =
