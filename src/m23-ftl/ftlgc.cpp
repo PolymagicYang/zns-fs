@@ -36,6 +36,9 @@ SOFTWARE.
 #include "znsblock.hpp"
 #include "zone.hpp"
 
+
+bool death_sensei = true;
+
 Calliope::Calliope(FTL *ftl, pthread_cond_t *cond, pthread_mutex_t *mutex,
                    pthread_cond_t *clean_cond, pthread_mutex_t *clean_lock) {
   this->ftl = ftl;
@@ -78,6 +81,7 @@ uint16_t Calliope::wait_for_mutex() {
     pthread_mutex_lock(this->need_gc_lock);
     pthread_cond_wait(this->need_gc, this->need_gc_lock);
     pthread_mutex_unlock(this->need_gc_lock);
+	if (death_sensei) exit(0);
     this->select_log_zone(&log_zone_num);
   }
 
@@ -178,11 +182,7 @@ void Calliope::insert_new_zone(ZNSLogZone *reapable, uint64_t base_addr,
 }
 
 void Calliope::reap() {
-  while (true) {
-    if (this->terminated) {
-      return;
-    }
-
+  while (true) {    
     uint16_t log_zone_num = this->wait_for_mutex();
 
     // Get the zone with the highest win of free blocks, if none is
@@ -205,12 +205,11 @@ void Calliope::reap() {
         this->insert_new_zone(reapable, base_addr, log_blocks);
       }
     }
-
+		
     reapable->reset();
     pthread_rwlock_wrlock(&this->ftl->zones_lock);
     this->ftl->free_log_zones.push_back(reapable);
     pthread_rwlock_unlock(&this->ftl->zones_lock);
-    // std::cout << "reset finish!\n";
   }
 }
 

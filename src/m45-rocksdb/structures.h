@@ -38,7 +38,7 @@ struct ss_inode {
   uint32_t size;
   uint64_t time;
   uint64_t inserted;
-  bool deleted;
+  bool deleted = false;
   struct ss_segment segments[SEGMENT_SIZE];
   uint32_t flags;
   uint16_t strlen;

@@ -36,6 +36,7 @@ struct ss_dnode *StoDir::create_dnode() {
 }
 
 void StoDir::write_to_disk() {
+  std::cout << "Write dnode" << std::endl;
   // If the inode is zero we haven't actually written to disk yet
   // and we need to generate the inode
   if (this->inode_number == 0) {

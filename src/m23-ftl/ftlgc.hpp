@@ -21,7 +21,7 @@ SOFTWARE.
 #ifndef STOSYS_PROJECT_FTLGC_H
 #define STOSYS_PROJECT_FTLGC_H
 #include <pthread.h>
-
+#include <atomic>
 #include <exception>
 #pragma once
 
@@ -30,6 +30,8 @@ SOFTWARE.
 #include "ftl.hpp"
 #include "znsblock.hpp"
 #include "zone.hpp"
+
+extern bool death_sensei;
 
 class Calliope {
  public:
@@ -48,15 +50,15 @@ class Calliope {
 
   /** Initialize the thread with the GC*/
   void initialize();
-
-  ~Calliope() {
-    this->terminated = true;
-    this->thread.join();
-  }
-  bool terminated = false;
+  	
   // Our thread
   std::thread thread;
 
+	  // Cond used to wake up the GC.
+  pthread_cond_t *need_gc;
+
+  // Coupled with cond.
+  pthread_mutex_t *need_gc_lock;
  private:
   uint16_t wait_for_mutex();
   void insert_new_zone(ZNSLogZone *reapable, uint64_t base_addr,
@@ -73,12 +75,6 @@ class Calliope {
   // Flag to see if we found something useful in our sweep could be
   // replaced using a NULL value.
   bool can_reap;
-
-  // Cond used to wake up the GC.
-  pthread_cond_t *need_gc;
-
-  // Coupled with cond.
-  pthread_mutex_t *need_gc_lock;
 
   pthread_cond_t *clean_cond;
   pthread_mutex_t *clean_lock;
