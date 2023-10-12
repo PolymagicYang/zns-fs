@@ -71,6 +71,7 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
   params.gc_wmark = 1;
   params.force_reset = false;
   int ret = init_ss_zns_device(&params, &this->_zns_dev);
+  free(params.name);
 
   this->allocator = new BlockManager(this->_zns_dev);
   if (ret != 0) {
