@@ -123,7 +123,6 @@ int open_rocksdb(struct MyRocksContext *context, const std::string delimiter) {
   cout << "## Database opened at " << context->uri << " db name is "
        << context->db->GetName() << " , attached FS is --> "
        << context->db->GetFileSystem()->Name() << "<-- \n";
-
   return 0;
 }
 
@@ -277,7 +276,6 @@ int main(int argc, char **argv) {
 
   if (deleteall) {
     ret = delete_rocksdb(ctx_test, delimiter);
-
     if (0 != ret) {
       return -1;
     }
@@ -395,4 +393,4 @@ int main(int argc, char **argv) {
   std::cout << "==============================================================="
                "=====\n";
   return ret;
-}
+} 
