@@ -24,6 +24,9 @@ std::unordered_map<uint64_t, StoInode *> inode_cache =
 std::unordered_map<uint64_t, StoDir *> dir_cache =
     std::unordered_map<uint64_t, StoDir *>();
 
+std::mutex inode_cache_lock;
+std::mutex dir_cache_lock;
+
 StoInode::StoInode(const uint32_t size, std::string name,
                    BlockManager *allocator) {
   this->inode_number = this->inode.id = g_inode_num++;
@@ -156,6 +159,7 @@ uint64_t add_dnode_to_storage(const uint64_t inum,
 StoDir *get_directory_by_id(const uint64_t inum, BlockManager *allocator) {
   // If our cache is totally empty, we must be in a new file system
   // and we should recreate the root directory
+  dir_cache_lock.lock();
   if (dir_cache.size() == 0) {
     StoDir *root = new StoDir((char *)"/", 2, allocator);
     root->write_to_disk();
@@ -163,8 +167,12 @@ StoDir *get_directory_by_id(const uint64_t inum, BlockManager *allocator) {
   }
 
   if (dir_cache.count(inum) == 1) {
-    return dir_cache[inum];
+    StoDir *stodir = dir_cache[inum];
+	dir_cache_lock.unlock();
+	return stodir;
   }
+
+  dir_cache_lock.unlock();
   std::cout << "new"
             << " " << inum << std::endl;
   struct ss_inode *inode = get_inode_by_id(inum, allocator);
@@ -183,9 +191,12 @@ StoDir *get_directory_by_id(const uint64_t inum, BlockManager *allocator) {
   allocator->read(segment->start_lba, buffer, sizeof(struct ss_dnode));
   struct ss_dnode *dnode = (struct ss_dnode *)buffer;
 
+  dir_cache_lock.lock();
   dir_cache[inum] = new StoDir(inum, dnode, allocator);
   dir_cache[inum]->dnode = *dnode;
-  return dir_cache[inum];
+  StoDir *newdir = dir_cache[inum];
+  dir_cache_lock.unlock();  
+  return newdir;
 }
 
 struct ss_dnode *get_dnode_by_id(const uint64_t inum, BlockManager *allocator) {
@@ -198,9 +209,13 @@ struct ss_inode *get_inode_by_id(const uint64_t inum, BlockManager *allocator) {
 
 static uint16_t count_inodes = 0;
 StoInode *get_stoinode_by_id(const uint64_t inum, BlockManager *allocator) {
+  inode_cache_lock.lock();
   if (inode_cache.count(inum) == 1) {
-    return inode_cache[inum];
+    StoInode *inode = inode_cache[inum];
+	inode_cache_lock.unlock();
+	return inode;
   }
+  inode_cache_lock.unlock();
 
   pthread_mutex_lock(&inode_map_lock);
 
@@ -212,7 +227,10 @@ StoInode *get_stoinode_by_id(const uint64_t inum, BlockManager *allocator) {
 
   pthread_mutex_unlock(&inode_map_lock);
   struct ss_inode *ret = get_inode_from_disk(found->second, allocator);
+  inode_cache_lock.lock();
   inode_cache[inum] = new StoInode(ret, allocator);
+  StoInode *stonode = inode_cache[inum];
+  inode_cache_lock.unlock();
   free(ret);
-  return inode_cache[inum];
+  return stonode;
 }

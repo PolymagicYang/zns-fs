@@ -54,6 +54,8 @@ class StoInode {
 StoInode *get_stoinode_by_id(const uint64_t inum, BlockManager *allocator);
 StoDir *get_directory_by_id(const uint64_t inum, BlockManager *allocator);
 
+extern std::mutex inode_cache_lock;
+extern std::mutex dir_cache_lock;
 extern std::unordered_map<uint64_t, uint64_t> inode_map;
 extern std::unordered_map<uint64_t, StoInode *> inode_cache;
 extern std::unordered_map<uint64_t, StoDir *> dir_cache;

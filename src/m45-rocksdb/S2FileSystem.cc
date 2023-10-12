@@ -52,7 +52,8 @@ uint32_t g_magic_offset = 0;
 namespace ROCKSDB_NAMESPACE {
 // Maps inode numbers to locks. They are not automatically populated,
 // so a lock must be inserted for first use.
-std::map<const std::string, std::mutex> file_locks;
+std::mutex file_lock_lock;
+std::vector<std::string> file_locks;
 
 S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
   std::cout << sizeof(struct ss_inode) << " " << sizeof(struct ss_dnode)
@@ -82,7 +83,7 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
     std::cout << "Error: ret " << ret << "\n";
   }
 
-  file_locks = std::map<const std::string, std::mutex>();
+  file_locks = std::vector<std::string>();
 
   // Create the root directory node
 
@@ -117,11 +118,12 @@ S2FileSystem::~S2FileSystem() {
   for (auto &inode : inode_cache) {
     delete inode.second;
   }
-
+  
   // Reset our global variables
   dir_cache.clear();
   inode_cache.clear();
   inode_map.clear();
+  file_locks.clear();
   g_inode_num = 2;
 
   delete this->allocator;
@@ -139,7 +141,9 @@ struct ss_inode *callback_missing_file_create(const char *name, StoDir *parent,
   inode->write_to_disk(true);
   parent->add_entry(inode->inode_number, 12, name);
   parent->write_to_disk();
+  inode_cache_lock.lock();
   inode_cache[inode->inode_number] = inode;
+  inode_cache_lock.unlock();
 
   return get_inode_by_id(inode->inode_number, allocator);
 }
@@ -369,7 +373,9 @@ struct ss_dnode_record *callback_missing_directory(const char *name,
   directory->write_to_disk();
   parent->add_entry(directory->inode_number, 12, name);
   parent->write_to_disk();
+  dir_cache_lock.lock();
   dir_cache[directory->inode_number] = directory;
+  dir_cache_lock.unlock();
   return parent->find_entry(name);
 }
 
@@ -454,9 +460,7 @@ void callback_found_dir_delete(const char *name, StoDir *parent,
   // Copy the name to the inode and write it to disk. Somewhat
   // inconvient to wrap it around a class.
   parent->remove_entry(name);
-  printf("write to disk\n");
   parent->write_to_disk();
-  printf("write to disk ok\n");
 }
 
 IOStatus S2FileSystem::DeleteDir(const std::string &dirname,
@@ -483,14 +487,11 @@ IOStatus S2FileSystem::DeleteDir(const std::string &dirname,
       find_inode(root, parent_dirname, &found_inode, &cbs, this->allocator);
 
   if (err == DirectoryError::Found_inode) {
-    printf("status ok\n");
     return IOStatus::OK();
   } else if (err != DirectoryError::Created_inode) {
-    printf("status not ok\n");
     return IOStatus::IOError(__FUNCTION__);
   }
 
-  printf("status not ok1\n");
   return IOStatus::IOError(__FUNCTION__);
 }
 
@@ -540,9 +541,7 @@ void callback_found_file_delete(const char *name, StoDir *parent,
   // Copy the name to the inode and write it to disk. Somewhat
   // inconvient to wrap it around a class.
   parent->remove_entry(name);
-  printf("write to disk\n");
   parent->write_to_disk();
-  printf("write to disk ok\n");
 }
 
 IOStatus S2FileSystem::DeleteFile(const std::string &fname,
@@ -564,14 +563,11 @@ IOStatus S2FileSystem::DeleteFile(const std::string &fname,
       find_inode(root, cut, &found_inode, &cbs, this->allocator);
 
   if (err == DirectoryError::Found_inode) {
-    printf("status ok\n");
     return IOStatus::OK();
   } else if (err != DirectoryError::Created_inode) {
-    printf("status not ok\n");
     return IOStatus::IOError(__FUNCTION__);
   }
 
-  printf("status not ok1\n");
   return IOStatus::IOError(__FUNCTION__);
 }
 
@@ -640,14 +636,23 @@ IOStatus S2FileSystem::GetTestDirectory(const IOOptions &options,
 IOStatus S2FileSystem::UnlockFile(FileLock *lock, const IOOptions &options,
                                   __attribute__((unused)) IODebugContext *dbg) {
   std::cerr << "[UnlockFile]" << std::endl;
-
+  
   StoFileLock *slock = reinterpret_cast<StoFileLock *>(lock);
+  file_lock_lock.lock();
+  if (std::find(file_locks.begin(), file_locks.end(), slock->name) == file_locks.end()) {
+	std::cout << "Unlock failed";
+	return IOStatus::IOError("File not locked");	
+  }
+  file_locks.erase(std::remove(file_locks.begin(), file_locks.end(), slock->name), file_locks.end());
+  file_lock_lock.unlock();
   std::cout << slock->inode_num << std::endl;
   if (slock->inode_num == 0) {
     return IOStatus::IOError(__FUNCTION__);
   }
+  
   slock->Clear();
   delete slock;
+
 
   UNUSED(lock);
   UNUSED(options);
@@ -696,6 +701,11 @@ IOStatus S2FileSystem::LockFile(const std::string &fname,
   std::cerr << "[Lock]" << fname << std::endl;
   struct ss_inode found_inode;
 
+  file_lock_lock.lock();
+  if (std::find(file_locks.begin(), file_locks.end(), fname) != file_locks.end())
+	return IOStatus::IOError(fname + "  already locked");
+  file_lock_lock.unlock();
+  
   struct find_inode_callbacks cbs = {
       .missing_directory_cb = NULL,
       .missing_file_cb = callback_missing_file_create_lock,
@@ -706,13 +716,18 @@ IOStatus S2FileSystem::LockFile(const std::string &fname,
   std::string cut = fname.substr(1, fname.size() - 1);
   enum DirectoryError error =
       find_inode(root, cut, &found_inode, &cbs, this->allocator);
-
+  file_lock_lock.lock();
+  file_locks.push_back(fname);
+  file_lock_lock.unlock();
+  
   if (error == DirectoryError::Created_inode) {
     *lock = new StoFileLock(found_inode.id, fname);
     return IOStatus::OK();
   } else if (error != DirectoryError::Found_inode) {
     return IOStatus::IOError("Path to " + fname + " does not exist");
   }
+
+  file_locks.push_back(fname);
 
   return IOStatus::OK();
 }

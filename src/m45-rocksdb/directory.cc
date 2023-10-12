@@ -35,7 +35,6 @@ struct ss_dnode *StoDir::create_dnode() {
 }
 
 void StoDir::write_to_disk() {
-  std::cout << "Write dnode" << std::endl;
   // If the inode is zero we haven't actually written to disk yet
   // and we need to generate the inode
   if (this->inode_number == 0) {
@@ -56,7 +55,9 @@ void StoDir::write_to_disk() {
 
     sinode->add_segment(lba, 1);
     sinode->write_to_disk(true);
+	inode_cache_lock.lock();
     inode_cache[sinode->inode_number] = sinode;
+	inode_cache_lock.unlock();
     return;
   }
 

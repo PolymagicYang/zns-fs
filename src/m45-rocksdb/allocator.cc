@@ -93,7 +93,6 @@ int BlockManager::write(uint64_t lba, void *buffer, uint32_t size) {
   // if no padding needed, only needs before part + buffer part.
   // if address is on the block boundary, no need before part.
   // if no padding and no boundary cross, write directly.
-  printf("write\n");
   int ret = 0;
   uint32_t lba_size = this->disk->lba_size_bytes;
   uint64_t padding_size;
@@ -128,7 +127,6 @@ int BlockManager::write(uint64_t lba, void *buffer, uint32_t size) {
     uint64_t after_index = size + lba - after_base;
     int ret1 = zns_udevice_read(this->disk, after_base, after, lba_size);
 
-    printf("block size %d, buffer size %d\n", padding_size, size);
     memcpy(new_blocks, buffer, size);
     memcpy(new_blocks + size, after + after_index, padding_size - size);
     int ret2 = zns_udevice_write(this->disk, lba, new_blocks, padding_size);
@@ -163,11 +161,6 @@ int BlockManager::write(uint64_t lba, void *buffer, uint32_t size) {
     int ret3 = zns_udevice_write(this->disk, wp_base, new_blocks, padding_size);
     ret = ret & ret3;
   }
-  // printf("lba is %x\n", lba);
-  // for (int i = 0; i < size; i++) {
-  //     printf("%x", ((char*)buffer)[i]);
-  // }
-  // printf("end for\n");
 
   return ret;
 }
