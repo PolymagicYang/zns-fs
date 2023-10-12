@@ -41,6 +41,10 @@ class StoRAFile : public FSRandomAccessFile {
   virtual IOStatus Read(uint64_t offset, size_t size, const IOOptions &options,
                         Slice *result, char *scratch,
                         IODebugContext *dbg) const;
+  
+  void set_buffer(void *buffer);
+  mutable void* buffer;
+  mutable bool clean_slice = false;
 
  private:
   StoFile *file;
@@ -53,6 +57,7 @@ class StoSeqFile : public FSSequentialFile {
   virtual IOStatus Read(size_t size, const IOOptions &options, Slice *result,
                         char *scratch, IODebugContext *dbg);
   virtual IOStatus Skip(uint64_t size);
+  void* buffer;
 
  private:
   StoFile *file;

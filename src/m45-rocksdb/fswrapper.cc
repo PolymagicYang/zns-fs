@@ -49,7 +49,11 @@ StoRAFile::StoRAFile(struct ss_inode *inode, BlockManager *allocator) {
 
 StoRAFile::~StoRAFile() {
   // something
-}
+  delete this->file;
+  if (this->clean_slice) {
+    free(this->buffer);
+  }
+} 
 
 IOStatus StoRAFile::Read(uint64_t offset, size_t size, const IOOptions &options,
                          Slice *result, char *scratch,
@@ -63,6 +67,9 @@ IOStatus StoRAFile::Read(uint64_t offset, size_t size, const IOOptions &options,
   pthread_mutex_lock(&this->file->inode.lock);
   char *buffer =
       (char *)malloc(Round_up(Min(offset + size, this->file->inode.node->size), g_lba_size) * 2);
+  this->buffer = buffer;
+  this->clean_slice = true;
+
   pthread_mutex_unlock(&this->file->inode.lock);
   file->read(size + offset, (void *)buffer);
 
@@ -71,6 +78,7 @@ IOStatus StoRAFile::Read(uint64_t offset, size_t size, const IOOptions &options,
 
   // Copy the buffer over to the result slice
   *result = Slice(buffer, Min(this->file->inode.node->size - (size_t)1, size));
+
   std::cout << "RA read " << result->data() << std::endl;
   return IOStatus::OK();
 }
@@ -84,6 +92,7 @@ StoSeqFile::StoSeqFile(struct ss_inode *inode, BlockManager *allocator) {
 StoSeqFile::~StoSeqFile() {
   // something
   delete this->file;
+  free(this->buffer);
 }
 
 IOStatus StoSeqFile::Read(size_t size, const IOOptions &options, Slice *result,
@@ -110,6 +119,7 @@ IOStatus StoSeqFile::Read(size_t size, const IOOptions &options, Slice *result,
   //   as badly as we do atm.
   *result =
       Slice(buffer, std::min(this->file->inode.node->size - offset - 1, size));
+  this->buffer = buffer;
 
   this->offset = adjusted;
 
