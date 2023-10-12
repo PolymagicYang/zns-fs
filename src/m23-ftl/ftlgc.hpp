@@ -21,6 +21,7 @@ SOFTWARE.
 #ifndef STOSYS_PROJECT_FTLGC_H
 #define STOSYS_PROJECT_FTLGC_H
 #include <pthread.h>
+
 #include <atomic>
 #include <exception>
 #pragma once
@@ -50,15 +51,16 @@ class Calliope {
 
   /** Initialize the thread with the GC*/
   void initialize();
-  	
+
   // Our thread
   std::thread thread;
 
-	  // Cond used to wake up the GC.
+  // Cond used to wake up the GC.
   pthread_cond_t *need_gc;
 
   // Coupled with cond.
   pthread_mutex_t *need_gc_lock;
+
  private:
   uint16_t wait_for_mutex();
   void insert_new_zone(ZNSLogZone *reapable, uint64_t base_addr,

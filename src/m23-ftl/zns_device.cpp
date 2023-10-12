@@ -55,14 +55,13 @@ int deinit_ss_zns_device(struct user_zns_device *my_dev) {
   // cppcheck-suppress cstyleCast
   FTL *ftl = (FTL *)my_dev->_private;
   Calliope *mori = (Calliope *)ftl->mori;
-  
+
   death_sensei = true;
   pthread_mutex_lock(&ftl->need_gc_lock);
   pthread_cond_signal(&ftl->need_gc);
   pthread_mutex_unlock(&ftl->need_gc_lock);
-  if (mori->thread.joinable())
-	  mori->thread.join();
-  
+  if (mori->thread.joinable()) mori->thread.join();
+
   delete ftl;
   return ret;
 }

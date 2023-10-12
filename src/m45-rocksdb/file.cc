@@ -57,7 +57,7 @@ void StoFile::read(const size_t size, void *result) {
       // ((char *)result)[segment_size] = '\0';
       // Move up by the amount we have read
       current_size += segment_size;
-      result = (void *) ((uint64_t) result + segment_size);
+      result = (void *)((uint64_t)result + segment_size);
     }
   }
 

@@ -40,12 +40,13 @@ StoInode::StoInode(const uint32_t size, std::string name,
   this->size = this->inode.size = size;
 
   const auto p0 = std::chrono::time_point<std::chrono::system_clock>{};
-  this->time = this->inode.time = std::chrono::duration_cast<std::chrono::milliseconds>(
-	p0.time_since_epoch())
-	.count();
+  this->time = this->inode.time =
+      std::chrono::duration_cast<std::chrono::milliseconds>(
+          p0.time_since_epoch())
+          .count();
   this->flags = this->inode.flags = 0;
   this->namelen = this->inode.strlen = name.size();
-  this->name  = name;
+  this->name = name;
   this->allocator = allocator;
   strncpy(this->inode.name, name.c_str(), this->namelen);
 }
@@ -75,7 +76,7 @@ void StoInode::write_to_disk(bool update) {
   // If we never change the inode then we don't actually need to write
   // it to disk
   if (!this->dirty) {
-	return;
+    return;
   }
 
   // Enter the data into the system maps so we know where to find it.
@@ -96,26 +97,26 @@ static uint64_t counter = 0;
 void StoInode::add_segment(const uint64_t lba, const size_t nblocks) {
   this->dirty = true;
 
-  if (this->segment_index != 0) {	  
-	  struct ss_segment *old = &this->inode.segments[this->segment_index - 1];
-	  uint64_t slba = Round_down(lba, g_lba_size);
-	  // Calculate the last written LBA by adding the difference between
-	  // LBA numbers together with the number of blocks. We can save two
-	  // subtractions if we are so inclined.
-	  uint64_t last_lba = Round_down(old->start_lba, g_lba_size) +
-		  (g_lba_size * (old->nblocks - 1));  
-	  if (last_lba == slba) {
-		  this->dirty = false;
-		  return;
-	  } else if ((last_lba + g_lba_size) == slba) {
-		  this->inode.segments[this->segment_index - 1] = {.start_lba = old->start_lba,
-														   .nblocks = old->nblocks + 1};
-		  return;
-	  }
+  if (this->segment_index != 0) {
+    struct ss_segment *old = &this->inode.segments[this->segment_index - 1];
+    uint64_t slba = Round_down(lba, g_lba_size);
+    // Calculate the last written LBA by adding the difference between
+    // LBA numbers together with the number of blocks. We can save two
+    // subtractions if we are so inclined.
+    uint64_t last_lba = Round_down(old->start_lba, g_lba_size) +
+                        (g_lba_size * (old->nblocks - 1));
+    if (last_lba == slba) {
+      this->dirty = false;
+      return;
+    } else if ((last_lba + g_lba_size) == slba) {
+      this->inode.segments[this->segment_index - 1] = {
+          .start_lba = old->start_lba, .nblocks = old->nblocks + 1};
+      return;
+    }
   }
 
   this->inode.segments[this->segment_index++] = {.start_lba = lba,
-												 .nblocks = nblocks};
+                                                 .nblocks = nblocks};
 }
 StoInode::~StoInode() {
   // free(this->name);
@@ -151,7 +152,7 @@ void update_dnode_in_storage(const uint64_t inum, const struct ss_dnode *dnode,
   struct ss_segment *segment = &inode->segments[0];
   const uint64_t lba = segment->start_lba;
 
-  int ret = allocator->write(lba, (void *) dnode, sizeof(struct ss_dnode));
+  int ret = allocator->write(lba, (void *)dnode, sizeof(struct ss_dnode));
 
   assert(ret == 0);
 }
@@ -160,7 +161,7 @@ uint64_t add_dnode_to_storage(const uint64_t inum,
                               const struct ss_dnode *drecord,
                               BlockManager *allocator) {
   uint64_t lba;
-  allocator->append((void*) drecord, sizeof(struct ss_dnode), &lba, true);
+  allocator->append((void *)drecord, sizeof(struct ss_dnode), &lba, true);
   pthread_mutex_lock(&inode_map_lock);
   inode_map[inum] = lba;
   pthread_mutex_unlock(&inode_map_lock);

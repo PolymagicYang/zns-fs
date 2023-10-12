@@ -1,7 +1,8 @@
 #pragma once
+#include <pthread.h>
+
 #include "allocator.hpp"
 #include "directory.hpp"
-#include <pthread.h>
 #ifndef STOSYS_PROJECT_INODE_H
 #define STOSYS_PROJECT_INODE_H
 #include <unordered_map>

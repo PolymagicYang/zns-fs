@@ -17,8 +17,7 @@ StoDir::StoDir(char *name, const uint64_t parent_inode,
   this->name[this->namelen] = '\0';
   this->records = std::array<struct ss_dnode_record, DIRSIZE>();
   this->allocator = allocator;
-  strncpy(this->dnode.dirname, this->name, length);  
-  
+  strncpy(this->dnode.dirname, this->name, length);
 }
 
 StoDir::StoDir(const uint64_t inum, const struct ss_dnode *node,
@@ -41,29 +40,28 @@ void StoDir::write_to_disk() {
   // and we need to generate the inode
   if (this->inode_number == 0) {
     // Add our dnode to the system with a fresh inode
-    StoInode *sinode = new StoInode(DIRSIZE, name, this->allocator);	
+    StoInode *sinode = new StoInode(DIRSIZE, name, this->allocator);
     sinode->flags |= FLAG_DIRECTORY;
-	sinode->inode.flags |= FLAG_DIRECTORY;
-	
-	sinode->dirty = true;
+    sinode->inode.flags |= FLAG_DIRECTORY;
+
+    sinode->dirty = true;
 
     this->inode_number = sinode->inode_number;
     // Add the parent and self referential files to our system
     this->add_entry(this->inode_number, 12, ".");
     this->add_entry(this->parent_inode, 12, "..");
 
-    const uint64_t lba = add_dnode_to_storage(
-        this->inode_number, &this->dnode, this->allocator);
+    const uint64_t lba =
+        add_dnode_to_storage(this->inode_number, &this->dnode, this->allocator);
 
     sinode->add_segment(lba, 1);
     sinode->write_to_disk(true);
-	inode_cache[sinode->inode_number] = sinode;
+    inode_cache[sinode->inode_number] = sinode;
     return;
   }
 
   // Use our stored inode number
-  update_dnode_in_storage(this->inode_number, &this->dnode,
-                          this->allocator);
+  update_dnode_in_storage(this->inode_number, &this->dnode, this->allocator);
 }
 
 int StoDir::add_entry(const uint16_t inode_number, const uint16_t reclen,
@@ -92,9 +90,9 @@ int StoDir::add_entry(const uint16_t inode_number, const uint16_t reclen,
 
 struct ss_dnode_record *StoDir::find_entry(const char *name) {
   if (name == NULL || this == NULL) return NULL;
-  
+
   size_t needle_size = strlen(name);
-  
+
   for (auto &entry : this->records) {
     // Weird C++ behaviour, we force it to be boolean.
     // We want to check whether they have the same length and if the entry

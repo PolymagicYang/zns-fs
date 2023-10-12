@@ -21,7 +21,7 @@ uint64_t store_segment_on_disk(const size_t size, void *data,
     pthread_rwlock_unlock(&allocator->wp.wp_lock);
   }
   int ret = allocator->append(data, size, &lba, true);
-  
+
   // ret == 0 => No space for writing.
   assertm(ret == 0, "write failed");
 

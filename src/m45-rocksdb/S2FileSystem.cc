@@ -55,7 +55,8 @@ namespace ROCKSDB_NAMESPACE {
 std::map<const std::string, std::mutex> file_locks;
 
 S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
-  std::cout << sizeof(struct ss_inode) << " " << sizeof(struct ss_dnode) << std::endl;
+  std::cout << sizeof(struct ss_inode) << " " << sizeof(struct ss_dnode)
+            << std::endl;
   FileSystem::Default();
   std::string sdelimiter = ":";
   std::string edelimiter = "://";
@@ -118,11 +119,11 @@ S2FileSystem::~S2FileSystem() {
   deinit_ss_zns_device(this->_zns_dev);
 
   for (auto &dir : dir_cache) {
-	delete dir.second;
+    delete dir.second;
   }
 
   for (auto &inode : inode_cache) {
-	delete inode.second;
+    delete inode.second;
   }
 }
 
@@ -139,7 +140,7 @@ struct ss_inode *callback_missing_file_create(const char *name, StoDir *parent,
   parent->add_entry(inode->inode_number, 12, name);
   parent->write_to_disk();
   inode_cache[inode->inode_number] = inode;
-  
+
   return get_inode_by_id(inode->inode_number, allocator);
 }
 

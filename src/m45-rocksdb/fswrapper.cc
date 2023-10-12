@@ -61,8 +61,9 @@ IOStatus StoRAFile::Read(uint64_t offset, size_t size, const IOOptions &options,
   // Read a total offset + size bytes from the underlying file
   // TODO(valentijn): memory leak?
   pthread_mutex_lock(&this->file->inode.lock);
-  char *buffer =
-      (char *)malloc(Round_up(Min(offset + size, this->file->inode.node->size), g_lba_size) * 2);
+  char *buffer = (char *)malloc(
+      Round_up(Min(offset + size, this->file->inode.node->size), g_lba_size) *
+      2);
   pthread_mutex_unlock(&this->file->inode.lock);
   file->read(size + offset, (void *)buffer);
 
@@ -101,9 +102,9 @@ IOStatus StoSeqFile::Read(size_t size, const IOOptions &options, Slice *result,
   char *buffer = (char *)malloc(Round_up(adjusted, g_lba_size) * 2);
   pthread_mutex_unlock(&this->file->inode.lock);
   this->file->read(adjusted, (void *)buffer);
-  ((char*)buffer)[adjusted-1] = '\0';
+  ((char *)buffer)[adjusted - 1] = '\0';
   *buffer += offset;
-  
+
   // Clasp the amount we store based on the current size of our inode
   // TODO(everyone): make this more generic so we don't overallocate memory
   //   as badly as we do atm.
