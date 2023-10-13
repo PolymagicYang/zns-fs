@@ -127,7 +127,7 @@ class ZNSDataZone {
   uint64_t mdts_size;
 
   /** Map of the physical addresses to the buffer and state */
-  std::vector<bool> block_map;
+  std::vector<int> block_map;
 
   /** Set the block to being free based on the physical address */
   int invalidate_block(uint16_t index);

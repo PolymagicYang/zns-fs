@@ -45,9 +45,9 @@ ZNSDataZone::ZNSDataZone(const int zns_fd, const uint32_t nsid,
   this->lba_size = lba_size;
   this->mdts_size = mdts_size;
 
-  this->block_map = std::vector<bool>();
+  this->block_map = std::vector<int>();
   for (uint16_t i = 0; i < this->capacity; i++) {
-    this->block_map.push_back(false);
+    this->block_map.push_back(0);
   }
 }
 
@@ -82,7 +82,7 @@ int ZNSDataZone::reset() {
 
   // Remove all blocks from the memory of this zone
   for (uint16_t i = 0; i < this->capacity; i++) {
-    this->block_map[i] = false;
+    this->block_map[i] = 0;
   }
   return ret;
 }
@@ -181,7 +181,7 @@ int ZNSDataZone::invalidate_block(uint16_t index) {
   }
 
   // Store the invalid zone in the system
-  this->block_map[index] = false;
+  this->block_map[index] = 0;
 
   return 0;
 }
@@ -210,7 +210,7 @@ bool ZNSDataZone::write_until(void *buffer, uint32_t size, uint32_t index) {
 
   int write_t = ss_nvme_write(this->zns_fd, this->nsid, this->position, 0, 0, 0,
                               0, 0, 0, 0, size, buffer, 0, nullptr);
-  this->block_map[this->position - this->base] = true;
+  this->block_map[this->position - this->base] = 1;
   if (write_t != 0) {
     return false;
   }
@@ -304,7 +304,7 @@ uint32_t ZNSDataZone::write(const void *buffer, uint32_t size,
 
   // mark valid until the current index.
   for (uint16_t i = init_index; i < this->position - this->base; i++) {
-    this->block_map[i] = true;
+    this->block_map[i] = 1;
   }
 
   return 0;

@@ -80,7 +80,9 @@ uint16_t Calliope::wait_for_mutex() {
     pthread_mutex_lock(this->need_gc_lock);
     pthread_cond_wait(this->need_gc, this->need_gc_lock);
     pthread_mutex_unlock(this->need_gc_lock);
-    if (death_sensei) return -1;
+    if (death_sensei) {
+      return -1;
+    }
     this->select_log_zone(&log_zone_num);
   }
 

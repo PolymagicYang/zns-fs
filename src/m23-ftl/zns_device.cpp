@@ -65,6 +65,7 @@ int deinit_ss_zns_device(struct user_zns_device *my_dev) {
 
   // Store current ftl status.
   
+  ftl->backup();
   free(my_dev);
   delete ftl->mori;
   delete ftl;

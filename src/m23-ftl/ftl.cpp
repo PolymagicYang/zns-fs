@@ -24,6 +24,8 @@ SOFTWARE.
 
 #include "ftl.hpp"
 
+#include <algorithm>
+#include <cstring>
 #include <pthread.h>
 #include <sys/types.h>
 
@@ -34,7 +36,10 @@ SOFTWARE.
 #include "datazone.hpp"
 #include "ftlgc.hpp"
 #include "logzone.hpp"
+#include "znsblock.hpp"
 #include "zone.hpp"
+
+uint64_t init_code = 12345678910;
 
 void create_zones(const int zns_fd, const uint32_t nsid,
                   const uint64_t lba_size, const uint64_t mdts_size,
@@ -340,31 +345,44 @@ int FTL::write(uint64_t lba, void *buffer, uint32_t size) {
 void FTL::backup() {
   // Store everything in the last zone.
   // Calculate the last zone address. 
-  uint32_t zone_cap_bytes = this->zcap * lba_size;
   uint32_t zones_num = this->zones_log.size() + this->zones_data.size();
-  uint64_t last_zone_addr = zone_cap_bytes * (zones_num - 1);
+  uint64_t last_zone_addr = this->zcap * (zones_num - 1);
 
   // store log zones data.
   // char logzone_buf[zones_log.size() ]
+  std::vector<uint64_t> wps;
+  std::vector<uint64_t> pas;
+  std::vector<ZNSBlock> blocks;
   for (uint16_t i = 0; i < zones_log.size(); i++) {
     ZNSLogZone* zone = &this->zones_log[i];
     uint64_t wp = zone->get_wp();
+    wps.push_back(wp);
     pthread_rwlock_rdlock(&zone->block_map.lock);
-    BlockMap map = zone->block_map.map;
+    BlockMap bmap = zone->block_map.map;
     pthread_rwlock_unlock(&zone->block_map.lock);
+
+    for (BlockMap::iterator iter = bmap.begin(); iter != bmap.end(); iter++) {
+      uint64_t pa = iter->first;
+      ZNSBlock block = iter->second;
+      pas.push_back(pa);
+      blocks.push_back(block);
+    }
   }
+  uint64_t lzone_buf_size = wps.size() * sizeof(uint64_t) + pas.size() * sizeof(uint64_t) + blocks.size() * sizeof(ZNSBlock);
 
   // store data zones data.
-  char datazone_buf[this->zones_data.size() * (sizeof(bool) + sizeof(uint64_t))];
+  uint64_t dzone_buf_size = this->zones_data.size() * (this->zcap * sizeof(int) + sizeof(uint64_t));
+  char datazone_buf[dzone_buf_size];
   uint64_t map_buf_addr = (uint64_t) datazone_buf;
   for (uint16_t i = 0; i < this->zones_data.size(); i++) {
     ZNSDataZone *zone = &this->zones_data[i];
     uint64_t wp = zone->get_wp();
-    std::vector<bool> map = zone->block_map;
-
-    memcpy((void *) datazone_buf, &wp, sizeof(uint64_t));
-    memcpy((void *) datazone_buf, &map, map.size());
-    map_buf_addr += (sizeof(uint64_t) + map.size());
+    std::vector<int> map = zone->block_map;
+    
+    memcpy((void *) map_buf_addr, &wp, sizeof(uint64_t));
+    map_buf_addr += sizeof(uint64_t);
+    memcpy((void *) map_buf_addr, map.data(), map.size());
+    map_buf_addr += map.size();
   }
 
   // store log zone map.
@@ -372,14 +390,16 @@ void FTL::backup() {
   raw_map logmap = this->log_map.map;
   pthread_rwlock_unlock(&this->log_map.lock);
 
-  char logmap_buf[logmap.size() * (sizeof(uint64_t) + sizeof(Addr))];
+  uint64_t lmap_buf_size = logmap.size() * (sizeof(uint64_t) + sizeof(Addr));
+  char logmap_buf[lmap_buf_size];
   map_buf_addr = (uint64_t) logmap_buf;
   for (raw_map::iterator iter = logmap.begin(); iter != logmap.end(); iter++) {
     uint64_t lba = iter->first;
     Addr pa = iter->second;
     memcpy((void *) map_buf_addr, &lba, sizeof(uint64_t));
+    map_buf_addr += sizeof(uint64_t);
     memcpy((void *) map_buf_addr, &pa, sizeof(Addr));
-    map_buf_addr += (sizeof(uint64_t) + sizeof(Addr));
+    map_buf_addr += sizeof(Addr);
   }
 
   // store data zone map.
@@ -387,16 +407,60 @@ void FTL::backup() {
   raw_map datamap = this->data_map.map;
   pthread_rwlock_unlock(&this->data_map.lock);
 
-  char datamap_buf[logmap.size() * (sizeof(uint64_t) + sizeof(Addr))];
-  map_buf_addr = (uint64_t) datamap_buf;
-  for (raw_map::iterator iter = logmap.begin(); iter != logmap.end(); iter++) {
-    uint64_t lba = iter->first;
-    Addr pa = iter->second;
-    memcpy((void *) map_buf_addr, &lba, sizeof(uint64_t));
-    memcpy((void *) map_buf_addr, &pa, sizeof(Addr));
-    map_buf_addr += (sizeof(uint64_t) + sizeof(Addr));
-  }
+  uint64_t dmap_buf_size = datamap.size() * (sizeof(uint64_t) + sizeof(Addr));
+  
+  
 
+  uint64_t total_size = lzone_buf_size + dzone_buf_size + lmap_buf_size + dmap_buf_size;
+  // [init_code] [total_size] [lzone_buf_size] [dzone_buf_size] [lmap_buf_size] [dmap_buf_size] [metadata].
+  // we know the number of log zones and data zones, so it should be easy to restore them.
+
+  // make sure it always be the multiple of lba_size.
+  uint32_t buf_size = ((sizeof(uint64_t) * 6 + total_size) / this->lba_size) * this->lba_size + this->lba_size;
+  uint16_t nlb = buf_size / this->lba_size;
+  char final_buf[buf_size];
+  uint64_t final_buf_addr = (uint64_t) final_buf;
+
+  memcpy((void *) final_buf_addr, &init_code, sizeof(uint64_t));
+  final_buf_addr += sizeof(uint64_t);
+  memcpy((void *) final_buf_addr, &total_size, sizeof(uint64_t));
+  final_buf_addr += sizeof(uint64_t);
+  memcpy((void *) final_buf_addr, &lzone_buf_size, sizeof(uint64_t));
+  final_buf_addr += sizeof(uint64_t);
+  memcpy((void *) final_buf_addr, &dzone_buf_size, sizeof(uint64_t));
+  final_buf_addr += sizeof(uint64_t);
+  memcpy((void *) final_buf_addr, &lmap_buf_size, sizeof(uint64_t));
+  final_buf_addr += sizeof(uint64_t);
+  memcpy((void *) final_buf_addr, &dmap_buf_size, sizeof(uint64_t));
+  final_buf_addr += sizeof(uint64_t);
+  memcpy((void *) final_buf_addr, wps.data(), wps.size());
+  final_buf_addr += wps.size();
+  memcpy((void *) final_buf_addr, pas.data(), pas.size());
+  final_buf_addr += pas.size();
+  memcpy((void *) final_buf_addr, blocks.data(), blocks.size());
+  final_buf_addr += blocks.size();
+  memcpy((void *) final_buf_addr, datazone_buf, dzone_buf_size);
+  final_buf_addr += dzone_buf_size;
+  memcpy((void *) final_buf_addr, logmap_buf, lmap_buf_size);
+  final_buf_addr += lmap_buf_size;
+
+  if (dmap_buf_size) {
+    // no GC if datamap size is zero.
+    char datamap_buf[dmap_buf_size];
+    map_buf_addr = (uint64_t) datamap_buf;
+    for (raw_map::iterator iter = datamap.begin(); iter != datamap.end(); iter++) {
+      uint64_t lba = iter->first;
+      Addr pa = iter->second;
+      memcpy((void *) map_buf_addr, &lba, sizeof(uint64_t));
+      memcpy((void *) map_buf_addr, &pa, sizeof(Addr));
+      map_buf_addr += (sizeof(uint64_t) + sizeof(Addr));
+    }
+    memcpy((void *) final_buf_addr, datamap_buf, dmap_buf_size);
+  }
+  final_buf_addr += dmap_buf_size;
+  printf("meta data size is %d, slba is %lx, zones num is %d\n", buf_size, last_zone_addr, zones_num);
+
+  ss_nvme_write_wrapper(this->fd, this->nsid, last_zone_addr, nlb, buf_size, final_buf);
 }
 
 #endif
