@@ -96,11 +96,6 @@ bool ZNSLogZone::is_full() {
   return ret;
 }
 
-uint64_t backup(uint64_t addr) {
-  // backup 1. position (current write pointer).
-  //        2. block map.
-}
-
 /*
 WARN: unsafe function, read and write will call this function with their own
 lock. Use this method with a lock!
@@ -245,7 +240,6 @@ uint32_t ZNSLogZone::write(void *buffer, uint32_t size, uint32_t *write_size,
     uint64_t local_lba = lba + i * this->lba_size;
     this->block_map.map[pa] = {.address = pa,
                                .logical_address = local_lba,
-                               .buffer = buffer,
                                .valid = true};
   }
 

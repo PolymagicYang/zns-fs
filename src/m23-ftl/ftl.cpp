@@ -345,12 +345,58 @@ void FTL::backup() {
   uint64_t last_zone_addr = zone_cap_bytes * (zones_num - 1);
 
   // store log zones data.
+  // char logzone_buf[zones_log.size() ]
+  for (uint16_t i = 0; i < zones_log.size(); i++) {
+    ZNSLogZone* zone = &this->zones_log[i];
+    uint64_t wp = zone->get_wp();
+    pthread_rwlock_rdlock(&zone->block_map.lock);
+    BlockMap map = zone->block_map.map;
+    pthread_rwlock_unlock(&zone->block_map.lock);
+  }
 
   // store data zones data.
+  char datazone_buf[this->zones_data.size() * (sizeof(bool) + sizeof(uint64_t))];
+  uint64_t map_buf_addr = (uint64_t) datazone_buf;
+  for (uint16_t i = 0; i < this->zones_data.size(); i++) {
+    ZNSDataZone *zone = &this->zones_data[i];
+    uint64_t wp = zone->get_wp();
+    std::vector<bool> map = zone->block_map;
+
+    memcpy((void *) datazone_buf, &wp, sizeof(uint64_t));
+    memcpy((void *) datazone_buf, &map, map.size());
+    map_buf_addr += (sizeof(uint64_t) + map.size());
+  }
 
   // store log zone map.
+  pthread_rwlock_rdlock(&this->log_map.lock);
+  raw_map logmap = this->log_map.map;
+  pthread_rwlock_unlock(&this->log_map.lock);
+
+  char logmap_buf[logmap.size() * (sizeof(uint64_t) + sizeof(Addr))];
+  map_buf_addr = (uint64_t) logmap_buf;
+  for (raw_map::iterator iter = logmap.begin(); iter != logmap.end(); iter++) {
+    uint64_t lba = iter->first;
+    Addr pa = iter->second;
+    memcpy((void *) map_buf_addr, &lba, sizeof(uint64_t));
+    memcpy((void *) map_buf_addr, &pa, sizeof(Addr));
+    map_buf_addr += (sizeof(uint64_t) + sizeof(Addr));
+  }
 
   // store data zone map.
+  pthread_rwlock_rdlock(&this->data_map.lock);
+  raw_map datamap = this->data_map.map;
+  pthread_rwlock_unlock(&this->data_map.lock);
+
+  char datamap_buf[logmap.size() * (sizeof(uint64_t) + sizeof(Addr))];
+  map_buf_addr = (uint64_t) datamap_buf;
+  for (raw_map::iterator iter = logmap.begin(); iter != logmap.end(); iter++) {
+    uint64_t lba = iter->first;
+    Addr pa = iter->second;
+    memcpy((void *) map_buf_addr, &lba, sizeof(uint64_t));
+    memcpy((void *) map_buf_addr, &pa, sizeof(Addr));
+    map_buf_addr += (sizeof(uint64_t) + sizeof(Addr));
+  }
+
 }
 
 #endif

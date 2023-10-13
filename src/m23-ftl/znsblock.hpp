@@ -28,7 +28,6 @@ typedef uint64_t physaddr_t;
 struct ZNSBlock {
   physaddr_t address;
   physaddr_t logical_address;
-  const void *buffer;
   bool valid;
 };
 
