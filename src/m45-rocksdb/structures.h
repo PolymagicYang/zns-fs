@@ -25,11 +25,7 @@
 meta data layout:
 
 0-15 bytes: verify if the device is initialized. 
-16-23 bytes: pointer to the inode cache.
-24-27 bytes: size of inode cache (key + value).
-28-35 bytes: pointer to the directory cache.
-36-41 bytes: size of directory cache (key + value).
-42-49 bytes: current write pointer.
+16-23 bytes: pointer to the imap (this pointer should as same as the wp, because we'll overwrite this imap).
 */
 
 #define Round_up(num, round) (((num) + (round)-1) / (round)) * (round)

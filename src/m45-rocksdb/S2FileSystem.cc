@@ -106,8 +106,9 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
   if (strcmp(init_code_disk, init_code) == 0) {
     // already exits
     std::cout << "initialized" << std::endl;
-    // reconstruct the dir cache.
+    // reconstruct the imap.
     // reconstruct the inode cache.
+    // reconstruct the dir cache.
     // update current wp in the allocator.
   } else {
     StoDir *root = new StoDir((char *)"/", 2, allocator);
