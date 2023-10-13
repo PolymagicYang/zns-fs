@@ -23,6 +23,7 @@ SOFTWARE.
 #include "S2FileSystem.h"
 // #include "allocator.hpp"
 
+#include <cstring>
 #include <stosys_debug.h>
 #include <sys/mman.h>
 #include <utils.h>
@@ -43,6 +44,7 @@ SOFTWARE.
 #include "structures.h"
 
 uint64_t g_lba_size;
+char init_code[INIT_CODE_SIZE];
 
 // Magical offset that increments by one for each FTL deinit to account
 // for... something that causes all reads to be offset by one for...
@@ -76,7 +78,6 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
   int ret = init_ss_zns_device(&params, &this->_zns_dev);
   free(params.name);
 
-  this->allocator = new BlockManager(this->_zns_dev);
   if (ret != 0) {
     std::cout << "Error: " << uri_db_path << " failed to open the device "
               << device.c_str() << "\n";
@@ -94,6 +95,26 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
   // Globally store our LBA size so we can access everywhere
   // without copying everything over.
   g_lba_size = this->_zns_dev->lba_size_bytes;
+
+  // reboot phase.
+  char meta[g_lba_size];
+  char init_code_disk[INIT_CODE_SIZE];
+  memcpy(init_code, INIT_CODE, INIT_CODE_SIZE);
+  this->allocator = new BlockManager(this->_zns_dev);
+  this->allocator->read(META_ADDR, meta, g_lba_size);
+  memcpy(init_code_disk, meta, INIT_CODE_SIZE);
+  if (strcmp(init_code_disk, init_code) == 0) {
+    // already exits
+    std::cout << "initialized" << std::endl;
+    // reconstruct the dir cache.
+    // reconstruct the inode cache.
+    // update current wp in the allocator.
+  } else {
+    StoDir *root = new StoDir((char *)"/", 2, allocator);
+    root->write_to_disk();
+    dir_cache[root->inode_number] = root;
+    std::cout << "uninitialized" << std::endl;
+  }
 
   // Be aware that the behaviour here is a bit subtle, the inode is
   // not generated until the directory is written to disk. So you can

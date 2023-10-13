@@ -13,7 +13,7 @@
 BlockManager::BlockManager(user_zns_device *disk) {
   this->lba_size = disk->lba_size_bytes;
   // TODO(Zhiyang): Leave some spaces for imap metadata.
-  this->imap_size = 0;
+  this->imap_size = this->lba_size;
   this->disk = disk;
   this->capacity = disk->capacity_bytes;
   this->wp = WritePointer{
@@ -36,6 +36,8 @@ int BlockManager::append(void *buffer, uint32_t size, uint64_t *start_addr,
   int ret = 0;
   pthread_rwlock_wrlock(&this->wp.wp_lock);
   uint64_t wp = this->get_current_position();
+  
+  printf("current wp is %lx, size is %d\n", wp, size);
   uint32_t lba_size = this->disk->lba_size_bytes;
   *start_addr = wp;
   if (wp + size >= disk->capacity_bytes) {
