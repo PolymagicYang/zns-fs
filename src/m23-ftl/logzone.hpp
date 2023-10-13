@@ -38,6 +38,9 @@ class ZNSLogZone {
   /** Calculates the current capacity of the block. */
   uint32_t get_current_capacity() const;
 
+  /** Backup the current status, and return the next write position for free space. */
+  uint64_t backup(uint64_t addr);
+
   /** Gets a block from the zone based on the block id. */
   uint32_t read(const uint64_t lba, const void *buffer, uint32_t size,
                 uint32_t *read_size);

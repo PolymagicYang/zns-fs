@@ -74,7 +74,7 @@ void create_zones(const int zns_fd, const uint32_t nsid,
 
   std::vector<ZNSDataZone> temp_data_zones = std::vector<ZNSDataZone>();
   std::vector<ZNSDataZone> temp_rerved_zones = std::vector<ZNSDataZone>();
-  for (; i < zns_report->nr_zones; i++) {
+  for (; i < zns_report->nr_zones - 1; i++) {
     struct nvme_zns_desc current = zns_report->entries[i];
 
     const enum ZoneZNSType ztype = static_cast<ZoneZNSType>(current.zt);
@@ -335,6 +335,22 @@ int FTL::write(uint64_t lba, void *buffer, uint32_t size) {
     buffer = (void *)((uint64_t)buffer + write_size);
   }
   return 0;
+}
+
+void FTL::backup() {
+  // Store everything in the last zone.
+  // Calculate the last zone address. 
+  uint32_t zone_cap_bytes = this->zcap * lba_size;
+  uint32_t zones_num = this->zones_log.size() + this->zones_data.size();
+  uint64_t last_zone_addr = zone_cap_bytes * (zones_num - 1);
+
+  // store log zones data.
+
+  // store data zones data.
+
+  // store log zone map.
+
+  // store data zone map.
 }
 
 #endif

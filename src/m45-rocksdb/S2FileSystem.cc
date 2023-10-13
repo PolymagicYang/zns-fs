@@ -72,7 +72,7 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
   // make sure to setup these parameters properly and check the forced reset
   // flag for M5
   params.name = strdup(device.c_str());
-  params.log_zones = 3;
+  params.log_zones = 4;
   params.gc_wmark = 1;
   params.force_reset = false;
   int ret = init_ss_zns_device(&params, &this->_zns_dev);
@@ -105,8 +105,25 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
   memcpy(init_code_disk, meta, INIT_CODE_SIZE);
   if (strcmp(init_code_disk, init_code) == 0) {
     // already exits
-    std::cout << "initialized" << std::endl;
+    std::cout << "Initialized" << std::endl;
     // reconstruct the imap.
+    uint64_t imap_addr;
+    uint32_t imap_size;
+    memcpy(&imap_addr, (void *) (((uint64_t) meta) + INIT_CODE_SIZE), sizeof(uint64_t));
+    memcpy(&imap_size, (void *) (((uint64_t) meta) + INIT_CODE_SIZE + sizeof(uint64_t)), sizeof(uint32_t));
+    
+    char imap_buf[imap_size]; // imap is a pair of uint64_t.
+    this->allocator->read(imap_addr, imap_buf, imap_size);
+    uint32_t entries_num = (imap_size / sizeof(uint64_t)) / 2;
+    uint64_t imap_buf_addr = (uint64_t) imap_buf;
+    for (uint32_t i = 0; i < entries_num; i++) {
+      uint64_t inode_num;
+      uint64_t inode_addr;
+      memcpy(&inode_num, (void *) imap_addr, sizeof(uint64_t));
+      memcpy(&inode_addr, (void *) (imap_addr + sizeof(uint64_t)), sizeof(uint64_t));
+      inode_map[inode_num] = inode_addr;
+      imap_buf_addr += 2 * sizeof(uint64_t);
+    }
     // reconstruct the inode cache.
     // reconstruct the dir cache.
     // update current wp in the allocator.
@@ -114,7 +131,7 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
     StoDir *root = new StoDir((char *)"/", 2, allocator);
     root->write_to_disk();
     dir_cache[root->inode_number] = root;
-    std::cout << "uninitialized" << std::endl;
+    std::cout << "Uninitialized" << std::endl;
   }
 
   // Be aware that the behaviour here is a bit subtle, the inode is

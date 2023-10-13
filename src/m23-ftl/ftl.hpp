@@ -92,6 +92,8 @@ class FTL {
   // return index of all the free log zones.
   std::vector<int> get_free_logzones();
 
+  void backup();
+
   // return index of all the free log zones.
   std::vector<int> get_free_datazones();
 

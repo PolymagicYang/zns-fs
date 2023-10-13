@@ -63,6 +63,8 @@ int deinit_ss_zns_device(struct user_zns_device *my_dev) {
 
   if (mori != NULL && mori->thread.joinable()) mori->thread.join();
 
+  // Store current ftl status.
+  
   free(my_dev);
   delete ftl->mori;
   delete ftl;
