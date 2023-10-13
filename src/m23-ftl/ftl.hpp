@@ -61,6 +61,7 @@ class FTL {
   pthread_mutex_t clean_finish_lock;
 
   int log_zones;
+  uint64_t init_code;
 
   /** Store a list of all the zones in the system */
   std::vector<ZNSLogZone> zones;
