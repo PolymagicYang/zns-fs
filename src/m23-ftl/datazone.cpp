@@ -118,8 +118,9 @@ int ZNSDataZone::finish_zone(void) const {
 }
 
 int ZNSDataZone::reset_zone(void) {
+  int ret = send_management_command(NVME_ZNS_ZSA_RESET);
   this->position = this->slba;
-  return send_management_command(NVME_ZNS_ZSA_RESET);
+  return ret;
 }
 
 std::ostream &operator<<(std::ostream &os, ZNSDataZone const &tc) {

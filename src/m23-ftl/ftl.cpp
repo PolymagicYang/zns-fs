@@ -70,10 +70,19 @@ void create_zones(const int zns_fd, const uint32_t nsid,
       write_pointer = zone_slba;
     }
 
+    uint64_t full = -1;
+    if (write_pointer == full) {
+      write_pointer = capacity * (i + 1);
+    }
+
     ZNSLogZone zone =
         ZNSLogZone(zns_fd, nsid, i, capacity, capacity, zstate, ztype,
                    zone_slba, HostManaged, write_pointer, lba_size, mdts_size);
     zones.push_back(zone);
+
+    printf("zone %d\n", i);
+    printf("current position %lx\n", write_pointer);
+    printf("\n");
   }
   *log_zones = zones;
 
@@ -91,6 +100,11 @@ void create_zones(const int zns_fd, const uint32_t nsid,
 
     if (RESET_ZONE) {
       write_pointer = zone_slba;
+    }
+
+    uint64_t full = -1;
+    if (write_pointer == full) {
+      write_pointer = capacity * (i + 1);
     }
 
     ZNSDataZone zone =
@@ -232,8 +246,8 @@ FTL::FTL(int fd, uint64_t mdts, uint32_t nsid, uint16_t lba_size, int gc_wmark,
         // printf("lba %lx -> pa %lx, zone num: %d\t", lba, pa.addr, pa.zone_num);
       }
       // printf("\n");
-
     }
+    ss_device_zone_reset(fd, nsid, last_zone_addr);
   }
   // zones_log.at(0).reset_all_zones();
   // Start our reaper rapper and store her as a void pointer in our FTL
@@ -572,6 +586,10 @@ void FTL::backup() {
     void* blocks_buf = blocks_group[i].data();
     uint64_t blocks_num = blocks_group[i].size();
     uint64_t num = lbas_num;
+
+    printf("zone %d\n", i);
+    printf("current position %lx\n", zones_log[i].position);
+    printf("\n");
 
     memcpy((void *) final_buf_addr, &num, sizeof(uint64_t));
     final_buf_addr += sizeof(uint64_t);
