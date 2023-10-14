@@ -138,7 +138,56 @@ FTL::FTL(int fd, uint64_t mdts, uint32_t nsid, uint16_t lba_size, int gc_wmark,
 
   uint64_t init_code_disk;
   memcpy(&init_code_disk, meta_block, sizeof(uint64_t));
-  printf("init code is %ld, read from %lx, zcap is %d\n", init_code_disk, last_zone_addr, zcap);
+  printf("init code is %ld\n", init_code_disk);
+  if (init_code_disk == this->init_code) {
+    // restore the previous status of ftl.
+    std::cout << "restore from the previous status." << std::endl;
+    uint64_t buf_size;
+    memcpy(&buf_size, meta_block + sizeof(uint64_t), sizeof(uint64_t));
+    char meta_buffer[buf_size];
+    uint16_t nlb = buf_size / lba_size;
+    int ret = ss_nvme_read_wrapper(fd, nsid, last_zone_addr, nlb, buf_size, meta_buffer);
+    assert(ret == 0);
+
+    uint64_t lzone_buf_size;
+    uint64_t dzone_buf_size;
+    uint64_t lmap_buf_size;
+    uint64_t dmap_buf_size;
+    memcpy(&lzone_buf_size, meta_buffer + 2 * sizeof(uint64_t), sizeof(uint64_t));
+    memcpy(&dzone_buf_size, meta_buffer + 3 * sizeof(uint64_t), sizeof(uint64_t));
+    memcpy(&lmap_buf_size, meta_buffer + 4 * sizeof(uint64_t), sizeof(uint64_t));
+    memcpy(&dmap_buf_size, meta_buffer + 5 * sizeof(uint64_t), sizeof(uint64_t));
+    uint16_t buffer_index = sizeof(uint64_t) * 6;
+    // restore lzone.
+    // restore lzone pas.
+    std::vector<uint64_t> pas;
+    for (uint16_t i = 0; i < this->zones_log.size(); i++) {
+      uint64_t num;
+      memcpy(&num, meta_buffer + buffer_index, sizeof(uint64_t));
+      if (num == 0) {
+        continue;
+      }
+      buffer_index += sizeof(uint64_t);
+
+      uint64_t lbas[num];
+      ZNSBlock blocks[num];
+      memcpy(&lbas, meta_buffer + buffer_index, sizeof(uint64_t) * num);
+      buffer_index += sizeof(uint64_t) * num;
+      memcpy(&blocks, meta_buffer + buffer_index, sizeof(ZNSBlock) * num);
+      buffer_index += sizeof(ZNSBlock) * num;
+
+      for (uint64_t j = 0; j < num; j++) {
+        this->zones_log[i].block_map.map[lbas[j]] = blocks[j];
+        printf("zone %d lab %lx -> %lx \n", i, lbas[j], blocks[j].logical_address);
+      }
+    }
+
+    // restore dzone.
+
+    // restore lmap.
+
+    // restore dmap.
+  }
   zones_log.at(0).reset_all_zones();
 
   // Start our reaper rapper and store her as a void pointer in our FTL
@@ -362,22 +411,35 @@ void FTL::backup() {
 
   // store log zones data.
   // char logzone_buf[zones_log.size() ]
-  std::vector<uint64_t> pas;
-  std::vector<ZNSBlock> blocks;
-  for (uint16_t i = 0; i < zones_log.size(); i++) {
+  std::vector<std::vector<uint64_t>> lbas_group;
+  std::vector<std::vector<ZNSBlock>> blocks_group;
+  for (uint16_t i = 0; i < this->zones_log.size(); i++) {
+    std::vector<uint64_t> lbas;
+    std::vector<ZNSBlock> blocks;
     ZNSLogZone* zone = &this->zones_log[i];
     pthread_rwlock_rdlock(&zone->block_map.lock);
     BlockMap bmap = zone->block_map.map;
     pthread_rwlock_unlock(&zone->block_map.lock);
 
     for (BlockMap::iterator iter = bmap.begin(); iter != bmap.end(); iter++) {
-      uint64_t pa = iter->first;
+      uint64_t lba = iter->first;
       ZNSBlock block = iter->second;
-      pas.push_back(pa);
+      printf("zone %d lab %lx -> %lx \n", i, lba, block.logical_address);
+      lbas.push_back(lba);
       blocks.push_back(block);
     }
+    lbas_group.push_back(lbas);
+    blocks_group.push_back(blocks);
+
   }
-  uint64_t lzone_buf_size = pas.size() * sizeof(uint64_t) + blocks.size() * sizeof(ZNSBlock);
+  uint64_t lzone_buf_size = 0;
+
+  for (uint16_t i = 0; i < this->zones_log.size(); i++) {
+    uint64_t lba_cap = lbas_group[i].size() * sizeof(uint64_t);
+    uint64_t block_cap = blocks_group[i].size() * sizeof(ZNSBlock);
+    lzone_buf_size += (lba_cap + block_cap + sizeof(uint64_t));
+    // [size of lba_cap + block_cap] [lbas] [blocks].
+  }
 
   // store data zones data.
   uint64_t dzone_buf_size = this->zones_data.size() * this->zcap * sizeof(int);
@@ -436,10 +498,28 @@ void FTL::backup() {
   final_buf_addr += sizeof(uint64_t);
   memcpy((void *) final_buf_addr, &dmap_buf_size, sizeof(uint64_t));
   final_buf_addr += sizeof(uint64_t);
-  memcpy((void *) final_buf_addr, pas.data(), pas.size());
-  final_buf_addr += pas.size();
-  memcpy((void *) final_buf_addr, blocks.data(), blocks.size());
-  final_buf_addr += blocks.size();
+
+  for (uint16_t i = 0; i < this->zones_log.size(); i++) {
+    if (lbas_group[i].size() == 0) {
+      uint64_t num = 0;
+      memcpy((void *) final_buf_addr, &num, sizeof(uint64_t));
+      final_buf_addr += sizeof(uint64_t);
+      continue;
+    }
+    void* lbas_buf = lbas_group[i].data();
+    uint64_t lbas_num = lbas_group[i].size();
+    void* blocks_buf = blocks_group[i].data();
+    uint64_t blocks_num = blocks_group[i].size();
+    uint64_t num = lbas_num;
+
+    memcpy((void *) final_buf_addr, &num, sizeof(uint64_t));
+    final_buf_addr += sizeof(uint64_t);
+    memcpy((void *) final_buf_addr, lbas_buf, lbas_num * sizeof(uint64_t));
+    final_buf_addr += lbas_num * sizeof(uint64_t);
+    memcpy((void *) final_buf_addr, blocks_buf, blocks_num * sizeof(ZNSBlock));
+    final_buf_addr += blocks_num * sizeof(ZNSBlock);
+  }
+  
   memcpy((void *) final_buf_addr, datazone_buf, dzone_buf_size);
   final_buf_addr += dzone_buf_size;
   memcpy((void *) final_buf_addr, logmap_buf, lmap_buf_size);
@@ -453,8 +533,9 @@ void FTL::backup() {
       uint64_t lba = iter->first;
       Addr pa = iter->second;
       memcpy((void *) map_buf_addr, &lba, sizeof(uint64_t));
+      map_buf_addr += sizeof(uint64_t);
       memcpy((void *) map_buf_addr, &pa, sizeof(Addr));
-      map_buf_addr += (sizeof(uint64_t) + sizeof(Addr));
+      map_buf_addr += sizeof(Addr);
     }
     memcpy((void *) final_buf_addr, datamap_buf, dmap_buf_size);
   }
