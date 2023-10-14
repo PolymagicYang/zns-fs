@@ -121,7 +121,7 @@ FTL::FTL(int fd, uint64_t mdts, uint32_t nsid, uint16_t lba_size, int gc_wmark,
   this->log_map = Ftlmap{.lock = PTHREAD_RWLOCK_INITIALIZER, .map = raw_map()};
   this->data_map = Ftlmap{.lock = PTHREAD_RWLOCK_INITIALIZER, .map = raw_map()};
   this->zone_lock = PTHREAD_RWLOCK_INITIALIZER;
-  this->init_code = fd + mdts + nsid;
+  this->init_code = 2333;
 
   this->zones_reserved = std::vector<ZNSDataZone>();
   this->zones_data = std::vector<ZNSDataZone>();
@@ -138,7 +138,7 @@ FTL::FTL(int fd, uint64_t mdts, uint32_t nsid, uint16_t lba_size, int gc_wmark,
 
   uint64_t init_code_disk;
   memcpy(&init_code_disk, meta_block, sizeof(uint64_t));
-  printf("init code is %ld\n", init_code_disk);
+  printf("init code is %ld, current is %ld\n", init_code_disk, this->init_code);
   if (init_code_disk == this->init_code) {
     // restore the previous status of ftl.
     std::cout << "restore from the previous status." << std::endl;
@@ -182,24 +182,42 @@ FTL::FTL(int fd, uint64_t mdts, uint32_t nsid, uint16_t lba_size, int gc_wmark,
         printf("zone %d lab %lx -> %lx valid: %d \n", i, lbas[j], blocks[j].logical_address, blocks[j].valid);
       }
     }
+
     // restore dzone.
     for (uint16_t i = 0; i < this->zones_data.size(); i++) {
       int dzone_buf[this->zcap];
       memcpy(dzone_buf, meta_buffer + buffer_index, sizeof(int) * this->zcap);
       this->zones_data[i].block_map.assign(dzone_buf, dzone_buf + this->zcap);
-      buffer_index += this->zcap;
+      buffer_index += this->zcap * sizeof(int);
 
+      /*
       printf("zone %d\n", i);
       for (int j = 0; j < this->zcap; j++) {
         printf("valid :%d\t", this->zones_data[i].block_map[j]);
       }
       printf("\n");
-
+      */
     }
 
     // restore lmap.
+    printf("lba map:\n");
+    uint64_t lmap_num = lmap_buf_size / (sizeof(uint64_t) + sizeof(Addr));
+    for (uint64_t i = 0; i < lmap_num; i++) {
+      uint64_t lba;
+      Addr pa;
+      memcpy(&lba, meta_buffer + buffer_index, sizeof(uint64_t));
+      buffer_index += sizeof(uint64_t);
+      memcpy(&pa, meta_buffer + buffer_index, sizeof(Addr));
+      buffer_index += sizeof(Addr);
+      this->log_map.map[lba] = pa;
+      printf("lba %lx -> pa %lx, zone num: %d\t", lba, pa.addr, pa.zone_num);
+    }
+    printf("\n");
 
     // restore dmap.
+    if (dmap_buf_size) {
+
+    }
   }
   zones_log.at(0).reset_all_zones();
 
@@ -464,11 +482,13 @@ void FTL::backup() {
     
     memcpy((void *) map_buf_addr, map.data(), map.size());
 
+    /*
     printf("zone %d\n", i);
     for (int j = 0; j < this->zcap; j++) {
       printf("valid :%d\t", map[j]);
     }
     printf("\n");
+    */
 
     map_buf_addr += map.size();
   }
@@ -488,6 +508,7 @@ void FTL::backup() {
     map_buf_addr += sizeof(uint64_t);
     memcpy((void *) map_buf_addr, &pa, sizeof(Addr));
     map_buf_addr += sizeof(Addr);
+    printf("lba %lx -> pa %lx, zone num: %d\t", lba, pa.addr, pa.zone_num);
   }
 
   // store data zone map.
