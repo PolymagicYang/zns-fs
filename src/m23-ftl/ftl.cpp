@@ -96,7 +96,7 @@ void create_zones(const int zns_fd, const uint32_t nsid,
     // TODO(valentijn): zone attributes (p.28 ZNS Command specification)
     const uint64_t capacity = le64_to_cpu(current.zcap);
     const uint64_t zone_slba = le64_to_cpu(current.zslba);
-    uint64_t write_pointer = le64_to_cpu(current.zslba);
+    uint64_t write_pointer = le64_to_cpu(current.wp);
 
     if (RESET_ZONE) {
       write_pointer = zone_slba;
@@ -104,9 +104,13 @@ void create_zones(const int zns_fd, const uint32_t nsid,
 
     uint64_t full = -1;
     if (write_pointer == full) {
+      printf("full\n");
       write_pointer = capacity * (i + 1);
     }
 
+    printf("zone %d\n", i);
+    printf("current position %lx\n", write_pointer);
+    printf("\n");
     ZNSDataZone zone =
         ZNSDataZone(zns_fd, nsid, i, capacity, capacity, zstate, ztype,
                     zone_slba, HostManaged, write_pointer, lba_size, mdts_size);
