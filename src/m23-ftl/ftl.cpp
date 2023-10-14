@@ -80,9 +80,9 @@ void create_zones(const int zns_fd, const uint32_t nsid,
                    zone_slba, HostManaged, write_pointer, lba_size, mdts_size);
     zones.push_back(zone);
 
-    printf("zone %d\n", i);
-    printf("current position %lx\n", write_pointer);
-    printf("\n");
+    // printf("zone %d\n", i);
+    // printf("current position %lx\n", write_pointer);
+    // printf("\n");
   }
   *log_zones = zones;
 
@@ -104,13 +104,13 @@ void create_zones(const int zns_fd, const uint32_t nsid,
 
     uint64_t full = -1;
     if (write_pointer == full) {
-      printf("full\n");
+      // printf("full\n");
       write_pointer = capacity * (i + 1);
     }
 
-    printf("zone %d\n", i);
-    printf("current position %lx\n", write_pointer);
-    printf("\n");
+    // printf("zone %d\n", i);
+    // printf("current position %lx\n", write_pointer);
+    // printf("\n");
     ZNSDataZone zone =
         ZNSDataZone(zns_fd, nsid, i, capacity, capacity, zstate, ztype,
                     zone_slba, HostManaged, write_pointer, lba_size, mdts_size);
@@ -439,7 +439,7 @@ int FTL::write(uint64_t lba, void *buffer, uint32_t size) {
 
     uint64_t wp_starts = zone->get_wp();
     uint32_t write_size;
-    printf("zone %d wp is %ld, size is %ld, current cap is %d\n", zone->zone_id, zone->position, size, zone->get_current_capacity());
+    // printf("zone %d wp is %ld, size is %ld, current cap is %d\n", zone->zone_id, zone->position, size, zone->get_current_capacity());
     int ret = zone->write(buffer, size, &write_size, lba);
 
     // If we haven't written the entire buffer then we know that the
@@ -596,9 +596,9 @@ void FTL::backup() {
     uint64_t blocks_num = blocks_group[i].size();
     uint64_t num = lbas_num;
 
-    printf("zone %d\n", i);
-    printf("current position %lx\n", zones_log[i].position);
-    printf("\n");
+    // printf("zone %d\n", i);
+    // printf("current position %lx\n", zones_log[i].position);
+    // printf("\n");
 
     memcpy((void *) final_buf_addr, &num, sizeof(uint64_t));
     final_buf_addr += sizeof(uint64_t);

@@ -125,7 +125,7 @@ void Calliope::merge_old_zone(ZNSLogZone *reapable, uint64_t base_addr,
   if (new_data_zone == nullptr) {
     printf("failed!\n");
   }
-  printf("new data zone wp is %lx\n", new_data_zone->position);
+  // printf("new data zone wp is %lx\n", new_data_zone->position);
   // std::cout << "Reap!" << std::endl;
   // if (new_data_zone == nullptr) {
   // use the reserved zone.
@@ -186,7 +186,7 @@ void Calliope::insert_new_zone(ZNSLogZone *reapable, uint64_t base_addr,
 void Calliope::reap() {
   while (true) {
     uint16_t log_zone_num = this->wait_for_mutex();
-    printf("reap log zone: %d\n", log_zone_num);
+    // printf("reap log zone: %d\n", log_zone_num);
 
     if (death_sensei) {
       death_sensei = false;
@@ -208,10 +208,10 @@ void Calliope::reap() {
       std::vector<ZNSBlock *> log_blocks = group.second;
 
       if (this->ftl->pba_exist(base_addr)) {
-        printf("merge to group: %lx\n", base_addr);
+        // printf("merge to group: %lx\n", base_addr);
         this->merge_old_zone(reapable, base_addr, log_blocks);
       } else {
-        printf("insert to new zone to group: %lx\n", base_addr);
+        // printf("insert to new zone to group: %lx\n", base_addr);
         this->insert_new_zone(reapable, base_addr, log_blocks);
       }
     }

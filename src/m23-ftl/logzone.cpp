@@ -101,7 +101,7 @@ WARN: unsafe function, read and write will call this function with their own
 lock. Use this method with a lock!
 */
 uint32_t ZNSLogZone::get_current_capacity() const {
-  printf("base is %d, cap is %d, position is %d\n", this->base, this->capacity, this->position);
+  // printf("base is %d, cap is %d, position is %d\n", this->base, this->capacity, this->position);
   return this->capacity + this->base - this->position;
 }
 
