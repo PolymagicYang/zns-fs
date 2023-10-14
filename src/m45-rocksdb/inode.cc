@@ -159,7 +159,6 @@ uint64_t add_dnode_to_storage(const uint64_t inum,
 StoDir *get_directory_by_id(const uint64_t inum, BlockManager *allocator) {
   // moved root construct to the initialization phase.
   dir_cache_lock.lock();
-    
 
   if (dir_cache.count(inum) == 1) {
     StoDir *stodir = dir_cache[inum];
