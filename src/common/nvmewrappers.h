@@ -33,6 +33,10 @@ int ss_nvme_write_zeros(int fd, __u32 nsid, __u64 slba, __u16 nlb,
 int ss_nvme_zns_mgmt_send(int, unsigned int, unsigned long long, bool,
                           nvme_zns_send_action, unsigned int, void *);
 
+int ss_nvme_write_wrapper(int fd, uint32_t nsid, uint64_t slba, uint16_t nlb, uint32_t size, void *data);
+
+int ss_nvme_read_wrapper(int fd, uint32_t nsid, uint64_t slba, uint16_t nlb, uint32_t size, void *data); 
+
 #ifdef __cplusplus
 }
 #endif
