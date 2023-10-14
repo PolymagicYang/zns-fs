@@ -272,11 +272,15 @@ FTL::FTL(int fd, uint64_t mdts, uint32_t nsid, uint16_t lba_size, int gc_wmark,
   this->free_data_zones = std::vector<ZNSDataZone *>();
 
   for (size_t i = 0; i < this->zones_log.size(); i++) {
-    this->free_log_zones.push_back(&this->zones_log[i]);
+    if (!this->zones_log[i].is_full()) {
+      this->free_log_zones.push_back(&this->zones_log[i]);
+    }
   }
 
   for (size_t i = 0; i < this->zones_data.size(); i++) {
-    this->free_data_zones.push_back(&this->zones_data[i]);
+    if (!this->zones_data[i].is_full()) {
+      this->free_data_zones.push_back(&this->zones_data[i]);
+    }
   }
 }
 
@@ -435,11 +439,12 @@ int FTL::write(uint64_t lba, void *buffer, uint32_t size) {
 
     uint64_t wp_starts = zone->get_wp();
     uint32_t write_size;
+    printf("zone %d wp is %ld, size is %ld, current cap is %d\n", zone->zone_id, zone->position, size, zone->get_current_capacity());
     int ret = zone->write(buffer, size, &write_size, lba);
 
     // If we haven't written the entire buffer then we know that the
     // log is full and that we can move on to the next zone
-    if (zone->get_current_capacity() == 0) {
+    if (zone->get_current_capacity() <= 0) {
       pthread_rwlock_wrlock(&this->zones_lock);
       this->free_log_zones.erase(this->free_log_zones.begin());
       pthread_rwlock_unlock(&this->zones_lock);
@@ -626,7 +631,7 @@ void FTL::backup() {
   }
   // printf("data zone end\n");
   final_buf_addr += dmap_buf_size;
-  // printf("meta data size is %d, slba is %lx, zones num is %d, init code is %d\n", buf_size, last_zone_addr, zones_num, init_code);
+  printf("meta data size is %d, slba is %lx, zones num is %d, init code is %d\n", buf_size, last_zone_addr, zones_num, init_code);
 
   ss_nvme_write_wrapper(this->fd, this->nsid, last_zone_addr, nlb, buf_size, final_buf);
 }
