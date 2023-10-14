@@ -42,7 +42,7 @@ struct ZoneMap {
   BlockMap map;
 };
 
-#define RESET_ZONE true
+#define RESET_ZONE false
 
 enum ZoneState {
   Empty = 0x0,
