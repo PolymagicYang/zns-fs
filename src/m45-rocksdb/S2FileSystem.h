@@ -156,6 +156,7 @@ class S2FileSystem : public FileSystem {
                              __attribute__((unused)) IODebugContext *dbg);
 
  private:
+  void backup();
   struct user_zns_device *_zns_dev;
   BlockManager *allocator;
   std::string _uri;

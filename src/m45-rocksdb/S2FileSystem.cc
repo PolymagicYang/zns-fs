@@ -108,23 +108,31 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
     std::cout << "Initialized" << std::endl;
     // reconstruct the imap.
     uint64_t imap_addr;
-    uint32_t imap_size;
+    uint64_t imap_size;
     memcpy(&imap_addr, (void *) (((uint64_t) meta) + INIT_CODE_SIZE), sizeof(uint64_t));
-    memcpy(&imap_size, (void *) (((uint64_t) meta) + INIT_CODE_SIZE + sizeof(uint64_t)), sizeof(uint32_t));
+    memcpy(&imap_size, (void *) (((uint64_t) meta) + INIT_CODE_SIZE + sizeof(uint64_t)), sizeof(uint64_t));
+    
+    printf("imap addr is %lx, imap size is %d\n", imap_addr, imap_size);
     
     char imap_buf[imap_size]; // imap is a pair of uint64_t.
+    uint64_t imap_buf_addr = (uint64_t) imap_buf;
     this->allocator->read(imap_addr, imap_buf, imap_size);
     uint32_t entries_num = (imap_size / sizeof(uint64_t)) / 2;
-    uint64_t imap_buf_addr = (uint64_t) imap_buf;
     for (uint32_t i = 0; i < entries_num; i++) {
       uint64_t inode_num;
       uint64_t inode_addr;
-      memcpy(&inode_num, (void *) imap_addr, sizeof(uint64_t));
-      memcpy(&inode_addr, (void *) (imap_addr + sizeof(uint64_t)), sizeof(uint64_t));
-      inode_map[inode_num] = inode_addr;
+      memcpy(&inode_num, (void *) imap_buf_addr, sizeof(uint64_t));
+      memcpy(&inode_addr, (void *) (imap_buf_addr + sizeof(uint64_t)), sizeof(uint64_t));
+      // inode_map[inode_num] = inode_addr;
       imap_buf_addr += 2 * sizeof(uint64_t);
+
+      printf("inode %lx => addr %lx\n", inode_num, inode_addr);
     }
     // reconstruct the inode cache.
+
+    //for (std::unordered_map<uint64_t, uint64_t>::iter) {
+
+    //}
     // reconstruct the dir cache.
     // update current wp in the allocator.
   } else {
@@ -145,9 +153,45 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
              this->_zns_dev->capacity_bytes);
 }
 
+void S2FileSystem::backup() {
+  // for temp usage.
+  char buf[10000];
+  uint64_t buf_addr = (uint64_t) buf;
+  uint32_t size = 10000;
+
+  memcpy((void *) buf_addr, INIT_CODE, INIT_CODE_SIZE);
+  buf_addr += INIT_CODE_SIZE;
+
+  uint32_t imap_size = sizeof(uint64_t) * inode_map.size() * 2;
+  char imap_buf[imap_size];
+  uint64_t imap_buf_addr = (uint64_t) imap_buf;
+  for (auto i = inode_map.begin(); i != inode_map.end(); i++) {
+    memcpy((void *) imap_buf_addr, &i->first, sizeof(uint64_t));
+    imap_buf_addr += sizeof(uint64_t);
+    memcpy((void *) imap_buf_addr, &i->second, sizeof(uint64_t));
+    imap_buf_addr += sizeof(uint64_t);
+
+    printf("inode %lx => addr %lx\n", i->first, i->second);
+  }
+
+  uint64_t imap_addr_disk;
+
+  // temp append, should append at once later because of update, or don't store the recent wp.
+  this->allocator->append(imap_buf, imap_size, &imap_addr_disk, false);
+
+  memcpy((void *) buf_addr, &imap_addr_disk, sizeof(uint64_t));
+  buf_addr += sizeof(uint64_t);
+  memcpy((void *) buf_addr, &imap_size, sizeof(uint64_t));
+  buf_addr += sizeof(uint64_t);
+  printf("imap addr is %lx, imap size is %d\n", imap_addr_disk, imap_size);
+  this->allocator->write(META_ADDR, buf, size);
+}
+
 S2FileSystem::~S2FileSystem() {
   // g_magic_offset++;
   std::cout << "Deconstructor" << std::endl;
+  this->backup();
+
   deinit_ss_zns_device(this->_zns_dev);
 
   for (auto &dir : dir_cache) {

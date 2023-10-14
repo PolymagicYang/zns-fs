@@ -13,7 +13,7 @@
 BlockManager::BlockManager(user_zns_device *disk) {
   this->lba_size = disk->lba_size_bytes;
   // TODO(Zhiyang): Leave some spaces for imap metadata.
-  this->imap_size = this->lba_size;
+  this->imap_size = this->lba_size * IMAP_OCCUPY;
   this->disk = disk;
   this->capacity = disk->capacity_bytes;
   this->wp = WritePointer{
