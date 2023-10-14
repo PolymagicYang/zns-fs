@@ -17,6 +17,9 @@ uint32_t g_inode_num = 2;
 // It maps the inode with the physical logical block address
 std::unordered_map<uint64_t, uint64_t> inode_map =
     std::unordered_map<uint64_t, uint64_t>();
+
+std::unordered_map<uint64_t, uint64_t> is_inode =
+    std::unordered_map<uint64_t, uint64_t>();
 pthread_mutex_t inode_map_lock = PTHREAD_MUTEX_INITIALIZER;
 
 std::unordered_map<uint64_t, StoInode *> inode_cache =
@@ -84,6 +87,7 @@ void StoInode::write_to_disk(bool update) {
   this->allocator->append((void *)inode, sizeof(struct ss_inode), &lba, true);
   pthread_mutex_lock(&inode_map_lock);
   inode_map[this->inode_number] = lba;
+  is_inode[this->inode_number] = 1;
   pthread_mutex_unlock(&inode_map_lock);
   this->dirty = false;
 }
@@ -151,6 +155,7 @@ uint64_t add_dnode_to_storage(const uint64_t inum,
   uint64_t lba;
   allocator->append((void *)drecord, sizeof(struct ss_dnode), &lba, true);
   pthread_mutex_lock(&inode_map_lock);
+  printf("add dnode to storage\n");
   inode_map[inum] = lba;
   pthread_mutex_unlock(&inode_map_lock);
   return lba;
