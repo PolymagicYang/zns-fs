@@ -40,7 +40,7 @@ ZNSDataZone::ZNSDataZone(const int zns_fd, const uint32_t nsid,
   this->zns_type = zns_type;
   this->model = model;
   this->position = position;
-  this->base = position;
+  this->base = slba;
   this->slba = slba;
   this->lba_size = lba_size;
   this->mdts_size = mdts_size;
@@ -97,6 +97,7 @@ WARN: unsafe function, read and write will call this function with their own
 lock. Use this method with a lock!
 */
 uint32_t ZNSDataZone::get_current_capacity() const {
+  printf("cap is %d, base is %d, position is %d\n", this->capacity, this->base, this->position);
   return this->capacity + this->base - this->position;
 }
 
