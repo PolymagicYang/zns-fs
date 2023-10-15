@@ -113,10 +113,13 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
 	  // reconstruct the imap.	
 	  uint64_t imap_addr;
 	  uint64_t imap_size;
+    uint64_t wp;
 	  memcpy(&imap_addr, (void *) (((uint64_t) meta) + INIT_CODE_SIZE), sizeof(uint64_t));
 	  memcpy(&imap_size, (void *) (((uint64_t) meta) + INIT_CODE_SIZE + sizeof(uint64_t)), sizeof(uint64_t));
+	  memcpy(&wp, (void *) (((uint64_t) meta) + INIT_CODE_SIZE + 2 * sizeof(uint64_t)), sizeof(uint64_t));
+    this->allocator->update_current_position(wp);
     
-	  printf("imap addr is %lx, imap size is %ld\n", imap_addr, imap_size);
+	  printf("imap addr is %lx, imap size is %ld, current wp is %lx\n", imap_addr, imap_size, wp);
     
 	  char* imap_buf = (char *) malloc(imap_size); //	 imap is a pair of uint64_t.
 	  uint64_t imap_buf_addr = (uint64_t) imap_buf;
@@ -164,6 +167,8 @@ void S2FileSystem::backup() {
   uint64_t buf_addr = (uint64_t) buf;
   uint64_t size = g_lba_size;
 
+  uint64_t wp = allocator->get_current_position();
+
   memcpy((void *) buf_addr, INIT_CODE, INIT_CODE_SIZE);
   buf_addr += INIT_CODE_SIZE;
 
@@ -189,7 +194,9 @@ void S2FileSystem::backup() {
   buf_addr += sizeof(uint64_t);
   memcpy((void *) buf_addr, &imap_size, sizeof(uint64_t));
   buf_addr += sizeof(uint64_t);
-  printf("imap addr is %lx, imap size is %d\n", imap_addr_disk, imap_size);
+  memcpy((void *) buf_addr, &wp, sizeof(uint64_t));
+  buf_addr += sizeof(uint64_t);
+  printf("imap addr is %lx, imap size is %d, wp is %lx\n", imap_addr_disk, imap_size, wp);
   this->allocator->write(META_ADDR, buf, size);
 }
 
