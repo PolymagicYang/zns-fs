@@ -355,7 +355,7 @@ int main(int argc, char **argv) {
                                  to_hammer_lba);
   printf("\n");
   // clean up
-  ret = deinit_ss_zns_device(my_dev);
+  ret = deinit_ss_zns_device(my_dev, false);
   // free all
   delete[] seq_addresses;
   delete[] random_addresses;

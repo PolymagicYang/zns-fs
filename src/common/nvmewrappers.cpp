@@ -26,7 +26,6 @@ int ss_nvme_write(int fd, __u32 nsid, __u64 slba, __u16 nlb, __u16 control,
                   __u8 dsm, __u16 dspec, __u32 reftag, __u16 apptag,
                   __u16 appmask, __u32 data_len, void *data, __u32 metadata_len,
                   void *metadata) {
-  // printf("nvme write to %lx\n", slba);
   int32_t ret =
       nvme_write(fd, nsid, slba, nlb, control, dsm, dspec, reftag, apptag,
                  appmask, data_len, data, metadata_len, metadata);

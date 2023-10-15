@@ -50,7 +50,7 @@ SOFTWARE.
 
 extern "C" {
 // TODO(valentijn): Implement this functionh
-int deinit_ss_zns_device(struct user_zns_device *my_dev) {
+ int deinit_ss_zns_device(struct user_zns_device *my_dev, const bool store) {
   int ret = -ENOSYS;
   // cppcheck-suppress cstyleCast
   FTL *ftl = (FTL *)my_dev->_private;
@@ -64,8 +64,10 @@ int deinit_ss_zns_device(struct user_zns_device *my_dev) {
   if (mori != NULL && mori->thread.joinable()) mori->thread.join();
 
   // Store current ftl status.
+
+  if (store)
+	  ftl->backup();
   
-  ftl->backup();
   free(my_dev);
   delete ftl->mori;
   delete ftl;

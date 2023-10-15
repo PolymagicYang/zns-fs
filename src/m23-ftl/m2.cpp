@@ -240,7 +240,7 @@ int main(int argc, char **argv) {
   assert(test_buf != nullptr);
   int t3 = test_large_write_read(my_dev, test_buf, buffer_size);
   free(test_buf);
-  ret = deinit_ss_zns_device(my_dev);
+  ret = deinit_ss_zns_device(my_dev, false);
   free(params.name);
   end = microseconds_since_epoch();
   printf(

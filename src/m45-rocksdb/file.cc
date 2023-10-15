@@ -44,8 +44,7 @@ void StoFile::write(size_t size, void *data) {
 
 void StoFile::read(const size_t size, void *result) {
   pthread_mutex_lock(&this->inode.lock);
-  std::cout << g_magic_offset << std::endl;
-  size_t current_size = Min(size, this->inode.node->size - g_magic_offset);
+  size_t current_size = Min(size, this->inode.node->size);
   void *copy = (char *)result;
   for (auto &segment : inode.node->inode.segments) {
     for (uint8_t i = 0; i < segment.nblocks; i++) {

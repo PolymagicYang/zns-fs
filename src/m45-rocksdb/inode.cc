@@ -162,6 +162,12 @@ StoDir *get_directory_by_id(const uint64_t inum, BlockManager *allocator) {
   // moved root construct to the initialization phase.
   dir_cache_lock.lock();
 
+  if (dir_cache.size() == 0) {
+	std::cout << "recreate root" << std::endl;
+    StoDir *root = new StoDir((char *)"/", 2, allocator);
+    root->write_to_disk();
+    dir_cache[root->inode_number] = root;  	  
+  }
   if (dir_cache.count(inum) == 1) {
     StoDir *stodir = dir_cache[inum];
 	dir_cache_lock.unlock();
