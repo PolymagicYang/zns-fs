@@ -117,9 +117,10 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
 	  memcpy(&imap_addr, (void *) (((uint64_t) meta) + INIT_CODE_SIZE), sizeof(uint64_t));
 	  memcpy(&imap_size, (void *) (((uint64_t) meta) + INIT_CODE_SIZE + sizeof(uint64_t)), sizeof(uint64_t));
 	  memcpy(&wp, (void *) (((uint64_t) meta) + INIT_CODE_SIZE + 2 * sizeof(uint64_t)), sizeof(uint64_t));
+	  memcpy(&g_inode_num, (void *) (((uint64_t) meta) + INIT_CODE_SIZE + 3 * sizeof(uint64_t)), sizeof(uint64_t));
     this->allocator->update_current_position(wp);
     
-	  printf("imap addr is %lx, imap size is %ld, current wp is %lx\n", imap_addr, imap_size, wp);
+	  printf("imap addr is %lx, imap size is %ld, current wp is %lx, inode num is %d\n", imap_addr, imap_size, wp, g_inode_num);
     
 	  char* imap_buf = (char *) malloc(imap_size); //	 imap is a pair of uint64_t.
 	  uint64_t imap_buf_addr = (uint64_t) imap_buf;
@@ -149,6 +150,7 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
 	} 
   } else {
 	  this->allocator = new BlockManager(this->_zns_dev);
+    g_inode_num = 2;
   }
 
   // Be aware that the behaviour here is a bit subtle, the inode is
@@ -195,7 +197,9 @@ void S2FileSystem::backup() {
   buf_addr += sizeof(uint64_t);
   memcpy((void *) buf_addr, &wp, sizeof(uint64_t));
   buf_addr += sizeof(uint64_t);
-  printf("imap addr is %lx, imap size is %d, wp is %lx\n", imap_addr_disk, imap_size, wp);
+  memcpy((void *) buf_addr, &g_inode_num, sizeof(uint64_t));
+  buf_addr += sizeof(uint64_t);
+  printf("imap addr is %lx, imap size is %d, wp is %lx, g_inode_num is %d\n", imap_addr_disk, imap_size, wp, g_inode_num);
   this->allocator->write(META_ADDR, buf, size);
 }
 
@@ -240,6 +244,7 @@ struct ss_inode *callback_missing_file_create(const char *name, StoDir *parent,
   StoInode *inode = new StoInode(1, name, allocator);
   inode->write_to_disk(true);
   parent->add_entry(inode->inode_number, 12, name);
+  printf("inode num is %d\n", inode->inode_number);
   parent->write_to_disk();
   inode_cache_lock.lock();
   inode_cache[inode->inode_number] = inode;
@@ -640,6 +645,7 @@ void callback_found_file_delete(const char *name, StoDir *parent,
                                 BlockManager *allocator) {
   // Copy the name to the inode and write it to disk. Somewhat
   // inconvient to wrap it around a class.
+  inode_map.erase(ss_inode->id);
   parent->remove_entry(name);
   parent->write_to_disk();
 }

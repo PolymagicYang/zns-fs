@@ -9,7 +9,7 @@
 
 #include "structures.h"
 
-extern uint32_t g_inode_num;
+extern uint64_t g_inode_num;
 
 // Our reads need to be offset by this number whenever the
 // deallocation is called.  Don't ask.

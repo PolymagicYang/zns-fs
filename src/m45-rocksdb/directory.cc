@@ -167,11 +167,9 @@ enum DirectoryError find_inode(StoDir *directory, std::string name,
     name = next;
   } while (prev != std::string::npos);
 
-  printf("find file name %s\n", current.c_str());
   // If we reach the end of the hierarchy and we found something,
   // then we can just return our inode directly, no harm done.
   if (entry != NULL) {
-    printf("file name %s found\n", current.c_str());
     if (cbs && cbs->found_file_cb) {
       cbs->found_file_cb(current.c_str(), directory,
                          get_inode_by_id(entry->inum, allocator), entry,
