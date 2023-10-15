@@ -9,11 +9,11 @@
 
 #include "structures.h"
 
-extern uint64_t g_inode_num;
 
 // Our reads need to be offset by this number whenever the
 // deallocation is called.  Don't ask.
 extern uint32_t g_magic_offset;
+extern uint64_t g_inode_num;
 extern "C" {
 void update_dnode_in_storage(const uint64_t inum, const struct ss_dnode *dnode,
                              BlockManager *);

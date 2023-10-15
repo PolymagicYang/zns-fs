@@ -12,6 +12,7 @@
 
 #include "allocator.hpp"
 #include "structures.h"
+uint64_t g_inode_num = 2;
 
 // Inode map that keeps track of where the inodes are in disk (43.5 OSTEP)
 // It maps the inode with the physical logical block address
@@ -20,7 +21,6 @@ std::unordered_map<uint64_t, uint64_t> inode_map =
 
 pthread_mutex_t inode_map_lock = PTHREAD_MUTEX_INITIALIZER;
 
-uint64_t g_inode_num = inode_map.size() + 2;
 std::unordered_map<uint64_t, StoInode *> inode_cache =
     std::unordered_map<uint64_t, StoInode *>();
 std::unordered_map<uint64_t, StoDir *> dir_cache =
