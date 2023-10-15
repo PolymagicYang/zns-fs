@@ -143,6 +143,7 @@ static int delete_rocksdb(struct MyRocksContext *context,
   }
   std::cout << "Environment from URI " << context->uri << " for FS "
             << context->options.env->GetFileSystem()->Name() << " \n";
+  std::cout << "Destroy" << std::endl;
   s = DestroyDB(db_path, context->options);
   if (!s.ok()) {
     fprintf(stderr, "DB deleting failed at %s due to %s \n\n",

@@ -50,6 +50,7 @@ class FTL {
  public:
   int fd;
   int gc_wmark;
+  bool force_reset;
   uint32_t zcap;
   uint32_t nsid;
   uint64_t mdts_size;
@@ -71,7 +72,7 @@ class FTL {
   void* mori;
 
   FTL(int fd, uint64_t mdts, uint32_t nsid, uint16_t lba_size, int gc_wmark,
-      int log_num);
+      int log_num, bool force_reset);
 
   ~FTL() {
     this->zones.clear();

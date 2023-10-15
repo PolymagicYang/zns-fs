@@ -144,7 +144,7 @@ int init_ss_zns_device(struct zdev_init_params *params,
   uint64_t MDTS_SIZE = (1 << MDTS) * MPSMIN;
 
   FTL *ftl = new FTL(fd, MDTS_SIZE, nsid, lba_size_in_use, params->gc_wmark,
-                     params->log_zones);
+                     params->log_zones, params->force_reset);
   free(path);
   close(sysfd);
 

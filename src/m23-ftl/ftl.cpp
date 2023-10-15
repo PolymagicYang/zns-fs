@@ -45,7 +45,8 @@ void create_zones(const int zns_fd, const uint32_t nsid,
                   const uint64_t lba_size, const uint64_t mdts_size,
                   const uint16_t logs, std::vector<ZNSLogZone> *log_zones,
                   std::vector<ZNSDataZone> *rerv_zones,
-                  std::vector<ZNSDataZone> *data_zones) {
+                  std::vector<ZNSDataZone> *data_zones,
+				  const bool force_reset) {
   // TODO(valentijn): don't hard code this please
   struct nvme_zone_report *zns_report =
       (struct nvme_zone_report *)calloc(1, 0x1000);
@@ -56,6 +57,11 @@ void create_zones(const int zns_fd, const uint32_t nsid,
   // Go through all the reprots and turn them into zones
   std::vector<ZNSLogZone> zones = std::vector<ZNSLogZone>();
   uint32_t i;
+  if (logs >= nr) {
+	  std::cout << "Invalid number of log zones " << logs << " " << " > " << nr  << std::endl;
+	  exit(-1);
+  }
+	  
   for (i = 0; i < logs; i++) {
     struct nvme_zns_desc current = zns_report->entries[i];
 
@@ -96,7 +102,7 @@ void create_zones(const int zns_fd, const uint32_t nsid,
     // TODO(valentijn): zone attributes (p.28 ZNS Command specification)
     const uint64_t capacity = le64_to_cpu(current.zcap);
     const uint64_t zone_slba = le64_to_cpu(current.zslba);
-    uint64_t write_pointer = le64_to_cpu(current.wp);
+    uint64_t write_pointer = force_reset ? zone_slba : le64_to_cpu(current.wp);
 
     if (RESET_ZONE) {
       write_pointer = zone_slba;
@@ -104,32 +110,23 @@ void create_zones(const int zns_fd, const uint32_t nsid,
 
     uint64_t full = -1;
     if (write_pointer == full) {
-      // printf("full\n");
       write_pointer = capacity * (i + 1);
     }
 
-    // printf("zone %d\n", i);
-    // printf("current position %lx\n", write_pointer);
-    // printf("\n");
     ZNSDataZone zone =
         ZNSDataZone(zns_fd, nsid, i, capacity, capacity, zstate, ztype,
                     zone_slba, HostManaged, write_pointer, lba_size, mdts_size);
 
-    // if (i == zns_report->nr_zones - 1) {
-    //  temp_rerved_zones.push_back(zone);
-    //} else {
     temp_data_zones.push_back(zone);
-    //}
   }
   *data_zones = temp_data_zones;
-  // *rerv_zones = temp_rerved_zones;
-
+  zones.at(0).reset_all_zones();
   // Reset all the zones in one go so that we are in a valid initial state
   free(zns_report);
 }
 
 FTL::FTL(int fd, uint64_t mdts, uint32_t nsid, uint16_t lba_size, int gc_wmark,
-         int log_zones) {
+         int log_zones, bool force_reset) {
   this->fd = fd;
   this->mdts_size = mdts;
   this->nsid = nsid;
@@ -140,15 +137,16 @@ FTL::FTL(int fd, uint64_t mdts, uint32_t nsid, uint16_t lba_size, int gc_wmark,
   this->data_map = Ftlmap{.lock = PTHREAD_RWLOCK_INITIALIZER, .map = raw_map()};
   this->zone_lock = PTHREAD_RWLOCK_INITIALIZER;
   this->init_code = 2333;
+  this->force_reset = force_reset;
 
   this->zones_reserved = std::vector<ZNSDataZone>();
   this->zones_data = std::vector<ZNSDataZone>();
   this->zones_log = std::vector<ZNSLogZone>();
   
   create_zones(fd, nsid, lba_size, mdts_size, log_zones, &zones_log,
-               &zones_reserved, &zones_data);
+               &zones_reserved, &zones_data, force_reset);
   this->zcap = zones_log.at(0).capacity;
-
+  
   uint64_t last_zone_addr = zcap * (this->zones_log.size() + this->zones_data.size());
   char meta_block[lba_size];
   int ret = ss_nvme_read_wrapper(fd, nsid, last_zone_addr, 0, lba_size, meta_block);
@@ -420,7 +418,7 @@ int FTL::write(uint64_t lba, void *buffer, uint32_t size) {
   // get none full zone.
   while (size != 0) {
     int16_t free_regions = get_free_log_regions();
-    if (free_regions <= 0) {
+    if (free_regions <= this->gc_wmark) {
       // wake up the gc thread.
       pthread_mutex_lock(&this->need_gc_lock);
       pthread_cond_signal(&this->need_gc);
