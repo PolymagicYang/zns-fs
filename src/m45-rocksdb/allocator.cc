@@ -37,7 +37,7 @@ int BlockManager::append(void *buffer, uint32_t size, uint64_t *start_addr,
   pthread_rwlock_wrlock(&this->wp.wp_lock);
   uint64_t wp = this->get_current_position();
   
-  // printf("current wp is %lx, size is %d\n", wp, size);
+  printf("current wp is %lx, size is %d\n", wp, size);
   uint32_t lba_size = this->disk->lba_size_bytes;
   *start_addr = wp;
   if (wp + size >= disk->capacity_bytes) {
@@ -102,6 +102,8 @@ int BlockManager::write(uint64_t lba, void *buffer, uint32_t size) {
   uint64_t padding_size;
   uint64_t wp_base = (lba / lba_size) * lba_size;
   uint64_t curr_data_size_in_block = lba - wp_base;
+
+  printf("write data to lba %lx to %lx\n", lba, lba + size);
 
   bool padding;
   bool cross_bd;

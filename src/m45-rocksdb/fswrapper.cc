@@ -1,5 +1,6 @@
 #include "fswrapper.hpp"
 
+#include <cstdint>
 #include <pthread.h>
 
 #include <cassert>
@@ -99,9 +100,9 @@ StoSeqFile::~StoSeqFile() {
 
 IOStatus StoSeqFile::Read(size_t size, const IOOptions &options, Slice *result,
                           char *scratch, IODebugContext *dbg) {
-  printf("read value.\n");
 
   if (eof) {
+    printf("read value end.\n");
     *result = Slice();
     return IOStatus::OK();
   }
@@ -109,6 +110,8 @@ IOStatus StoSeqFile::Read(size_t size, const IOOptions &options, Slice *result,
   // doing things
   pthread_mutex_lock(&this->file->inode.lock);
   size_t adjusted = Min(offset + size, this->file->inode.node->size);
+
+  printf("inode file size is %d\n", this->file->inode.node->size);
   char *buffer = (char *)malloc(Round_up(adjusted, g_lba_size) * 2);
   pthread_mutex_unlock(&this->file->inode.lock);
   this->file->read(adjusted, (void *)buffer);
@@ -121,6 +124,12 @@ IOStatus StoSeqFile::Read(size_t size, const IOOptions &options, Slice *result,
   *result =
       Slice(buffer, std::min(this->file->inode.node->size - offset - 1, size));
   this->buffer = buffer;
+
+  printf("read value size is %d\n", std::min(this->file->inode.node->size - offset - 1, size));
+  for (uint32_t i = 0; i < std::min(this->file->inode.node->size - offset - 1, size); i++) {
+    printf("%x", buffer[i]);
+  }
+  printf("\n");
 
   this->offset = adjusted;
 
