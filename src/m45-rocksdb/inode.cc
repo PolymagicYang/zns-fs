@@ -164,7 +164,7 @@ StoDir *get_directory_by_id(const uint64_t inum, BlockManager *allocator) {
   dir_cache_lock.lock();
 
   auto pos = dir_cache.count(inum);
-  if (pos == 0 && inum == 2) {
+  if (pos == 0 && inum == 2 && g_inode_num == 2) {
 	  std::cout << "recreate root" << std::endl;
       // root doesn't exist disk, recreate a root.
       StoDir *root = new StoDir((char *)"/", 2, allocator);
@@ -175,8 +175,7 @@ StoDir *get_directory_by_id(const uint64_t inum, BlockManager *allocator) {
   } else if (pos == 1) {
 	  dir_cache_lock.unlock();
 	  return dir_cache[inum];
-  }
-  
+  } 
   
   dir_cache_lock.unlock();
   std::cout << "new"
