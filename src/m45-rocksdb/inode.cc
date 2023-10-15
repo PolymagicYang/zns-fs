@@ -162,29 +162,26 @@ StoDir *get_directory_by_id(const uint64_t inum, BlockManager *allocator) {
   // moved root construct to the initialization phase.
   dir_cache_lock.lock();
 
-  if (dir_cache.size() == 0) {
-    struct ss_inode *inode = get_inode_by_id(inum, allocator);
-
-    if (!inode) {
-	    std::cout << "recreate root" << std::endl;
+  auto pos = dir_cache.count(inum);
+  if (pos == 0 && inum == 2) {
+	  std::cout << "recreate root" << std::endl;
       // root doesn't exist disk, recreate a root.
       StoDir *root = new StoDir((char *)"/", 2, allocator);
       root->write_to_disk();
       dir_cache[root->inode_number] = root;
-    }
-  } 
-
-  if (dir_cache.count(inum) == 1) {
-    StoDir *stodir = dir_cache[inum];
-	dir_cache_lock.unlock();
-	return stodir;
+	  dir_cache_lock.unlock();
+	  return root;
+  } else if (pos == 1) {
+	  dir_cache_lock.unlock();
+	  return dir_cache[inum];
   }
-
+  
+  
   dir_cache_lock.unlock();
   std::cout << "new"
             << " " << inum << std::endl;
   struct ss_inode *inode = get_inode_by_id(inum, allocator);
-
+  
   // Return NULL if the inode does not contain a directory
   if (!(inode->flags & FLAG_DIRECTORY)) {
     return NULL;

@@ -149,7 +149,6 @@ StoWriteFile::~StoWriteFile() {
 // Append data to the end of the file
 IOStatus StoWriteFile::Append(const Slice &data, const IOOptions &options,
                               IODebugContext *dbg) {
-  printf("append data to %s\n", this->file->name.c_str());
   this->file->write(data.size(), (void *)data.data());
   return IOStatus::OK();
 }
