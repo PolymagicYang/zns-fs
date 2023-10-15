@@ -116,22 +116,25 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
 	  memcpy(&imap_addr, (void *) (((uint64_t) meta) + INIT_CODE_SIZE), sizeof(uint64_t));
 	  memcpy(&imap_size, (void *) (((uint64_t) meta) + INIT_CODE_SIZE + sizeof(uint64_t)), sizeof(uint64_t));
     
-	  printf("imap addr is %	lx, imap size is %d\n", imap_addr, imap_size);
+	  printf("imap addr is %lx, imap size is %ld\n", imap_addr, imap_size);
     
-	  char imap_buf[imap_size]; //	 imap is a pair of uint64_t.
+	  char* imap_buf = (char *) malloc(imap_size); //	 imap is a pair of uint64_t.
 	  uint64_t imap_buf_addr = (uint64_t) imap_buf;
 	  this->allocator->read(imap_addr, imap_buf, imap_size);
+
+    printf("get value\n");
 	  uint32_t entries_num = (imap_size / sizeof(uint64_t)) / 2;
 	  for (uint32_t i = 0; i < entries_num; i++) {
-		uint64_t inode_num;
-		uint64_t inode_addr;
-		memcpy(&inode_num, (void *) imap_buf_addr, sizeof(uint64_t));
-		memcpy(&inode_addr, (void *) (imap_buf_addr + sizeof(uint64_t)), sizeof(uint64_t));
-		// inode_map[inode_num] = 	inode_addr;
-		imap_buf_addr += 2 * sizeof(uint64_t);
+      uint64_t inode_num;
+      uint64_t inode_addr;
+      memcpy(&inode_num, (void *) imap_buf_addr, sizeof(uint64_t));
+      memcpy(&inode_addr, (void *) (imap_buf_addr + sizeof(uint64_t)), sizeof(uint64_t));
+      // inode_map[inode_num] = 	inode_addr;
+      imap_buf_addr += 2 * sizeof(uint64_t);
 
-		printf("inode %lx => addr %lx\n", inode_num, inode_addr);
+      printf("inode %lx => addr %lx\n", inode_num, inode_addr);
 	  }
+    free(imap_buf);
     // reconstruct the inode cache.
 
     //for (std::unordered_map<uint64_t, uint64_t>::iter) {
@@ -141,7 +144,7 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
     // update current wp in the allocator.
 	} 
   } else {
-	this->allocator = new BlockManager(this->_zns_dev);
+	  this->allocator = new BlockManager(this->_zns_dev);
   }
 
   // Be aware that the behaviour here is a bit subtle, the inode is
@@ -157,14 +160,14 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
 
 void S2FileSystem::backup() {
   // for temp usage.
-  char buf[10000];
+  char buf[g_lba_size];
   uint64_t buf_addr = (uint64_t) buf;
-  uint32_t size = 10000;
+  uint64_t size = g_lba_size;
 
   memcpy((void *) buf_addr, INIT_CODE, INIT_CODE_SIZE);
   buf_addr += INIT_CODE_SIZE;
 
-  uint32_t imap_size = sizeof(uint64_t) * inode_map.size() * 2;
+  uint64_t imap_size = sizeof(uint64_t) * inode_map.size() * 2;
   char imap_buf[imap_size];
   uint64_t imap_buf_addr = (uint64_t) imap_buf;
   for (auto i = inode_map.begin(); i != inode_map.end(); i++) {
@@ -181,6 +184,7 @@ void S2FileSystem::backup() {
   // temp append, should append at once later because of update, or don't store the recent wp.
   this->allocator->append(imap_buf, imap_size, &imap_addr_disk, false);
 
+  printf("the offset is %d\n", buf_addr - (uint64_t) buf);
   memcpy((void *) buf_addr, &imap_addr_disk, sizeof(uint64_t));
   buf_addr += sizeof(uint64_t);
   memcpy((void *) buf_addr, &imap_size, sizeof(uint64_t));
