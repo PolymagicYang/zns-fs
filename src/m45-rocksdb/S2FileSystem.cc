@@ -134,6 +134,7 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
       memcpy(&inode_addr, (void *) (imap_buf_addr + sizeof(uint64_t)), sizeof(uint64_t));
       // inode_map[inode_num] = 	inode_addr;
       imap_buf_addr += 2 * sizeof(uint64_t);
+      inode_map[inode_num] = inode_addr;
 
       printf("inode %lx => addr %lx\n", inode_num, inode_addr);
 	  }
@@ -180,8 +181,6 @@ void S2FileSystem::backup() {
     imap_buf_addr += sizeof(uint64_t);
     memcpy((void *) imap_buf_addr, &i->second, sizeof(uint64_t));
     imap_buf_addr += sizeof(uint64_t);
-
-    printf("inode %lx => addr %lx\n", i->first, i->second);
   }
 
   uint64_t imap_addr_disk;
@@ -462,7 +461,7 @@ IOStatus S2FileSystem::CreateDir(const std::string &dirname,
   return IOStatus::IOError(__FUNCTION__);
 }
 
-// If we cannot find the directory, we will create one and return the entry
+// If we cannot find the directory, we will try to restore them first, if failed then create one and return the entry
 // for it
 struct ss_dnode_record *callback_missing_directory(const char *name,
                                                    StoDir *parent,
@@ -514,7 +513,7 @@ IOStatus S2FileSystem::CreateDirIfMissing(const std::string &dirname,
                                           const IOOptions &options,
                                           __attribute__((unused))
                                           IODebugContext *dbg) {
-  std::cout << "[CreateDirIfMissing]" << std::endl;
+  std::cout << "[CreateDirIfMissing]" << dirname << std::endl;
   // Remove the starting and trailing /
   std::string cut = dirname.substr(1, dirname.size() - 1);
 
@@ -986,9 +985,11 @@ IOStatus S2FileSystem::FileExists(const std::string &fname,
   struct ss_inode found_inode;
   // TODO(valentijn): permission checking
   // TODO(valentijn): overzealous not found code
+
   enum DirectoryError err =
       find_inode(root, cut, &found_inode, NULL, this->allocator);
   if (err == DirectoryError::Found_inode) {
+    printf("file exists.\n");
     return IOStatus::OK();
   } else if (err == DirectoryError::Dnode_not_found) {
     return IOStatus::IOError("Bad dnode " + fname);

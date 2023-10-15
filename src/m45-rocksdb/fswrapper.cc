@@ -99,8 +99,7 @@ StoSeqFile::~StoSeqFile() {
 
 IOStatus StoSeqFile::Read(size_t size, const IOOptions &options, Slice *result,
                           char *scratch, IODebugContext *dbg) {
-  UNUSED(scratch);
-  UNUSED(dbg);
+  printf("read value.\n");
 
   if (eof) {
     *result = Slice();
@@ -150,6 +149,7 @@ StoWriteFile::~StoWriteFile() {
 // Append data to the end of the file
 IOStatus StoWriteFile::Append(const Slice &data, const IOOptions &options,
                               IODebugContext *dbg) {
+  printf("append data to %s\n", this->file->name.c_str());
   this->file->write(data.size(), (void *)data.data());
   return IOStatus::OK();
 }

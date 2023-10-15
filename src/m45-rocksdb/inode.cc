@@ -1,5 +1,6 @@
 #include "inode.hpp"
 
+#include <cstdint>
 #include <pthread.h>
 
 #include <cassert>
@@ -152,7 +153,6 @@ uint64_t add_dnode_to_storage(const uint64_t inum,
   uint64_t lba;
   allocator->append((void *)drecord, sizeof(struct ss_dnode), &lba, true);
   pthread_mutex_lock(&inode_map_lock);
-  printf("add dnode to storage\n");
   inode_map[inum] = lba;
   pthread_mutex_unlock(&inode_map_lock);
   return lba;
@@ -163,11 +163,17 @@ StoDir *get_directory_by_id(const uint64_t inum, BlockManager *allocator) {
   dir_cache_lock.lock();
 
   if (dir_cache.size() == 0) {
-	std::cout << "recreate root" << std::endl;
-    StoDir *root = new StoDir((char *)"/", 2, allocator);
-    root->write_to_disk();
-    dir_cache[root->inode_number] = root;  	  
-  }
+    struct ss_inode *inode = get_inode_by_id(inum, allocator);
+
+    if (!inode) {
+	    std::cout << "recreate root" << std::endl;
+      // root doesn't exist disk, recreate a root.
+      StoDir *root = new StoDir((char *)"/", 2, allocator);
+      root->write_to_disk();
+      dir_cache[root->inode_number] = root;
+    }
+  } 
+
   if (dir_cache.count(inum) == 1) {
     StoDir *stodir = dir_cache[inum];
 	dir_cache_lock.unlock();
@@ -206,7 +212,11 @@ struct ss_dnode *get_dnode_by_id(const uint64_t inum, BlockManager *allocator) {
 }
 
 struct ss_inode *get_inode_by_id(const uint64_t inum, BlockManager *allocator) {
-  return &get_stoinode_by_id(inum, allocator)->inode;
+  StoInode *stoinode = get_stoinode_by_id(inum, allocator);
+  if (stoinode == NULL) {
+    return NULL;
+  }
+  return &stoinode->inode;
 }
 
 static uint16_t count_inodes = 0;
@@ -226,7 +236,7 @@ StoInode *get_stoinode_by_id(const uint64_t inum, BlockManager *allocator) {
   if (found == inode_map.end()) {
     pthread_mutex_unlock(&inode_map_lock);
     printf("not found\n");
-    return NULL;
+    return nullptr;
   }
 
   pthread_mutex_unlock(&inode_map_lock);

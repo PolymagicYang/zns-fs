@@ -69,6 +69,8 @@ int BlockManager::append(void *buffer, uint32_t size, uint64_t *start_addr,
 
 int BlockManager::read(uint64_t lba, void *buffer, uint32_t size) {
   // printf("read\n");
+
+  // printf("current wp is %lx, size is %d\n", wp, size);
   uint32_t lba_size = this->disk->lba_size_bytes;
   uint64_t padding_size;
   uint64_t wp_base = (lba / lba_size) * lba_size;

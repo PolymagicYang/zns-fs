@@ -93,7 +93,6 @@ struct ss_dnode_record *StoDir::find_entry(const char *name) {
   if (name == NULL || this == NULL) return NULL;
 
   size_t needle_size = strlen(name);
-  printf("needld_size for %s is %d\n", name, needle_size);
 
   for (auto &entry : this->records) {
     // Weird C++ behaviour, we force it to be boolean.
@@ -104,7 +103,6 @@ struct ss_dnode_record *StoDir::find_entry(const char *name) {
                      (strncmp(entry.name, name, entry.namelen) == 0);
 
     if (condition) {
-      printf("found entry in find_entry: %s\n", entry.name);
       return &entry;
     }
   }
@@ -143,8 +141,8 @@ enum DirectoryError find_inode(StoDir *directory, std::string name,
     prev = location;
     location = name.find(delimiter);
     current = name.substr(0, location);
-    printf("find current file name %s\n", current.c_str());
     entry = directory->find_entry(current.c_str());
+
 
     // We don't need to iterate if we found the inode
     if (name == current) break;
@@ -169,9 +167,11 @@ enum DirectoryError find_inode(StoDir *directory, std::string name,
     name = next;
   } while (prev != std::string::npos);
 
+  printf("find file name %s\n", current.c_str());
   // If we reach the end of the hierarchy and we found something,
   // then we can just return our inode directly, no harm done.
   if (entry != NULL) {
+    printf("file name %s found\n", current.c_str());
     if (cbs && cbs->found_file_cb) {
       cbs->found_file_cb(current.c_str(), directory,
                          get_inode_by_id(entry->inum, allocator), entry,
