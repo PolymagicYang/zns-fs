@@ -360,8 +360,8 @@ IOStatus S2FileSystem::NewWritableFile(const std::string &fname,
 
   if (err == DirectoryError::Found_inode) {
     // TODO(someone): File deletion
-    return IOStatus::IOError(
-        "File already exists. Please implement file deletion!");
+    DeleteFileWrapper(fname);
+    return this->NewWritableFile(fname, file_opts, result, dbg);
   } else if (err != DirectoryError::Created_inode) {
     return IOStatus::IOError(__FUNCTION__);
   }
@@ -644,9 +644,7 @@ void callback_found_file_delete(const char *name, StoDir *parent,
   parent->write_to_disk();
 }
 
-IOStatus S2FileSystem::DeleteFile(const std::string &fname,
-                                  const IOOptions &options,
-                                  __attribute__((unused)) IODebugContext *dbg) {
+IOStatus S2FileSystem::DeleteFileWrapper(const std::string &fname) {
   std::cerr << "[DeleteFile]" << fname << std::endl;
 
   StoDir *root = get_directory_by_id(2, this->allocator);
@@ -669,6 +667,12 @@ IOStatus S2FileSystem::DeleteFile(const std::string &fname,
   }
 
   return IOStatus::IOError(__FUNCTION__);
+}
+
+IOStatus S2FileSystem::DeleteFile(const std::string &fname,
+                                  const IOOptions &options,
+                                  __attribute__((unused)) IODebugContext *dbg) {
+  return DeleteFileWrapper(fname);
 }
 
 struct ss_inode *callback_missing_file_create_logger(const char *name,
@@ -875,9 +879,11 @@ void callback_found_file_rename(const char *name, StoDir *parent,
   // Copy the name to the inode and write it to disk. Somewhat
   // inconvient to wrap it around a class.
   strncpy((char *)ss_inode->name, new_name, length);
+  printf("rename file for inode %d\n", ss_inode->id);
   ss_inode->name[length] = '\0';
   ss_inode->strlen = length;
   StoInode inode = StoInode(ss_inode, allocator);
+
   inode.dirty = true;
   inode.write_to_disk(false);
 
