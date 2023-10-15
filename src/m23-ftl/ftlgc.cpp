@@ -37,6 +37,8 @@ SOFTWARE.
 #include "zone.hpp"
 
 bool death_sensei = false;
+double seconds = 0;
+int count = 0;
 
 Calliope::Calliope(FTL *ftl, pthread_cond_t *cond, pthread_mutex_t *mutex,
                    pthread_cond_t *clean_cond, pthread_mutex_t *clean_lock) {
@@ -73,10 +75,6 @@ uint16_t Calliope::wait_for_mutex() {
   uint16_t log_zone_num;
   while (!this->select_log_zone(&log_zone_num)) {
     // if there is no full zone exists, let the consumer consumes.
-    pthread_mutex_lock(this->clean_lock);
-    pthread_cond_signal(this->clean_cond);
-    pthread_mutex_unlock(this->clean_lock);
-
     pthread_mutex_lock(this->need_gc_lock);
     pthread_cond_wait(this->need_gc, this->need_gc_lock);
     pthread_mutex_unlock(this->need_gc_lock);
@@ -121,7 +119,7 @@ void Calliope::merge_old_zone(ZNSLogZone *reapable, uint64_t base_addr,
   this->ftl->get_pba_by_base(base_addr, &addr);
   uint16_t zone_num = addr.zone_num;
   ZNSDataZone *data_zone = &this->ftl->zones_data[zone_num];
-  ZNSDataZone *new_data_zone = this->ftl->get_free_data_zone(this->ftl->zcap);
+  ZNSDataZone *new_data_zone = this->ftl->get_free_data_zone(log_blocks.size());
   if (new_data_zone == nullptr) {
     printf("failed!\n");
   }
@@ -168,7 +166,7 @@ void Calliope::insert_new_zone(ZNSLogZone *reapable, uint64_t base_addr,
                                std::vector<ZNSBlock *> &log_blocks) {
   // get a new data zone and insert.
   // new, no need to invalidate the block, just append to the new zone.
-  ZNSDataZone *data_zone = this->ftl->get_free_data_zone(this->ftl->zcap);
+  ZNSDataZone *data_zone = this->ftl->get_free_data_zone(log_blocks.size());
   for (uint16_t i = 0; i < log_blocks.size(); i++) {
     ZNSBlock *block = log_blocks[i];
     uint64_t block_lba = block->logical_address / ftl->lba_size;
@@ -200,7 +198,6 @@ void Calliope::reap() {
     std::unordered_map<uint64_t, std::vector<ZNSBlock *>> blocks_group =
         std::unordered_map<uint64_t, std::vector<ZNSBlock *>>();
     this->get_blocks_group(reapable, blocks_group);
-
     // find the data zone firstly, if find the correct one, try to append, if
     // failed, partial merge. if it doesn't find a data zone, write a new one.
     for (auto &group : blocks_group) {
@@ -220,6 +217,10 @@ void Calliope::reap() {
     pthread_rwlock_wrlock(&this->ftl->zones_lock);
     this->ftl->free_log_zones.push_back(reapable);
     pthread_rwlock_unlock(&this->ftl->zones_lock);
+	pthread_mutex_lock(this->clean_lock);
+    pthread_cond_signal(this->clean_cond);
+    pthread_mutex_unlock(this->clean_lock);
+
   }
 }
 
