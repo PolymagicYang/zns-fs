@@ -66,7 +66,7 @@ IOStatus DummyFSForward::NewSequentialFile(
     std::unique_ptr<FSSequentialFile> *result,
     __attribute__((unused)) IODebugContext *dbg) {
   std::cout << get_seq_id() << " func: " << __FUNCTION__
-            << " line: " << __LINE__ << " " << std::endl;
+            << " line: " << __LINE__ << " " << fname << std::endl;
   return this->_private_fs->NewSequentialFile(fname, file_opts, result, dbg);
 }
 
@@ -82,7 +82,7 @@ IOStatus DummyFSForward::NewRandomAccessFile(
     std::unique_ptr<FSRandomAccessFile> *result,
     __attribute__((unused)) IODebugContext *dbg) {
   std::cout << get_seq_id() << " func: " << __FUNCTION__
-            << " line: " << __LINE__ << " " << std::endl;
+            << " line: " << __LINE__ << " " << fname << std::endl;
   return this->_private_fs->NewRandomAccessFile(fname, file_opts, result, dbg);
 }
 
@@ -98,7 +98,7 @@ IOStatus DummyFSForward::NewWritableFile(
     std::unique_ptr<FSWritableFile> *result,
     __attribute__((unused)) IODebugContext *dbg) {
   std::cout << get_seq_id() << " func: " << __FUNCTION__
-            << " line: " << __LINE__ << " " << std::endl;
+            << " line: " << __LINE__ << " " << fname << std::endl;
   return this->_private_fs->NewWritableFile(fname, file_opts, result, dbg);
 }
 
@@ -139,7 +139,7 @@ IOStatus DummyFSForward::NewRandomRWFile(
     std::unique_ptr<FSRandomRWFile> *result,
     __attribute__((unused)) IODebugContext *dbg) {
   std::cout << get_seq_id() << " func: " << __FUNCTION__
-            << " line: " << __LINE__ << " " << std::endl;
+            << " line: " << __LINE__ << " " << fname << std::endl;
   return this->_private_fs->NewRandomRWFile(fname, options, result, dbg);
 }
 

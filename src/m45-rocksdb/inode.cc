@@ -18,8 +18,6 @@ uint32_t g_inode_num = 2;
 std::unordered_map<uint64_t, uint64_t> inode_map =
     std::unordered_map<uint64_t, uint64_t>();
 
-std::unordered_map<uint64_t, uint64_t> is_inode =
-    std::unordered_map<uint64_t, uint64_t>();
 pthread_mutex_t inode_map_lock = PTHREAD_MUTEX_INITIALIZER;
 
 std::unordered_map<uint64_t, StoInode *> inode_cache =
@@ -87,7 +85,6 @@ void StoInode::write_to_disk(bool update) {
   this->allocator->append((void *)inode, sizeof(struct ss_inode), &lba, true);
   pthread_mutex_lock(&inode_map_lock);
   inode_map[this->inode_number] = lba;
-  is_inode[this->inode_number] = 1;
   pthread_mutex_unlock(&inode_map_lock);
   this->dirty = false;
 }
@@ -218,9 +215,11 @@ StoInode *get_stoinode_by_id(const uint64_t inum, BlockManager *allocator) {
 
   pthread_mutex_lock(&inode_map_lock);
 
+  printf("inum is %d\n", inum);
   auto found = inode_map.find(inum);
   if (found == inode_map.end()) {
     pthread_mutex_unlock(&inode_map_lock);
+    printf("not found\n");
     return NULL;
   }
 

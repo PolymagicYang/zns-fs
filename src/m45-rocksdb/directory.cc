@@ -93,6 +93,7 @@ struct ss_dnode_record *StoDir::find_entry(const char *name) {
   if (name == NULL || this == NULL) return NULL;
 
   size_t needle_size = strlen(name);
+  printf("needld_size for %s is %d\n", name, needle_size);
 
   for (auto &entry : this->records) {
     // Weird C++ behaviour, we force it to be boolean.
@@ -103,6 +104,7 @@ struct ss_dnode_record *StoDir::find_entry(const char *name) {
                      (strncmp(entry.name, name, entry.namelen) == 0);
 
     if (condition) {
+      printf("found entry in find_entry: %s\n", entry.name);
       return &entry;
     }
   }
@@ -114,8 +116,10 @@ int StoDir::remove_entry(const char *name) {
   struct ss_dnode_record *dnode = this->find_entry(name);
   // Set them to skippable values
   // TODO(valentijn): reuse or garbage collect these values
+  printf("remove file %s from inum %d\n", name, dnode->inum);
   dnode->inum = 0;
   dnode->namelen = 0;
+  dnode->reclen = 0;
   return 1;
 }
 
@@ -139,6 +143,7 @@ enum DirectoryError find_inode(StoDir *directory, std::string name,
     prev = location;
     location = name.find(delimiter);
     current = name.substr(0, location);
+    printf("find current file name %s\n", current.c_str());
     entry = directory->find_entry(current.c_str());
 
     // We don't need to iterate if we found the inode

@@ -127,31 +127,10 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
       uint64_t inode_addr;
       memcpy(&inode_num, (void *) imap_buf_addr, sizeof(uint64_t));
       memcpy(&inode_addr, (void *) (imap_buf_addr + sizeof(uint64_t)), sizeof(uint64_t));
-      // inode_map[inode_num] = inode_addr;
+      inode_map[inode_num] = inode_addr;
       imap_buf_addr += 2 * sizeof(uint64_t);
 
       printf("inode %lx => addr %lx\n", inode_num, inode_addr);
-    }
-
-    // reconstruct the is_inode.
-    uint64_t isinode_addr;
-    uint64_t isinode_size;
-    memcpy(&isinode_addr, (void *) meta_addr, sizeof(uint64_t));
-    meta_addr += sizeof(uint64_t);
-    memcpy(&isinode_size, (void *) meta_addr, sizeof(uint64_t));
-    meta_addr += sizeof(uint64_t);
-    char isinode_buf[isinode_size]; // imap is a pair of uint64_t.
-    uint64_t isinode_buf_addr = (uint64_t) isinode_buf;
-    this->allocator->read(isinode_addr, isinode_buf, isinode_size);
-
-    entries_num = (isinode_size / sizeof(uint64_t));
-    for (uint32_t i = 0; i < entries_num; i++) {
-      uint64_t inode_num;
-      memcpy(&inode_num, (void *) isinode_buf_addr, sizeof(uint64_t));
-      isinode_buf_addr += sizeof(uint64_t);
-      is_inode[inode_num] = 1;
-
-      printf("inode num %d\n", inode_num);
     }
 
     // reconstruct the inode cache.
@@ -159,8 +138,6 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
       uint64_t inode_num = i->first;
       uint64_t inode_addr = i->second;
     }
-
-
 
     //for (std::unordered_map<uint64_t, uint64_t>::iter) {
 
@@ -202,36 +179,17 @@ void S2FileSystem::backup() {
     imap_buf_addr += sizeof(uint64_t);
     memcpy((void *) imap_buf_addr, &i->second, sizeof(uint64_t));
     imap_buf_addr += sizeof(uint64_t);
-
     printf("inode %lx => addr %lx\n", i->first, i->second);
-  }
-
-  uint64_t isinode_size = sizeof(uint64_t) * is_inode.size();
-  char isinode_buf[isinode_size];
-  uint64_t isinode_buf_addr = (uint64_t) isinode_buf;
-  for (auto i = is_inode.begin(); i != is_inode.end(); i++) {
-    memcpy((void *) isinode_buf_addr, &i->first, sizeof(uint64_t));
-    isinode_buf_addr += sizeof(uint64_t);
-
-    printf("node %lx is inode \n", i->first);
   }
 
   uint64_t imap_addr_disk;
   // temp append, should append at once later because of update, or don't store the recent wp.
   this->allocator->append(imap_buf, imap_size, &imap_addr_disk, true);
 
-  uint64_t isinode_addr_disk;
-  // temp append, should append at once later because of update, or don't store the recent wp.
-  this->allocator->append(isinode_buf, isinode_size, &isinode_addr_disk, false);
-
   printf("size is %d\n", buf_addr - (uint64_t) buf);
   memcpy((void *) buf_addr, &imap_addr_disk, sizeof(uint64_t));
   buf_addr += sizeof(uint64_t);
   memcpy((void *) buf_addr, &imap_size, sizeof(uint64_t));
-  buf_addr += sizeof(uint64_t);
-  memcpy((void *) buf_addr, &isinode_addr_disk, sizeof(uint64_t));
-  buf_addr += sizeof(uint64_t);
-  memcpy((void *) buf_addr, &isinode_size, sizeof(uint64_t));
   buf_addr += sizeof(uint64_t);
   printf("imap addr is %lx, imap size is %d\n", imap_addr_disk, imap_size);
   this->allocator->write(META_ADDR, buf, size);
@@ -256,7 +214,6 @@ S2FileSystem::~S2FileSystem() {
   dir_cache.clear();
   inode_cache.clear();
   inode_map.clear();
-  is_inode.clear();
   file_locks.clear();
   g_inode_num = 2;
 
@@ -375,7 +332,7 @@ IOStatus S2FileSystem::NewWritableFile(const std::string &fname,
                                        std::unique_ptr<FSWritableFile> *result,
                                        __attribute__((unused))
                                        IODebugContext *dbg) {
-  UNUSED(file_opts);
+
   std::cout << "[WriteableFile] Create " << fname << std::endl;
 
   *result = nullptr;
@@ -394,8 +351,9 @@ IOStatus S2FileSystem::NewWritableFile(const std::string &fname,
 
   if (err == DirectoryError::Found_inode) {
     // TODO(someone): File deletion
-    return IOStatus::IOError(
-        "File already exists. Please implement file deletion!");
+    printf("found inode: %s, create file: %s\n", found_inode.name, fname.c_str());
+    this->DeleteFileWrapper(fname);
+    return this->NewWritableFile(fname, file_opts, result, dbg);
   } else if (err != DirectoryError::Created_inode) {
     return IOStatus::IOError(__FUNCTION__);
   }
@@ -547,7 +505,7 @@ IOStatus S2FileSystem::CreateDirIfMissing(const std::string &dirname,
                                           const IOOptions &options,
                                           __attribute__((unused))
                                           IODebugContext *dbg) {
-  std::cout << "[CreateDirIfMissing]" << std::endl;
+  std::cout << "[CreateDirIfMissing] "  << dirname << std::endl;
   // Remove the starting and trailing /
   std::string cut = dirname.substr(1, dirname.size() - 1);
 
@@ -672,17 +630,13 @@ void callback_found_file_delete(const char *name, StoDir *parent,
                                 struct ss_inode *ss_inode,
                                 struct ss_dnode_record *entry, void *user_data,
                                 BlockManager *allocator) {
-  // Copy the name to the inode and write it to disk. Somewhat
-  // inconvient to wrap it around a class.
   parent->remove_entry(name);
+  printf("remove file %s from %s\n", name, parent->name);
   parent->write_to_disk();
 }
 
-IOStatus S2FileSystem::DeleteFile(const std::string &fname,
-                                  const IOOptions &options,
-                                  __attribute__((unused)) IODebugContext *dbg) {
-  std::cerr << "[DeleteFile]" << fname << std::endl;
 
+IOStatus S2FileSystem::DeleteFileWrapper(const std::string &fname) {
   StoDir *root = get_directory_by_id(2, this->allocator);
   struct ss_inode found_inode;
   std::string cut = fname.substr(1, fname.size());
@@ -703,6 +657,13 @@ IOStatus S2FileSystem::DeleteFile(const std::string &fname,
   }
 
   return IOStatus::IOError(__FUNCTION__);
+}
+
+IOStatus S2FileSystem::DeleteFile(const std::string &fname,
+                                  const IOOptions &options,
+                                  __attribute__((unused)) IODebugContext *dbg) {
+  std::cerr << "[DeleteFile]" << fname << std::endl;
+  return this->DeleteFileWrapper(fname);
 }
 
 struct ss_inode *callback_missing_file_create_logger(const char *name,
@@ -902,7 +863,6 @@ void callback_found_file_rename(const char *name, StoDir *parent,
                                 struct ss_inode *ss_inode,
                                 struct ss_dnode_record *entry, void *user_data,
                                 BlockManager *allocator) {
-  UNUSED(name);
   char *new_name = (char *)user_data;
   size_t length = strlen(new_name);
 
@@ -1034,6 +994,7 @@ IOStatus S2FileSystem::ReuseWritableFile(
     const std::string &fname, const std::string &old_fname,
     const FileOptions &file_opts, std::unique_ptr<FSWritableFile> *result,
     __attribute__((unused)) IODebugContext *dbg) {
+  
   UNUSED(fname);
   UNUSED(old_fname);
   UNUSED(file_opts);
