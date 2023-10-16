@@ -38,14 +38,8 @@ void StoFile::write(size_t size, void *data) {
   bool overwrite = this->inode.node->inserted;
   uint64_t slba = store_segment_on_disk(size, data, this->allocator, overwrite);
 
-  // printf("write file, size is %d: \n", size);
-  // for (uint32_t i = 0; i < size; i++) {
-  //   printf("%x", ((char*) data)[i]);
-  // }
-  // printf("\n");
-
-  // printf("write segment to %lx\n", slba);
   this->inode.node->add_segment(slba, total_blocks);
+  this->inode.node->write_to_disk(false);
   pthread_mutex_unlock(&this->inode.lock);
 }
 
@@ -58,7 +52,6 @@ void StoFile::read(const size_t size, void *result) {
       size_t segment_size =
           std::min(g_lba_size * segment.nblocks, current_size);
 
-      printf("get segment from %lx\n", segment.start_lba);
       get_from_disk(segment.start_lba, segment_size, result, this->allocator);
 
       // TODO(everyone): fix; this buffer overflow.

@@ -80,6 +80,16 @@ void StoInode::write_to_disk(bool update) {
 
   // Enter the data into the system maps so we know where to find it.
   struct ss_inode *inode = this->get_inode_struct();
+  inode->size = this->size;
+  inode->id = this->inode_number;
+  inode->mode = this->mode;
+  inode->size = this->size;
+  inode->time = this->time;
+  inode->strlen = this->namelen;
+  strncpy(inode->name, (char *)this->name.c_str(), inode->strlen);
+  inode->name[inode->strlen] = '\0';
+  this->dirty = false;
+
   uint64_t lba;
 
   inode->inserted = true;
