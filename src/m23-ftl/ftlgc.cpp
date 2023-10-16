@@ -36,6 +36,7 @@ SOFTWARE.
 #include "znsblock.hpp"
 #include "zone.hpp"
 
+#define Round_down(n, m) (n - (n % m))
 bool death_sensei = false;
 double seconds = 0;
 int count = 0;
@@ -74,6 +75,10 @@ bool compare_block(ZNSBlock *block1, ZNSBlock *block2) {
 uint16_t Calliope::wait_for_mutex() {
   uint16_t log_zone_num;
   while (!this->select_log_zone(&log_zone_num)) {
+	pthread_mutex_lock(this->clean_lock);
+    pthread_cond_signal(this->clean_cond);
+    pthread_mutex_unlock(this->clean_lock);
+
     // if there is no full zone exists, let the consumer consumes.
     pthread_mutex_lock(this->need_gc_lock);
     pthread_cond_wait(this->need_gc, this->need_gc_lock);
@@ -97,7 +102,8 @@ void Calliope::get_blocks_group(
   // group them by base address.
   for (ZNSBlock *block : blocks) {
     uint64_t lba_inblock = block->logical_address / this->ftl->lba_size;
-    uint64_t base_addr = (lba_inblock / this->ftl->zcap) * ftl->zcap;
+    uint64_t base_addr = Round_down(lba_inblock, this->ftl->lba_size);
+	  
     // std::cout << "logical addr: " << lba_inblock % ftl->zcap << "\t
     // base_addr: " << base_addr << "\n";
     if (blocks_group.count(base_addr) == 0) {
@@ -115,6 +121,7 @@ void Calliope::merge_old_zone(ZNSLogZone *reapable, uint64_t base_addr,
   // try to merge the old zone.
   // append until can not append, after can't append:
   //
+  std::cout << "Merge old zones" << std::endl;
   Addr addr;
   this->ftl->get_pba_by_base(base_addr, &addr);
   uint16_t zone_num = addr.zone_num;
@@ -156,14 +163,14 @@ void Calliope::merge_old_zone(ZNSLogZone *reapable, uint64_t base_addr,
     }
   }
 
-  this->ftl->insert_datamap(base_addr, data_zone->base,
-                            new_data_zone->zone_id - ftl->log_zones);
+  this->ftl->insert_datamap(base_addr, data_zone->base, new_data_zone->zone_id);
   // ftl->data_map.map.count(base_addr));
   data_zone->reset();
 }
 
 void Calliope::insert_new_zone(ZNSLogZone *reapable, uint64_t base_addr,
                                std::vector<ZNSBlock *> &log_blocks) {
+  std::cout << "Inside" << std::endl;
   // get a new data zone and insert.
   // new, no need to invalidate the block, just append to the new zone.
   ZNSDataZone *data_zone = this->ftl->get_free_data_zone(log_blocks.size());
@@ -177,8 +184,7 @@ void Calliope::insert_new_zone(ZNSLogZone *reapable, uint64_t base_addr,
     data_zone->write_until(buffer, read_size, index);
     this->ftl->delete_logmap(block->logical_address);
   }
-  this->ftl->insert_datamap(base_addr, data_zone->base,
-                            data_zone->zone_id - ftl->log_zones);
+  this->ftl->insert_datamap(base_addr, data_zone->base, data_zone->zone_id);
 }
 
 void Calliope::reap() {
@@ -217,10 +223,6 @@ void Calliope::reap() {
     pthread_rwlock_wrlock(&this->ftl->zones_lock);
     this->ftl->free_log_zones.push_back(reapable);
     pthread_rwlock_unlock(&this->ftl->zones_lock);
-	pthread_mutex_lock(this->clean_lock);
-    pthread_cond_signal(this->clean_cond);
-    pthread_mutex_unlock(this->clean_lock);
-
   }
 }
 

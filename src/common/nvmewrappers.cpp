@@ -2,11 +2,12 @@
 // the human readable error messagea
 #include "nvmewrappers.h"
 
-#include <cstdint>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <cstdint>
 
 extern "C" {
 void print_nvme_error(const char *type, const int ret) {
@@ -14,12 +15,16 @@ void print_nvme_error(const char *type, const int ret) {
           nvme_status_to_string(ret, false));
 }
 
-int ss_nvme_write_wrapper(int fd, uint32_t nsid, uint64_t slba, uint16_t nlb, uint32_t size, void *data) {
-  return ss_nvme_write(fd, nsid, slba, nlb, 0, 0, 0, 0, 0, 0, size, data, 0, nullptr);
+int ss_nvme_write_wrapper(int fd, uint32_t nsid, uint64_t slba, uint16_t nlb,
+                          uint32_t size, void *data) {
+  return ss_nvme_write(fd, nsid, slba, nlb, 0, 0, 0, 0, 0, 0, size, data, 0,
+                       nullptr);
 }
 
-int ss_nvme_read_wrapper(int fd, uint32_t nsid, uint64_t slba, uint16_t nlb, uint32_t size, void *data) {
-  return ss_nvme_read(fd, nsid, slba, nlb, 0, 0, 0, 0, 0, size, data, 0, nullptr);
+int ss_nvme_read_wrapper(int fd, uint32_t nsid, uint64_t slba, uint16_t nlb,
+                         uint32_t size, void *data) {
+  return ss_nvme_read(fd, nsid, slba, nlb, 0, 0, 0, 0, 0, size, data, 0,
+                      nullptr);
 }
 
 int ss_nvme_write(int fd, __u32 nsid, __u64 slba, __u16 nlb, __u16 control,
@@ -73,8 +78,9 @@ int ss_device_zone_reset(int fd, uint32_t nsid, uint64_t slba) {
   // this is to supress gcc warnings, remove it when you complete this function
   __u32 cdw10 = slba & 0xffffffff;
   __u32 cdw11 = slba >> 32;
-  __u32 cdw13 =
-      1 << 2;  // 08 sets to 0, 04h as the reset zone, and others reserved.
+   // 08 sets to 0, 04h as the reset zone, and others reserved.
+  __u32 cdw13 = 1 << 2;
+  printf("!!! CALL RESET !!!\n");
   return nvme_io_passthru(fd, nvme_zns_cmd_mgmt_send, 0, 0, nsid, 0, 0, cdw10,
                           cdw11, 0, cdw13, 0, 0, 0, nullptr, 0, nullptr, 0,
                           NULL);

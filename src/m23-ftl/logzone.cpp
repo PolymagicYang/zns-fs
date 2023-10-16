@@ -101,7 +101,8 @@ WARN: unsafe function, read and write will call this function with their own
 lock. Use this method with a lock!
 */
 uint32_t ZNSLogZone::get_current_capacity() const {
-  // printf("base is %d, cap is %d, position is %d\n", this->base, this->capacity, this->position);
+  // printf("base is %d, cap is %d, position is %d\n", this->base,
+  // this->capacity, this->position);
   return this->capacity + this->base - this->position;
 }
 
@@ -240,9 +241,8 @@ uint32_t ZNSLogZone::write(void *buffer, uint32_t size, uint32_t *write_size,
   for (uint64_t i = 0, address = write_base; i < total_nlb; i++) {
     uint64_t pa = address + i;
     uint64_t local_lba = lba + i * this->lba_size;
-    this->block_map.map[pa] = {.address = pa,
-                               .logical_address = local_lba,
-                               .valid = true};
+    this->block_map.map[pa] = {
+        .address = pa, .logical_address = local_lba, .valid = true};
   }
 
   return 0;

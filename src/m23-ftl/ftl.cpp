@@ -24,14 +24,14 @@ SOFTWARE.
 
 #include "ftl.hpp"
 
-#include <algorithm>
-#include <cassert>
-#include <cstring>
 #include <pthread.h>
 #include <sys/types.h>
 
+#include <algorithm>
+#include <cassert>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <vector>
 
 #include "datazone.hpp"
@@ -40,13 +40,12 @@ SOFTWARE.
 #include "znsblock.hpp"
 #include "zone.hpp"
 
-
 void create_zones(const int zns_fd, const uint32_t nsid,
                   const uint64_t lba_size, const uint64_t mdts_size,
                   const uint16_t logs, std::vector<ZNSLogZone> *log_zones,
                   std::vector<ZNSDataZone> *rerv_zones,
                   std::vector<ZNSDataZone> *data_zones,
-				  const bool force_reset) {
+                  const bool force_reset) {
   // TODO(valentijn): don't hard code this please
   struct nvme_zone_report *zns_report =
       (struct nvme_zone_report *)calloc(1, 0x1000);
@@ -58,10 +57,11 @@ void create_zones(const int zns_fd, const uint32_t nsid,
   std::vector<ZNSLogZone> zones = std::vector<ZNSLogZone>();
   uint32_t i;
   if (logs >= nr) {
-	  std::cout << "Invalid number of log zones " << logs << " " << " > " << nr  << std::endl;
-	  exit(-1);
+    std::cout << "Invalid number of log zones " << logs << " "
+              << " > " << nr << std::endl;
+    exit(-1);
   }
-	  
+
   for (i = 0; i < logs; i++) {
     struct nvme_zns_desc current = zns_report->entries[i];
 
@@ -120,16 +120,11 @@ void create_zones(const int zns_fd, const uint32_t nsid,
     temp_data_zones.push_back(zone);
   }
   *data_zones = temp_data_zones;
-  if (force_reset)
-	  zones.at(0).reset_all_zones();
-
-
-  for (auto &zone : zones) {
-	  std::cout << zone.position << " " << zone.slba << std::endl;
+  if (force_reset) {
+	std::cout << "!!!RESET!!!" << std::endl;
+	zones.at(0).reset_all_zones();
   }
-  for (auto &zone : *data_zones) {
-	  std::cout << zone.position << " " << zone.slba << std::endl;
-  }
+
   // Reset all the zones in one go so that we are in a valid initial state
   free(zns_report);
 }
@@ -151,116 +146,131 @@ FTL::FTL(int fd, uint64_t mdts, uint32_t nsid, uint16_t lba_size, int gc_wmark,
   this->zones_reserved = std::vector<ZNSDataZone>();
   this->zones_data = std::vector<ZNSDataZone>();
   this->zones_log = std::vector<ZNSLogZone>();
-  
+
   create_zones(fd, nsid, lba_size, mdts_size, log_zones, &zones_log,
                &zones_reserved, &zones_data, force_reset);
   this->zcap = zones_log.at(0).capacity;
 
   if (!force_reset) {
-	  uint64_t last_zone_addr = zcap * (this->zones_log.size() + this->zones_data.size());
-	  char meta_block[lba_size];
-	  int ret = ss_nvme_read_wrapper(fd, nsid, last_zone_addr, 0, lba_size, meta_block);
-	  assert(ret == 0);
+	std::cout << "FTL restart" << std::endl;
+    uint64_t last_zone_addr =
+        zcap * (this->zones_log.size() + this->zones_data.size());
+    char meta_block[lba_size];
+    int ret =
+        ss_nvme_read_wrapper(fd, nsid, last_zone_addr, 0, lba_size, meta_block);
+    assert(ret == 0);
 
-	  uint64_t init_code_disk;
-	  memcpy(&init_code_disk, meta_block, sizeof(uint64_t));
-	  // printf("init code is %ld, current is %ld\n", init_code_disk, this->init_code);
-	  if (init_code_disk == this->init_code) {
-		  // restore the previous status of ftl.
-		  std::cout << "restore from the previous status." << std::endl;
-		  uint64_t buf_size;
-		  memcpy(&buf_size, meta_block + sizeof(uint64_t), sizeof(uint64_t));
-		  char meta_buffer[buf_size];
-		  uint16_t nlb = buf_size / lba_size;
-		  int ret = ss_nvme_read_wrapper(fd, nsid, last_zone_addr, nlb, buf_size, meta_buffer);
-		  assert(ret == 0);
+    uint64_t init_code_disk;
+    memcpy(&init_code_disk, meta_block, sizeof(uint64_t));
+    // printf("init code is %ld, current is %ld\n", init_code_disk,
+    // this->init_code);
+    if (init_code_disk == this->init_code) {
+      // restore the previous status of ftl.
+      std::cout << "restore from the previous status." << std::endl;
+      uint64_t buf_size;
+      memcpy(&buf_size, meta_block + sizeof(uint64_t), sizeof(uint64_t));
+      char meta_buffer[buf_size];
+      uint16_t nlb = buf_size / lba_size;
+      int ret = ss_nvme_read_wrapper(fd, nsid, last_zone_addr, nlb, buf_size,
+                                     meta_buffer);
+      assert(ret == 0);
 
-		  uint64_t lzone_buf_size;
-		  uint64_t dzone_buf_size;
-		  uint64_t lmap_buf_size;
-		  uint64_t dmap_buf_size;
-		  memcpy(&lzone_buf_size, meta_buffer + 2 * sizeof(uint64_t), sizeof(uint64_t));
-		  memcpy(&dzone_buf_size, meta_buffer + 3 * sizeof(uint64_t), sizeof(uint64_t));
-		  memcpy(&lmap_buf_size, meta_buffer + 4 * sizeof(uint64_t), sizeof(uint64_t));
-		  memcpy(&dmap_buf_size, meta_buffer + 5 * sizeof(uint64_t), sizeof(uint64_t));
-		  uint16_t buffer_index = sizeof(uint64_t) * 6;
-		  // restore lzone.
-		  // restore lzone pas.
-		  std::vector<uint64_t> pas;
-		  for (uint16_t i = 0; i < this->zones_log.size(); i++) {
-			  uint64_t num;
-			  memcpy(&num, meta_buffer + buffer_index, sizeof(uint64_t));
-			  if (num == 0) {
-				  buffer_index += sizeof(uint64_t);
-				  continue;
-			  }
-			  buffer_index += sizeof(uint64_t);
+      uint64_t lzone_buf_size;
+      uint64_t dzone_buf_size;
+      uint64_t lmap_buf_size;
+      uint64_t dmap_buf_size;
+      memcpy(&lzone_buf_size, meta_buffer + 2 * sizeof(uint64_t),
+             sizeof(uint64_t));
+      memcpy(&dzone_buf_size, meta_buffer + 3 * sizeof(uint64_t),
+             sizeof(uint64_t));
+      memcpy(&lmap_buf_size, meta_buffer + 4 * sizeof(uint64_t),
+             sizeof(uint64_t));
+      memcpy(&dmap_buf_size, meta_buffer + 5 * sizeof(uint64_t),
+             sizeof(uint64_t));
+      uint16_t buffer_index = sizeof(uint64_t) * 6;
+      // restore lzone.
+      // restore lzone pas.
+      std::vector<uint64_t> pas;
+      for (uint16_t i = 0; i < this->zones_log.size(); i++) {
+        uint64_t num;
+        memcpy(&num, meta_buffer + buffer_index, sizeof(uint64_t));
+        if (num == 0) {
+          buffer_index += sizeof(uint64_t);
+          continue;
+        }
+        buffer_index += sizeof(uint64_t);
 
-			  uint64_t lbas[num];
-			  ZNSBlock blocks[num];
-			  memcpy(&lbas, meta_buffer + buffer_index, sizeof(uint64_t) * num);
-			  buffer_index += sizeof(uint64_t) * num;
-			  memcpy(&blocks, meta_buffer + buffer_index, sizeof(ZNSBlock) * num);
-			  buffer_index += sizeof(ZNSBlock) * num;
+        uint64_t lbas[num];
+        ZNSBlock blocks[num];
+        memcpy(&lbas, meta_buffer + buffer_index, sizeof(uint64_t) * num);
+        buffer_index += sizeof(uint64_t) * num;
+        memcpy(&blocks, meta_buffer + buffer_index, sizeof(ZNSBlock) * num);
+        buffer_index += sizeof(ZNSBlock) * num;
 
-			  // printf("\n");
-			  for (uint64_t j = 0; j < num; j++) {
-				  this->zones_log[i].block_map.map[lbas[j]] = blocks[j];
-				  // printf("zone %d lab %lx -> %lx valid: %d \t", i, lbas[j], blocks[j].logical_address, blocks[j].valid);
-			  }
+        printf("\n");
+        for (uint64_t j = 0; j < num; j++) {
+          this->zones_log[i].block_map.map[lbas[j]] = blocks[j];
+          printf("zone %d lab %lx -> %lx valid: %d \n", i, lbas[j],
+          blocks[j].logical_address, blocks[j].valid);
+        }
 
-			  // printf("\n");
-		  }
+        printf("\n");
+      }
 
-		  // restore dzone.
-		  for (uint16_t i = 0; i < this->zones_data.size(); i++) {
-			  int dzone_buf[this->zcap];
-			  memcpy(dzone_buf, meta_buffer + buffer_index, sizeof(int) * this->zcap);
-			  this->zones_data[i].block_map.assign(dzone_buf, dzone_buf + this->zcap);
-			  buffer_index += this->zcap * sizeof(int);
+      // restore dzone.
+      for (uint16_t i = 0; i < this->zones_data.size(); i++) {
+        int dzone_buf[this->zcap];
+        memcpy(dzone_buf, meta_buffer + buffer_index, sizeof(int) * this->zcap);
+        this->zones_data[i].block_map.assign(dzone_buf, dzone_buf + this->zcap);
+        buffer_index += this->zcap * sizeof(int);
 
-			  /*
-				printf("zone %d\n", i);
-				for (int j = 0; j < this->zcap; j++) {
-				printf("valid :%d\t", this->zones_data[i].block_map[j]);
-				}
-				printf("\n");
-			  */
-		  }
+        
+/*		printf("zone %d\n", i);
+		for (int j = 0; j < this->zcap; j++) {
+		  printf("valid :%d\t", this->zones_data[i].block_map[j]);
+		}
+		printf("\n"); */
+      }
 
-		  // restore lmap.
-		  // printf("lba map:\n");
-		  uint64_t lmap_num = lmap_buf_size / (sizeof(uint64_t) + sizeof(Addr));
-		  for (uint64_t i = 0; i < lmap_num; i++) {
-			  uint64_t lba;
-			  Addr pa;
-			  memcpy(&lba, meta_buffer + buffer_index, sizeof(uint64_t));
-			  buffer_index += sizeof(uint64_t);
-			  memcpy(&pa, meta_buffer + buffer_index, sizeof(Addr));
-			  buffer_index += sizeof(Addr);
-			  this->log_map.map[lba] = pa;
-			  // printf("lba %lx -> pa %lx, zone num: %d\t", lba, pa.addr, pa.zone_num);
-		  }
-		  // printf("\n");
-		  
-		  // restore dmap.
-		  if (dmap_buf_size) {
-			  // printf("data map:\n");
-			  uint64_t dmap_num = dmap_buf_size / (sizeof(uint64_t) + sizeof(Addr));
-			  for (uint64_t i = 0; i < dmap_num; i++) {
-				  uint64_t lba;
-				  Addr pa;
-				  memcpy(&lba, meta_buffer + buffer_index, sizeof(uint64_t));
-				  buffer_index += sizeof(uint64_t);
-				  memcpy(&pa, meta_buffer + buffer_index, sizeof(Addr));
-				  buffer_index += sizeof(Addr);
-				  this->data_map.map[lba] = pa;
-				  // printf("lba %lx -> pa %lx, zone num: %d\t", lba, pa.addr, pa.zone_num);
-			  }
-			  // printf("\n");
-		  }
-		  ss_device_zone_reset(fd, nsid, last_zone_addr);
-	  }
+      // restore lmap.
+      printf("lba map:\n");
+      uint64_t lmap_num = lmap_buf_size / (sizeof(uint64_t) + sizeof(Addr));
+      for (uint64_t i = 0; i < lmap_num; i++) {
+        uint64_t lba;
+        Addr pa;
+        memcpy(&lba, meta_buffer + buffer_index, sizeof(uint64_t));
+        buffer_index += sizeof(uint64_t);
+        memcpy(&pa, meta_buffer + buffer_index, sizeof(Addr));
+        buffer_index += sizeof(Addr);
+        this->log_map.map[lba] = pa;
+        printf("lba %lx -> pa %lx, zone num: %d\n", lba, pa.addr,
+			   pa.zone_num);
+      }
+      printf("\n");
+
+      // restore dmap.
+      if (dmap_buf_size) {
+        // printf("data map:\n");
+        uint64_t dmap_num = dmap_buf_size / (sizeof(uint64_t) + sizeof(Addr));
+        for (uint64_t i = 0; i < dmap_num; i++) {
+          uint64_t lba;
+          Addr pa;
+          memcpy(&lba, meta_buffer + buffer_index, sizeof(uint64_t));
+          buffer_index += sizeof(uint64_t);
+          memcpy(&pa, meta_buffer + buffer_index, sizeof(Addr));
+          buffer_index += sizeof(Addr);
+          this->data_map.map[lba] = pa;
+          printf("lba %lx -> pa %lx, zone num: %d\n", lba, pa.addr,
+          pa.zone_num);
+        }
+        printf("\n");
+      }
+	  printf(
+		"meta data size is %d, slba is %lx, init code is %d\n",
+		buf_size, last_zone_addr, init_code);
+
+      // ss_device_zone_reset(fd, nsid, last_zone_addr);
+    }
   }
   // zones_log.at(0).reset_all_zones();
   // Start our reaper rapper and store her as a void pointer in our FTL
@@ -366,6 +376,7 @@ void FTL::delete_logmap(uint64_t lba) {
 }
 
 void FTL::insert_datamap(uint64_t base_addr, uint64_t pa, uint16_t zone_num) {
+  std::cout << "Insert " << base_addr << " into " << zone_num << " at " << pa << std::endl;
   pthread_rwlock_wrlock(&this->data_map.lock);
   uint64_t pa_base = (pa / this->zcap) * this->zcap;
   this->data_map.map[base_addr] =
@@ -448,7 +459,8 @@ int FTL::write(uint64_t lba, void *buffer, uint32_t size) {
 
     uint64_t wp_starts = zone->get_wp();
     uint32_t write_size;
-    // printf("zone %d wp is %ld, size is %ld, current cap is %d\n", zone->zone_id, zone->position, size, zone->get_current_capacity());
+    // printf("zone %d wp is %ld, size is %ld, current cap is %d\n",
+    // zone->zone_id, zone->position, size, zone->get_current_capacity());
     int ret = zone->write(buffer, size, &write_size, lba);
 
     // If we haven't written the entire buffer then we know that the
@@ -481,7 +493,7 @@ int FTL::write(uint64_t lba, void *buffer, uint32_t size) {
 
 void FTL::backup() {
   // Store everything in the last zone.
-  // Calculate the last zone address. 
+  // Calculate the last zone address.
   uint32_t zones_num = this->zones_log.size() + this->zones_data.size();
   uint64_t last_zone_addr = this->zcap * zones_num;
 
@@ -494,7 +506,7 @@ void FTL::backup() {
   for (uint16_t i = 0; i < this->zones_log.size(); i++) {
     std::vector<uint64_t> lbas;
     std::vector<ZNSBlock> blocks;
-    ZNSLogZone* zone = &this->zones_log[i];
+    ZNSLogZone *zone = &this->zones_log[i];
     pthread_rwlock_rdlock(&zone->block_map.lock);
     BlockMap bmap = zone->block_map.map;
     pthread_rwlock_unlock(&zone->block_map.lock);
@@ -503,14 +515,13 @@ void FTL::backup() {
     for (BlockMap::iterator iter = bmap.begin(); iter != bmap.end(); iter++) {
       uint64_t lba = iter->first;
       ZNSBlock block = iter->second;
-      // printf("zone %d : %lx -> %lx \t", i, lba, block.logical_address);
+      // printf("zone %d : %lx -> %lx \n", i, lba, block.logical_address);
       lbas.push_back(lba);
       blocks.push_back(block);
     }
     lbas_group.push_back(lbas);
     blocks_group.push_back(blocks);
     // printf("\n");
-
   }
   uint64_t lzone_buf_size = 0;
 
@@ -524,12 +535,12 @@ void FTL::backup() {
   // store data zones data.
   uint64_t dzone_buf_size = this->zones_data.size() * this->zcap * sizeof(int);
   char datazone_buf[dzone_buf_size];
-  uint64_t map_buf_addr = (uint64_t) datazone_buf;
+  uint64_t map_buf_addr = (uint64_t)datazone_buf;
   for (uint16_t i = 0; i < this->zones_data.size(); i++) {
     ZNSDataZone *zone = &this->zones_data[i];
     std::vector<int> map = zone->block_map;
-    
-    memcpy((void *) map_buf_addr, map.data(), map.size());
+
+    memcpy((void *)map_buf_addr, map.data(), map.size());
 
     /*
     printf("zone %d\n", i);
@@ -549,16 +560,17 @@ void FTL::backup() {
 
   uint64_t lmap_buf_size = logmap.size() * (sizeof(uint64_t) + sizeof(Addr));
   char logmap_buf[lmap_buf_size];
-  map_buf_addr = (uint64_t) logmap_buf;
+  map_buf_addr = (uint64_t)logmap_buf;
   // printf("\n");
+  std::cout << "log map" << std::endl;
   for (raw_map::iterator iter = logmap.begin(); iter != logmap.end(); iter++) {
     uint64_t lba = iter->first;
     Addr pa = iter->second;
-    memcpy((void *) map_buf_addr, &lba, sizeof(uint64_t));
+    memcpy((void *)map_buf_addr, &lba, sizeof(uint64_t));
     map_buf_addr += sizeof(uint64_t);
-    memcpy((void *) map_buf_addr, &pa, sizeof(Addr));
+    memcpy((void *)map_buf_addr, &pa, sizeof(Addr));
     map_buf_addr += sizeof(Addr);
-    // printf("lba %lx -> pa %lx, zone num: %d\t", lba, pa.addr, pa.zone_num);
+    printf("lba %lx -> pa %lx, zone num: %d\n", lba, pa.addr, pa.zone_num);
   }
 
   // printf("\n");
@@ -569,80 +581,85 @@ void FTL::backup() {
   pthread_rwlock_unlock(&this->data_map.lock);
 
   uint64_t dmap_buf_size = datamap.size() * (sizeof(uint64_t) + sizeof(Addr));
-  uint64_t total_size = lzone_buf_size + dzone_buf_size + lmap_buf_size + dmap_buf_size;
-  // [init_code] [buf_size] [lzone_buf_size] [dzone_buf_size] [lmap_buf_size] [dmap_buf_size] [metadata].
-  // we know the number of log zones and data zones, so it should be easy to restore them.
+  uint64_t total_size =
+      lzone_buf_size + dzone_buf_size + lmap_buf_size + dmap_buf_size;
+  // [init_code] [buf_size] [lzone_buf_size] [dzone_buf_size] [lmap_buf_size]
+  // [dmap_buf_size] [metadata]. we know the number of log zones and data zones,
+  // so it should be easy to restore them.
 
   // make sure it always be the multiple of lba_size.
-  uint64_t buf_size = ((sizeof(uint64_t) * 6 + total_size) / this->lba_size) * this->lba_size + this->lba_size;
+  uint64_t buf_size =
+      ((sizeof(uint64_t) * 6 + total_size) / this->lba_size) * this->lba_size +
+      this->lba_size;
   uint16_t nlb = buf_size / this->lba_size;
   char final_buf[buf_size];
-  uint64_t final_buf_addr = (uint64_t) final_buf;
+  uint64_t final_buf_addr = (uint64_t)final_buf;
 
-  memcpy((void *) final_buf_addr, &init_code, sizeof(uint64_t));
+  memcpy((void *)final_buf_addr, &init_code, sizeof(uint64_t));
   final_buf_addr += sizeof(uint64_t);
-  memcpy((void *) final_buf_addr, &buf_size, sizeof(uint64_t));
+  memcpy((void *)final_buf_addr, &buf_size, sizeof(uint64_t));
   final_buf_addr += sizeof(uint64_t);
-  memcpy((void *) final_buf_addr, &lzone_buf_size, sizeof(uint64_t));
+  memcpy((void *)final_buf_addr, &lzone_buf_size, sizeof(uint64_t));
   final_buf_addr += sizeof(uint64_t);
-  memcpy((void *) final_buf_addr, &dzone_buf_size, sizeof(uint64_t));
+  memcpy((void *)final_buf_addr, &dzone_buf_size, sizeof(uint64_t));
   final_buf_addr += sizeof(uint64_t);
-  memcpy((void *) final_buf_addr, &lmap_buf_size, sizeof(uint64_t));
+  memcpy((void *)final_buf_addr, &lmap_buf_size, sizeof(uint64_t));
   final_buf_addr += sizeof(uint64_t);
-  memcpy((void *) final_buf_addr, &dmap_buf_size, sizeof(uint64_t));
+  memcpy((void *)final_buf_addr, &dmap_buf_size, sizeof(uint64_t));
   final_buf_addr += sizeof(uint64_t);
 
   for (uint16_t i = 0; i < this->zones_log.size(); i++) {
     if (lbas_group[i].size() == 0) {
       uint64_t num = 0;
-      memcpy((void *) final_buf_addr, &num, sizeof(uint64_t));
+      memcpy((void *)final_buf_addr, &num, sizeof(uint64_t));
       final_buf_addr += sizeof(uint64_t);
       continue;
     }
-    void* lbas_buf = lbas_group[i].data();
+    void *lbas_buf = lbas_group[i].data();
     uint64_t lbas_num = lbas_group[i].size();
-    void* blocks_buf = blocks_group[i].data();
+    void *blocks_buf = blocks_group[i].data();
     uint64_t blocks_num = blocks_group[i].size();
     uint64_t num = lbas_num;
 
-    // printf("zone %d\n", i);
-    // printf("current position %lx\n", zones_log[i].position);
-    // printf("\n");
-
-    memcpy((void *) final_buf_addr, &num, sizeof(uint64_t));
+    memcpy((void *)final_buf_addr, &num, sizeof(uint64_t));
     final_buf_addr += sizeof(uint64_t);
-    memcpy((void *) final_buf_addr, lbas_buf, lbas_num * sizeof(uint64_t));
+    memcpy((void *)final_buf_addr, lbas_buf, lbas_num * sizeof(uint64_t));
     final_buf_addr += lbas_num * sizeof(uint64_t);
-    memcpy((void *) final_buf_addr, blocks_buf, blocks_num * sizeof(ZNSBlock));
+    memcpy((void *)final_buf_addr, blocks_buf, blocks_num * sizeof(ZNSBlock));
     final_buf_addr += blocks_num * sizeof(ZNSBlock);
   }
-  
-  memcpy((void *) final_buf_addr, datazone_buf, dzone_buf_size);
+
+  memcpy((void *)final_buf_addr, datazone_buf, dzone_buf_size);
   final_buf_addr += dzone_buf_size;
-  memcpy((void *) final_buf_addr, logmap_buf, lmap_buf_size);
+  memcpy((void *)final_buf_addr, logmap_buf, lmap_buf_size);
   final_buf_addr += lmap_buf_size;
 
+  std::cout << "Data map" << std::endl;
   if (dmap_buf_size) {
     // no GC if datamap size is zero.
     char datamap_buf[dmap_buf_size];
-    map_buf_addr = (uint64_t) datamap_buf;
+    map_buf_addr = (uint64_t)datamap_buf;
     // printf("data zone\n");
-    for (raw_map::iterator iter = datamap.begin(); iter != datamap.end(); iter++) {
+    for (raw_map::iterator iter = datamap.begin(); iter != datamap.end();
+         iter++) {
       uint64_t lba = iter->first;
       Addr pa = iter->second;
-      memcpy((void *) map_buf_addr, &lba, sizeof(uint64_t));
+      memcpy((void *)map_buf_addr, &lba, sizeof(uint64_t));
       map_buf_addr += sizeof(uint64_t);
-      memcpy((void *) map_buf_addr, &pa, sizeof(Addr));
+      memcpy((void *)map_buf_addr, &pa, sizeof(Addr));
       map_buf_addr += sizeof(Addr);
-      // printf("lba %lx -> pa %lx, zone num: %d\t", lba, pa.addr, pa.zone_num);
+      printf("lba %lx -> pa %lx, zone num: %d\n", lba, pa.addr, pa.zone_num);
     }
-    memcpy((void *) final_buf_addr, datamap_buf, dmap_buf_size);
+    memcpy((void *)final_buf_addr, datamap_buf, dmap_buf_size);
   }
   // printf("data zone end\n");
   final_buf_addr += dmap_buf_size;
-  printf("meta data size is %d, slba is %lx, zones num is %d, init code is %d\n", buf_size, last_zone_addr, zones_num, init_code);
+  printf(
+      "meta data size is %d, slba is %lx, zones num is %d, init code is %d\n",
+      buf_size, last_zone_addr, zones_num, init_code);
 
-  ss_nvme_write_wrapper(this->fd, this->nsid, last_zone_addr, nlb, buf_size, final_buf);
+  ss_nvme_write_wrapper(this->fd, this->nsid, last_zone_addr, nlb, buf_size,
+                        final_buf);
 }
 
 #endif

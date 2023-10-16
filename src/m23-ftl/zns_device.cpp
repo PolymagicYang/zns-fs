@@ -50,7 +50,7 @@ SOFTWARE.
 
 extern "C" {
 // TODO(valentijn): Implement this functionh
- int deinit_ss_zns_device(struct user_zns_device *my_dev, const bool store) {
+int deinit_ss_zns_device(struct user_zns_device *my_dev, const bool store) {
   int ret = -ENOSYS;
   // cppcheck-suppress cstyleCast
   FTL *ftl = (FTL *)my_dev->_private;
@@ -65,9 +65,8 @@ extern "C" {
 
   // Store current ftl status.
 
-  if (store)
-	  ftl->backup();
-  
+  if (store) ftl->backup();
+
   free(my_dev);
   delete ftl->mori;
   delete ftl;
@@ -81,7 +80,7 @@ int init_ss_zns_device(struct zdev_init_params *params,
   void *regs;
   struct nvme_id_ns ns {};
   struct nvme_id_ctrl ctrl;
-
+  // death_sensei = true;
   fd = nvme_open(params->name);
 
   if (fd < 0) {

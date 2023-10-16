@@ -56,6 +56,9 @@ namespace ROCKSDB_NAMESPACE {
 std::mutex file_lock_lock;
 std::vector<std::string> file_locks;
 
+#define Get_Addr(meta, size) ((void*) (((uint64_t) (meta)) + INIT_CODE_SIZE \
+									  + (size) * sizeof(uint64_t)))
+
 S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
   std::cout << sizeof(struct ss_inode) << " " << sizeof(struct ss_dnode)
             << std::endl;
@@ -101,7 +104,6 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
 
   // reboot phase.
   if (!params.force_reset) {
-    std::cout << "Reload" << std::endl;
     char meta[g_lba_size];
     char init_code_disk[INIT_CODE_SIZE];
     memcpy(init_code, INIT_CODE, INIT_CODE_SIZE);
@@ -110,22 +112,15 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
     memcpy(init_code_disk, meta, INIT_CODE_SIZE);
     if (strcmp(init_code_disk, init_code) == 0) {
       // already exits
-      std::cout << "Initialized" << std::endl;
       // reconstruct the imap.
       uint64_t imap_addr;
       uint64_t imap_size;
       uint64_t wp;
-      memcpy(&imap_addr, (void *)(((uint64_t)meta) + INIT_CODE_SIZE),
-             sizeof(uint64_t));
-      memcpy(&imap_size,
-             (void *)(((uint64_t)meta) + INIT_CODE_SIZE + sizeof(uint64_t)),
-             sizeof(uint64_t));
-      memcpy(&wp,
-             (void *)(((uint64_t)meta) + INIT_CODE_SIZE + 2 * sizeof(uint64_t)),
-             sizeof(uint64_t));
-      memcpy(&g_inode_num,
-             (void *)(((uint64_t)meta) + INIT_CODE_SIZE + 3 * sizeof(uint64_t)),
-             sizeof(uint64_t));
+	  
+      memcpy(&imap_addr, Get_Addr(meta, 0), sizeof(uint64_t));
+      memcpy(&imap_size, Get_Addr(meta, 1), sizeof(uint64_t));
+      memcpy(&wp, Get_Addr(meta, 2), sizeof(uint64_t));
+	  memcpy(&g_inode_num, Get_Addr(meta, 3), sizeof(uint64_t));
       this->allocator->update_current_position(wp);
 
       printf(
@@ -133,32 +128,24 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
           "%d\n",
           imap_addr, imap_size, wp, g_inode_num);
 
-      char *imap_buf =
-          (char *)malloc(imap_size);  //	 imap is a pair of uint64_t.
+	  // imap is a pair of uint64_t.
+      char *imap_buf = (char *)malloc(imap_size);  
       uint64_t imap_buf_addr = (uint64_t)imap_buf;
       this->allocator->read(imap_addr, imap_buf, imap_size);
 
       printf("get value\n");
       uint32_t entries_num = (imap_size / sizeof(uint64_t)) / 2;
-      for (uint32_t i = 0; i < entries_num; i++) {
+      for (uint32_t i = 0; i < entries_num; i++) {		
         uint64_t inode_num;
         uint64_t inode_addr;
         memcpy(&inode_num, (void *)imap_buf_addr, sizeof(uint64_t));
         memcpy(&inode_addr, (void *)(imap_buf_addr + sizeof(uint64_t)),
                sizeof(uint64_t));
-        // inode_map[inode_num] = 	inode_addr;
+		printf("inode %lx -> lba %lx\n", inode_num, inode_addr );
         imap_buf_addr += 2 * sizeof(uint64_t);
         inode_map[inode_num] = inode_addr;
-
-        printf("inode %lx => addr %lx\n", inode_num, inode_addr);
       }
       free(imap_buf);
-      // reconstruct the inode cache.
-
-      // for (std::unordered_map<uint64_t, uint64_t>::iter) {
-
-      //}
-      // reconstruct the dir cache.
       // update current wp in the allocator.
     }
   } else {
@@ -533,6 +520,7 @@ IOStatus S2FileSystem::CreateDirIfMissing(const std::string &dirname,
                                           __attribute__((unused))
                                           IODebugContext *dbg) {
   std::cout << "[CreateDirIfMissing]" << dirname << std::endl;
+  
   // Remove the starting and trailing /
   std::string cut = dirname.substr(1, dirname.size() - 1);
 
