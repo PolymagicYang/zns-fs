@@ -55,14 +55,15 @@ void StoDir::write_to_disk() {
 
     sinode->add_segment(lba, 1);
     sinode->write_to_disk(true);
-	inode_cache_lock.lock();
+    inode_cache_lock.lock();
     inode_cache[sinode->inode_number] = sinode;
-	inode_cache_lock.unlock();
+    inode_cache_lock.unlock();
     return;
   }
 
   // Use our stored inode number
-  memcpy(&this->dnode.entries, &this->records, sizeof(ss_dnode_record) * DIRSIZE);
+  memcpy(&this->dnode.entries, &this->records,
+         sizeof(ss_dnode_record) * DIRSIZE);
   update_dnode_in_storage(this->inode_number, &this->dnode, this->allocator);
 }
 
@@ -95,7 +96,8 @@ struct ss_dnode_record *StoDir::find_entry(const char *name) {
 
   size_t needle_size = strlen(name);
 
-  for (int i = 0; i < sizeof(this->records) / sizeof(struct ss_dnode_record); i++) {
+  for (int i = 0; i < sizeof(this->records) / sizeof(struct ss_dnode_record);
+       i++) {
     // Weird C++ behaviour, we force it to be boolean.
     // We want to check whether they have the same length and if the entry
     // is still valid.
@@ -118,7 +120,7 @@ int StoDir::remove_entry(const char *name) {
   dnode->inum = 0;
   dnode->namelen = 0;
   dnode->reclen = 0;
-  memset(dnode->name, '\0', sizeof(dnode->name)); 
+  memset(dnode->name, '\0', sizeof(dnode->name));
   return 1;
 }
 
@@ -143,7 +145,6 @@ enum DirectoryError find_inode(StoDir *directory, std::string name,
     location = name.find(delimiter);
     current = name.substr(0, location);
     entry = directory->find_entry(current.c_str());
-
 
     // We don't need to iterate if we found the inode
     if (name == current) break;

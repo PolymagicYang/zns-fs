@@ -23,13 +23,13 @@ SOFTWARE.
 #include "S2FileSystem.h"
 // #include "allocator.hpp"
 
-#include <cstring>
 #include <stosys_debug.h>
 #include <sys/mman.h>
 #include <utils.h>
 
 #include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <iostream>
 #include <regex>
 #include <string>
@@ -47,7 +47,7 @@ uint64_t g_lba_size;
 char init_code[INIT_CODE_SIZE];
 
 // We apply a little trick to figure out whether the database
-// is being deleted or not. 
+// is being deleted or not.
 uint64_t g_init_counter = 0;
 
 namespace ROCKSDB_NAMESPACE {
@@ -75,10 +75,9 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
   params.name = strdup(device.c_str());
   params.log_zones = 4;
   params.gc_wmark = 1;
-  
+
   params.force_reset = g_init_counter > 1;
-  if (params.force_reset)
-	std::cout << "Reset everything" << std::endl;
+  if (params.force_reset) std::cout << "Reset everything" << std::endl;
   int ret = init_ss_zns_device(&params, &this->_zns_dev);
   free(params.name);
 
@@ -102,56 +101,68 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
 
   // reboot phase.
   if (!params.force_reset) {
-	std::cout << "Reload" << std::endl;
-	char meta[g_lba_size];
-	char init_code_disk[INIT_CODE_SIZE];
-	memcpy(init_code, INIT_CODE, INIT_CODE_SIZE);
-	this->allocator = new BlockManager(this->_zns_dev);
-	this->allocator->read(META_ADDR, meta, g_lba_size);
-	memcpy(init_code_disk, meta, INIT_CODE_SIZE);
-	if (strcmp(init_code_disk, init_code) == 0) {
-	  // already exits	
-	  std::cout << "Initialized" << std::endl;
-	  // reconstruct the imap.	
-	  uint64_t imap_addr;
-	  uint64_t imap_size;
-    uint64_t wp;
-	  memcpy(&imap_addr, (void *) (((uint64_t) meta) + INIT_CODE_SIZE), sizeof(uint64_t));
-	  memcpy(&imap_size, (void *) (((uint64_t) meta) + INIT_CODE_SIZE + sizeof(uint64_t)), sizeof(uint64_t));
-	  memcpy(&wp, (void *) (((uint64_t) meta) + INIT_CODE_SIZE + 2 * sizeof(uint64_t)), sizeof(uint64_t));
-	  memcpy(&g_inode_num, (void *) (((uint64_t) meta) + INIT_CODE_SIZE + 3 * sizeof(uint64_t)), sizeof(uint64_t));
-    this->allocator->update_current_position(wp);
-    
-	  printf("imap addr is %lx, imap size is %ld, current wp is %lx, inode num is %d\n", imap_addr, imap_size, wp, g_inode_num);
-    
-	  char* imap_buf = (char *) malloc(imap_size); //	 imap is a pair of uint64_t.
-	  uint64_t imap_buf_addr = (uint64_t) imap_buf;
-	  this->allocator->read(imap_addr, imap_buf, imap_size);
+    std::cout << "Reload" << std::endl;
+    char meta[g_lba_size];
+    char init_code_disk[INIT_CODE_SIZE];
+    memcpy(init_code, INIT_CODE, INIT_CODE_SIZE);
+    this->allocator = new BlockManager(this->_zns_dev);
+    this->allocator->read(META_ADDR, meta, g_lba_size);
+    memcpy(init_code_disk, meta, INIT_CODE_SIZE);
+    if (strcmp(init_code_disk, init_code) == 0) {
+      // already exits
+      std::cout << "Initialized" << std::endl;
+      // reconstruct the imap.
+      uint64_t imap_addr;
+      uint64_t imap_size;
+      uint64_t wp;
+      memcpy(&imap_addr, (void *)(((uint64_t)meta) + INIT_CODE_SIZE),
+             sizeof(uint64_t));
+      memcpy(&imap_size,
+             (void *)(((uint64_t)meta) + INIT_CODE_SIZE + sizeof(uint64_t)),
+             sizeof(uint64_t));
+      memcpy(&wp,
+             (void *)(((uint64_t)meta) + INIT_CODE_SIZE + 2 * sizeof(uint64_t)),
+             sizeof(uint64_t));
+      memcpy(&g_inode_num,
+             (void *)(((uint64_t)meta) + INIT_CODE_SIZE + 3 * sizeof(uint64_t)),
+             sizeof(uint64_t));
+      this->allocator->update_current_position(wp);
 
-    printf("get value\n");
-	  uint32_t entries_num = (imap_size / sizeof(uint64_t)) / 2;
-	  for (uint32_t i = 0; i < entries_num; i++) {
-      uint64_t inode_num;
-      uint64_t inode_addr;
-      memcpy(&inode_num, (void *) imap_buf_addr, sizeof(uint64_t));
-      memcpy(&inode_addr, (void *) (imap_buf_addr + sizeof(uint64_t)), sizeof(uint64_t));
-      // inode_map[inode_num] = 	inode_addr;
-      imap_buf_addr += 2 * sizeof(uint64_t);
-      inode_map[inode_num] = inode_addr;
+      printf(
+          "imap addr is %lx, imap size is %ld, current wp is %lx, inode num is "
+          "%d\n",
+          imap_addr, imap_size, wp, g_inode_num);
 
-      printf("inode %lx => addr %lx\n", inode_num, inode_addr);
-	  }
-    free(imap_buf);
-    // reconstruct the inode cache.
+      char *imap_buf =
+          (char *)malloc(imap_size);  //	 imap is a pair of uint64_t.
+      uint64_t imap_buf_addr = (uint64_t)imap_buf;
+      this->allocator->read(imap_addr, imap_buf, imap_size);
 
-    //for (std::unordered_map<uint64_t, uint64_t>::iter) {
+      printf("get value\n");
+      uint32_t entries_num = (imap_size / sizeof(uint64_t)) / 2;
+      for (uint32_t i = 0; i < entries_num; i++) {
+        uint64_t inode_num;
+        uint64_t inode_addr;
+        memcpy(&inode_num, (void *)imap_buf_addr, sizeof(uint64_t));
+        memcpy(&inode_addr, (void *)(imap_buf_addr + sizeof(uint64_t)),
+               sizeof(uint64_t));
+        // inode_map[inode_num] = 	inode_addr;
+        imap_buf_addr += 2 * sizeof(uint64_t);
+        inode_map[inode_num] = inode_addr;
 
-    //}
-    // reconstruct the dir cache.
-    // update current wp in the allocator.
-	} 
+        printf("inode %lx => addr %lx\n", inode_num, inode_addr);
+      }
+      free(imap_buf);
+      // reconstruct the inode cache.
+
+      // for (std::unordered_map<uint64_t, uint64_t>::iter) {
+
+      //}
+      // reconstruct the dir cache.
+      // update current wp in the allocator.
+    }
   } else {
-	  this->allocator = new BlockManager(this->_zns_dev);
+    this->allocator = new BlockManager(this->_zns_dev);
     g_inode_num = 2;
   }
 
@@ -169,39 +180,41 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
 void S2FileSystem::backup() {
   // for temp usage.
   char buf[g_lba_size];
-  uint64_t buf_addr = (uint64_t) buf;
+  uint64_t buf_addr = (uint64_t)buf;
   uint64_t size = g_lba_size;
 
   uint64_t wp = allocator->get_current_position();
 
-  memcpy((void *) buf_addr, INIT_CODE, INIT_CODE_SIZE);
+  memcpy((void *)buf_addr, INIT_CODE, INIT_CODE_SIZE);
   buf_addr += INIT_CODE_SIZE;
 
   uint64_t imap_size = sizeof(uint64_t) * inode_map.size() * 2;
   char imap_buf[imap_size];
-  uint64_t imap_buf_addr = (uint64_t) imap_buf;
+  uint64_t imap_buf_addr = (uint64_t)imap_buf;
   for (auto i = inode_map.begin(); i != inode_map.end(); i++) {
-    memcpy((void *) imap_buf_addr, &i->first, sizeof(uint64_t));
+    memcpy((void *)imap_buf_addr, &i->first, sizeof(uint64_t));
     imap_buf_addr += sizeof(uint64_t);
-    memcpy((void *) imap_buf_addr, &i->second, sizeof(uint64_t));
+    memcpy((void *)imap_buf_addr, &i->second, sizeof(uint64_t));
     imap_buf_addr += sizeof(uint64_t);
   }
 
   uint64_t imap_addr_disk;
 
-  // temp append, should append at once later because of update, or don't store the recent wp.
+  // temp append, should append at once later because of update, or don't store
+  // the recent wp.
   this->allocator->append(imap_buf, imap_size, &imap_addr_disk, false);
 
-  printf("the offset is %d\n", buf_addr - (uint64_t) buf);
-  memcpy((void *) buf_addr, &imap_addr_disk, sizeof(uint64_t));
+  printf("the offset is %d\n", buf_addr - (uint64_t)buf);
+  memcpy((void *)buf_addr, &imap_addr_disk, sizeof(uint64_t));
   buf_addr += sizeof(uint64_t);
-  memcpy((void *) buf_addr, &imap_size, sizeof(uint64_t));
+  memcpy((void *)buf_addr, &imap_size, sizeof(uint64_t));
   buf_addr += sizeof(uint64_t);
-  memcpy((void *) buf_addr, &wp, sizeof(uint64_t));
+  memcpy((void *)buf_addr, &wp, sizeof(uint64_t));
   buf_addr += sizeof(uint64_t);
-  memcpy((void *) buf_addr, &g_inode_num, sizeof(uint64_t));
+  memcpy((void *)buf_addr, &g_inode_num, sizeof(uint64_t));
   buf_addr += sizeof(uint64_t);
-  printf("imap addr is %lx, imap size is %d, wp is %lx, g_inode_num is %d\n", imap_addr_disk, imap_size, wp, g_inode_num);
+  printf("imap addr is %lx, imap size is %d, wp is %lx, g_inode_num is %d\n",
+         imap_addr_disk, imap_size, wp, g_inode_num);
   this->allocator->write(META_ADDR, buf, size);
 }
 
@@ -211,8 +224,7 @@ S2FileSystem::~S2FileSystem() {
   bool store = g_init_counter == 0;
 
   std::cout << "Deconstructor" << std::endl;
-  if (store)
-	this->backup();
+  if (store) this->backup();
 
   deinit_ss_zns_device(this->_zns_dev, store);
 
@@ -223,7 +235,7 @@ S2FileSystem::~S2FileSystem() {
   for (auto &inode : inode_cache) {
     delete inode.second;
   }
-  
+
   // Reset our global variables
   dir_cache.clear();
   inode_cache.clear();
@@ -468,8 +480,8 @@ IOStatus S2FileSystem::CreateDir(const std::string &dirname,
   return IOStatus::IOError(__FUNCTION__);
 }
 
-// If we cannot find the directory, we will try to restore them first, if failed then create one and return the entry
-// for it
+// If we cannot find the directory, we will try to restore them first, if failed
+// then create one and return the entry for it
 struct ss_dnode_record *callback_missing_directory(const char *name,
                                                    StoDir *parent,
                                                    void *user_data,
@@ -622,7 +634,7 @@ void callback_found_directory_count(const char *name, StoDir *parent,
   std::vector<std::string> *children = (std::vector<std::string> *)user_data;
 
   for (auto &entry : parent->records) {
-	if (entry.inum == 0) continue;
+    if (entry.inum == 0) continue;
     children->push_back(entry.name);
   }
 }
@@ -743,23 +755,25 @@ IOStatus S2FileSystem::GetTestDirectory(const IOOptions &options,
 IOStatus S2FileSystem::UnlockFile(FileLock *lock, const IOOptions &options,
                                   __attribute__((unused)) IODebugContext *dbg) {
   std::cerr << "[UnlockFile]" << std::endl;
-  
+
   StoFileLock *slock = reinterpret_cast<StoFileLock *>(lock);
   file_lock_lock.lock();
-  if (std::find(file_locks.begin(), file_locks.end(), slock->name) == file_locks.end()) {
-	std::cout << "Unlock failed";
-	return IOStatus::IOError("File not locked");	
+  if (std::find(file_locks.begin(), file_locks.end(), slock->name) ==
+      file_locks.end()) {
+    std::cout << "Unlock failed";
+    return IOStatus::IOError("File not locked");
   }
-  file_locks.erase(std::remove(file_locks.begin(), file_locks.end(), slock->name), file_locks.end());
+  file_locks.erase(
+      std::remove(file_locks.begin(), file_locks.end(), slock->name),
+      file_locks.end());
   file_lock_lock.unlock();
   std::cout << slock->inode_num << std::endl;
   if (slock->inode_num == 0) {
     return IOStatus::IOError(__FUNCTION__);
   }
-  
+
   slock->Clear();
   delete slock;
-
 
   UNUSED(lock);
   UNUSED(options);
@@ -809,10 +823,11 @@ IOStatus S2FileSystem::LockFile(const std::string &fname,
   struct ss_inode found_inode;
 
   file_lock_lock.lock();
-  if (std::find(file_locks.begin(), file_locks.end(), fname) != file_locks.end())
-	return IOStatus::IOError(fname + "  already locked");
+  if (std::find(file_locks.begin(), file_locks.end(), fname) !=
+      file_locks.end())
+    return IOStatus::IOError(fname + "  already locked");
   file_lock_lock.unlock();
-  
+
   struct find_inode_callbacks cbs = {
       .missing_directory_cb = NULL,
       .missing_file_cb = callback_missing_file_create_lock,
@@ -826,7 +841,7 @@ IOStatus S2FileSystem::LockFile(const std::string &fname,
   file_lock_lock.lock();
   file_locks.push_back(fname);
   file_lock_lock.unlock();
-  
+
   if (error == DirectoryError::Created_inode) {
     *lock = new StoFileLock(found_inode.id, fname);
     return IOStatus::OK();

@@ -9,7 +9,6 @@
 
 #include "structures.h"
 
-
 // Our reads need to be offset by this number whenever the
 // deallocation is called.  Don't ask.
 extern uint32_t g_magic_offset;

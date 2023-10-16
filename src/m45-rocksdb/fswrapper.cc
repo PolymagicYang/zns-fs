@@ -1,9 +1,9 @@
 #include "fswrapper.hpp"
 
-#include <cstdint>
 #include <pthread.h>
 
 #include <cassert>
+#include <cstdint>
 
 #include "../common/unused.h"
 #include "allocator.hpp"
@@ -98,7 +98,6 @@ StoSeqFile::~StoSeqFile() {
 
 IOStatus StoSeqFile::Read(size_t size, const IOOptions &options, Slice *result,
                           char *scratch, IODebugContext *dbg) {
-
   if (eof) {
     printf("read value end.\n");
     *result = Slice();
@@ -123,8 +122,9 @@ IOStatus StoSeqFile::Read(size_t size, const IOOptions &options, Slice *result,
       Slice(buffer, std::min(this->file->inode.node->size - offset - 1, size));
   this->buffer = buffer;
 
-  // printf("read value size is %d\n", std::min(this->file->inode.node->size - offset - 1, size));
-  // for (uint32_t i = 0; i < std::min(this->file->inode.node->size - offset - 1, size); i++) {
+  // printf("read value size is %d\n", std::min(this->file->inode.node->size -
+  // offset - 1, size)); for (uint32_t i = 0; i <
+  // std::min(this->file->inode.node->size - offset - 1, size); i++) {
   //   printf("%x", buffer[i]);
   // }
   // printf("\n");

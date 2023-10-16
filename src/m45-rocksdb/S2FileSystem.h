@@ -154,7 +154,7 @@ class S2FileSystem : public FileSystem {
                              const FileOptions &file_opts,
                              std::unique_ptr<FSWritableFile> *result,
                              __attribute__((unused)) IODebugContext *dbg);
-  
+
   IOStatus DeleteFileWrapper(const std::string &fname);
 
  private:

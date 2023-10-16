@@ -1,10 +1,10 @@
 #include "inode.hpp"
 
-#include <cstdint>
 #include <pthread.h>
 
 #include <cassert>
 #include <chrono>
+#include <cstdint>
 #include <cstring>
 #include <ctime>
 #include <iostream>
@@ -163,23 +163,23 @@ StoDir *get_directory_by_id(const uint64_t inum, BlockManager *allocator) {
 
   auto pos = dir_cache.count(inum);
   if (pos == 0 && inum == 2 && g_inode_num == 2) {
-	  std::cout << "recreate root" << std::endl;
-      // root doesn't exist disk, recreate a root.
-      StoDir *root = new StoDir((char *)"/", 2, allocator);
-      root->write_to_disk();
-      dir_cache[root->inode_number] = root;
-	  dir_cache_lock.unlock();
-	  return root;
+    std::cout << "recreate root" << std::endl;
+    // root doesn't exist disk, recreate a root.
+    StoDir *root = new StoDir((char *)"/", 2, allocator);
+    root->write_to_disk();
+    dir_cache[root->inode_number] = root;
+    dir_cache_lock.unlock();
+    return root;
   } else if (pos == 1) {
-	  dir_cache_lock.unlock();
-	  return dir_cache[inum];
-  } 
-  
+    dir_cache_lock.unlock();
+    return dir_cache[inum];
+  }
+
   dir_cache_lock.unlock();
   std::cout << "new"
             << " " << inum << std::endl;
   struct ss_inode *inode = get_inode_by_id(inum, allocator);
-  
+
   // Return NULL if the inode does not contain a directory
   if (!(inode->flags & FLAG_DIRECTORY)) {
     return NULL;
@@ -199,7 +199,7 @@ StoDir *get_directory_by_id(const uint64_t inum, BlockManager *allocator) {
   dir_cache[inum] = new StoDir(inum, dnode, allocator);
   dir_cache[inum]->dnode = *dnode;
   StoDir *newdir = dir_cache[inum];
-  dir_cache_lock.unlock();  
+  dir_cache_lock.unlock();
   return newdir;
 }
 
@@ -220,8 +220,8 @@ StoInode *get_stoinode_by_id(const uint64_t inum, BlockManager *allocator) {
   inode_cache_lock.lock();
   if (inode_cache.count(inum) == 1) {
     StoInode *inode = inode_cache[inum];
-	inode_cache_lock.unlock();
-	return inode;
+    inode_cache_lock.unlock();
+    return inode;
   }
   inode_cache_lock.unlock();
 
