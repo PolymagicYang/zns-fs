@@ -115,7 +115,7 @@ void StoInode::add_segment(const uint64_t lba, const size_t nblocks) {
     uint64_t last_lba = Round_down(old->start_lba, g_lba_size) +
                         (g_lba_size * (old->nblocks - 1));
     if (last_lba == slba) {
-      this->dirty = false;
+      // this->dirty = false;
       return;
     } else if ((last_lba + g_lba_size) == slba) {
       this->inode.segments[this->segment_index - 1] = {

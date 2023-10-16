@@ -17,6 +17,27 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+ *
+/
+/* MIT License
+Copyright (c) 2021 - current
+Authors:  Valentijn Dymphnus van de Beek & Zhiyang Wang
+This code is part of the Storage System Course at VU Amsterdam
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
  */
 #include "ftlgc.hpp"
 
@@ -36,10 +57,7 @@ SOFTWARE.
 #include "znsblock.hpp"
 #include "zone.hpp"
 
-#define Round_down(n, m) (n - (n % m))
 bool death_sensei = false;
-double seconds = 0;
-int count = 0;
 
 Calliope::Calliope(FTL *ftl, pthread_cond_t *cond, pthread_mutex_t *mutex,
                    pthread_cond_t *clean_cond, pthread_mutex_t *clean_lock) {
@@ -75,17 +93,15 @@ bool compare_block(ZNSBlock *block1, ZNSBlock *block2) {
 uint16_t Calliope::wait_for_mutex() {
   uint16_t log_zone_num;
   while (!this->select_log_zone(&log_zone_num)) {
-	pthread_mutex_lock(this->clean_lock);
+    // if there is no full zone exists, let the consumer consumes.
+    pthread_mutex_lock(this->clean_lock);
     pthread_cond_signal(this->clean_cond);
     pthread_mutex_unlock(this->clean_lock);
 
-    // if there is no full zone exists, let the consumer consumes.
     pthread_mutex_lock(this->need_gc_lock);
     pthread_cond_wait(this->need_gc, this->need_gc_lock);
     pthread_mutex_unlock(this->need_gc_lock);
-    if (death_sensei) {
-      return -1;
-    }
+    if (death_sensei) return -1;
     this->select_log_zone(&log_zone_num);
   }
 
@@ -102,8 +118,7 @@ void Calliope::get_blocks_group(
   // group them by base address.
   for (ZNSBlock *block : blocks) {
     uint64_t lba_inblock = block->logical_address / this->ftl->lba_size;
-    uint64_t base_addr = Round_down(lba_inblock, this->ftl->lba_size);
-	  
+    uint64_t base_addr = (lba_inblock / this->ftl->zcap) * ftl->zcap;
     // std::cout << "logical addr: " << lba_inblock % ftl->zcap << "\t
     // base_addr: " << base_addr << "\n";
     if (blocks_group.count(base_addr) == 0) {
@@ -121,16 +136,14 @@ void Calliope::merge_old_zone(ZNSLogZone *reapable, uint64_t base_addr,
   // try to merge the old zone.
   // append until can not append, after can't append:
   //
-  std::cout << "Merge old zones" << std::endl;
   Addr addr;
   this->ftl->get_pba_by_base(base_addr, &addr);
   uint16_t zone_num = addr.zone_num;
   ZNSDataZone *data_zone = &this->ftl->zones_data[zone_num];
-  ZNSDataZone *new_data_zone = this->ftl->get_free_data_zone(log_blocks.size());
+  ZNSDataZone *new_data_zone = this->ftl->get_free_data_zone(this->ftl->zcap);
   if (new_data_zone == nullptr) {
     printf("failed!\n");
   }
-  // printf("new data zone wp is %lx\n", new_data_zone->position);
   // std::cout << "Reap!" << std::endl;
   // if (new_data_zone == nullptr) {
   // use the reserved zone.
@@ -163,17 +176,17 @@ void Calliope::merge_old_zone(ZNSLogZone *reapable, uint64_t base_addr,
     }
   }
 
-  this->ftl->insert_datamap(base_addr, data_zone->base, new_data_zone->zone_id);
+  this->ftl->insert_datamap(base_addr, data_zone->base,
+                            new_data_zone->zone_id - ftl->log_zones);
   // ftl->data_map.map.count(base_addr));
   data_zone->reset();
 }
 
 void Calliope::insert_new_zone(ZNSLogZone *reapable, uint64_t base_addr,
                                std::vector<ZNSBlock *> &log_blocks) {
-  std::cout << "Inside" << std::endl;
   // get a new data zone and insert.
   // new, no need to invalidate the block, just append to the new zone.
-  ZNSDataZone *data_zone = this->ftl->get_free_data_zone(log_blocks.size());
+  ZNSDataZone *data_zone = this->ftl->get_free_data_zone(this->ftl->zcap);
   for (uint16_t i = 0; i < log_blocks.size(); i++) {
     ZNSBlock *block = log_blocks[i];
     uint64_t block_lba = block->logical_address / ftl->lba_size;
@@ -183,14 +196,15 @@ void Calliope::insert_new_zone(ZNSLogZone *reapable, uint64_t base_addr,
     reapable->read(block->address, &buffer, this->ftl->lba_size, &read_size);
     data_zone->write_until(buffer, read_size, index);
     this->ftl->delete_logmap(block->logical_address);
+	printf("Address written to data map %d\n", block->logical_address);
   }
-  this->ftl->insert_datamap(base_addr, data_zone->base, data_zone->zone_id);
+  this->ftl->insert_datamap(base_addr, data_zone->base,
+                            data_zone->zone_id - ftl->log_zones);
 }
 
 void Calliope::reap() {
   while (true) {
     uint16_t log_zone_num = this->wait_for_mutex();
-    // printf("reap log zone: %d\n", log_zone_num);
 
     if (death_sensei) {
       death_sensei = false;
@@ -204,6 +218,7 @@ void Calliope::reap() {
     std::unordered_map<uint64_t, std::vector<ZNSBlock *>> blocks_group =
         std::unordered_map<uint64_t, std::vector<ZNSBlock *>>();
     this->get_blocks_group(reapable, blocks_group);
+
     // find the data zone firstly, if find the correct one, try to append, if
     // failed, partial merge. if it doesn't find a data zone, write a new one.
     for (auto &group : blocks_group) {
@@ -211,10 +226,8 @@ void Calliope::reap() {
       std::vector<ZNSBlock *> log_blocks = group.second;
 
       if (this->ftl->pba_exist(base_addr)) {
-        // printf("merge to group: %lx\n", base_addr);
         this->merge_old_zone(reapable, base_addr, log_blocks);
       } else {
-        // printf("insert to new zone to group: %lx\n", base_addr);
         this->insert_new_zone(reapable, base_addr, log_blocks);
       }
     }
@@ -230,3 +243,4 @@ void Calliope::initialize() {
   std::cout << "Summons Mori from hell" << std::endl;
   this->thread = std::thread(&Calliope::reap, this);
 }
+

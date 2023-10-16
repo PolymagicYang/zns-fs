@@ -48,10 +48,10 @@ void StoFile::read(const size_t size, void *result) {
   size_t current_size = Min(size, this->inode.node->size);
   void *copy = (char *)result;
   for (auto &segment : inode.node->inode.segments) {
+	if (segment.start_lba != 0)
     for (uint8_t i = 0; i < segment.nblocks; i++) {
       size_t segment_size =
           std::min(g_lba_size * segment.nblocks, current_size);
-
       get_from_disk(segment.start_lba, segment_size, result, this->allocator);
 
       // TODO(everyone): fix; this buffer overflow.
@@ -63,7 +63,6 @@ void StoFile::read(const size_t size, void *result) {
   }
 
   pthread_mutex_unlock(&this->inode.lock);
-  // std::cout << "Data read " << size << " " << (char*) copy << std::endl;
 }
 
 void StoFile::write_to_disk(bool update) {

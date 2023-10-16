@@ -330,7 +330,7 @@ void ZNSDataZone::copy_range(ZNSDataZone *other, uint16_t start, uint16_t end) {
 }
 
 bool ZNSDataZone::exists(uint64_t lba) {
-  uint64_t index = lba % this->capacity;
+  uint64_t index = lba % this->capacity + 1;
   bool ret = this->block_map[index];
   return ret;
 }
