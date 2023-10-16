@@ -617,13 +617,11 @@ void callback_found_directory_count(const char *name, StoDir *parent,
                                     struct ss_inode *inode,
                                     struct ss_dnode_record *entry,
                                     void *user_data, BlockManager *) {
-  UNUSED(name);
-  UNUSED(inode);
-  UNUSED(entry);
   std::vector<std::string> *children = (std::vector<std::string> *)user_data;
 
   for (auto &entry : parent->records) {
     if (entry.inum == 0) continue;
+    printf("get child %s\n", entry.name);
     children->push_back(entry.name);
   }
 }
@@ -897,6 +895,7 @@ void callback_found_file_rename(const char *name, StoDir *parent,
   strncpy((char *)entry->name, new_name, length);
   entry->name[length] = '\0';
   entry->namelen = length;
+
   parent->write_to_disk();
 }
 
@@ -924,7 +923,9 @@ IOStatus S2FileSystem::RenameFile(const std::string &src,
     new_name = new_name.substr(1, new_name.size());
   }
 
-  struct find_inode_callbacks cbs = {
+  this->DeleteFileWrapper(target);
+
+  struct find_inode_callbacks cbs_rename = {
       .missing_directory_cb = NULL,
       .missing_file_cb = NULL,
       .found_file_cb = callback_found_file_rename,
@@ -933,7 +934,7 @@ IOStatus S2FileSystem::RenameFile(const std::string &src,
   };
   struct ss_inode found_inode;
   enum DirectoryError err =
-      find_inode(root, cut, &found_inode, &cbs, this->allocator);
+      find_inode(root, cut, &found_inode, &cbs_rename, this->allocator);
   if (err == DirectoryError::Found_inode) {
     return IOStatus::OK();
   }
