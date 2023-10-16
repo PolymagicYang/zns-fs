@@ -80,6 +80,17 @@ void StoInode::write_to_disk(bool update) {
 
   // Enter the data into the system maps so we know where to find it.
   struct ss_inode *inode = this->get_inode_struct();
+  inode->size = this->size;
+  inode->id = this->inode_number;
+  inode->mode = this->mode;
+  inode->size = this->size;
+  inode->time = this->time;
+  inode->strlen = this->namelen;
+  strncpy(inode->name, (char *)this->name.c_str(), inode->strlen);
+  inode->name[inode->strlen] = '\0';
+  this->dirty = false;
+
+  printf("write to disk for inode %d size is %d\n", inode->id, inode->size);
   uint64_t lba;
 
   inode->inserted = true;
@@ -142,11 +153,11 @@ void update_dnode_in_storage(const uint64_t inum, const struct ss_dnode *dnode,
   struct ss_segment *segment = &inode->segments[0];
   const uint64_t lba = segment->start_lba;
 
-  printf("start update dnode to %lx, size is %lx\n", lba, sizeof(struct ss_dnode));
+  // printf("start update dnode to %lx, size is %lx\n", lba, sizeof(struct ss_dnode));
   int ret = allocator->write(lba, (void *)dnode, sizeof(struct ss_dnode));
-  for (int i = 0; i < 16; i++) {
-    printf("update dnode %s\n", dnode->entries[i].name);
-  }
+  // for (int i = 0; i < 16; i++) {
+  //   printf("update dnode %s\n", dnode->entries[i].name);
+  // }
 
   assert(ret == 0);
 }

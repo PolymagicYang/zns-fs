@@ -123,11 +123,11 @@ IOStatus StoSeqFile::Read(size_t size, const IOOptions &options, Slice *result,
       Slice(buffer, std::min(this->file->inode.node->size - offset - 1, size));
   this->buffer = buffer;
 
-  // printf("read value size is %d\n", std::min(this->file->inode.node->size - offset - 1, size));
-  // for (uint32_t i = 0; i < std::min(this->file->inode.node->size - offset - 1, size); i++) {
-  //   printf("%x", buffer[i]);
-  // }
-  // printf("\n");
+  printf("read value size is %d\n", std::min(this->file->inode.node->size - offset - 1, size));
+  for (uint32_t i = 0; i < std::min(this->file->inode.node->size - offset - 1, size); i++) {
+    printf("%x", buffer[i]);
+  }
+  printf("\n");
 
   this->offset = adjusted;
 
@@ -162,12 +162,14 @@ IOStatus StoWriteFile::Append(const Slice &data, const IOOptions &options,
 
 // Flush writes the application data to the filesystem
 IOStatus StoWriteFile::Flush(const IOOptions &options, IODebugContext *dbg) {
+  std::cout << "[Fsync flush]" << std::endl;
   this->file->write_to_disk(true);
   return IOStatus::OK();
 }
 
 // Sync writes the filesystem data to the FTL
 IOStatus StoWriteFile::Sync(const IOOptions &options, IODebugContext *dbg) {
+  std::cout << "[Fsync write]" << std::endl;
   this->file->write_to_disk(true);
   return IOStatus::OK();
 }

@@ -33,19 +33,22 @@ StoFile::~StoFile() {}
 void StoFile::write(size_t size, void *data) {
   // Move the size of our inode up by the number of bytes in our write
   pthread_mutex_lock(&this->inode.lock);
+  printf("inode size is %d before adding\n", this->inode.node->size);
   this->inode.node->size += size;
+  printf("inode size is %d after adding\n", this->inode.node->size);
   uint8_t total_blocks = std::ceil(size / (float)g_lba_size);
   bool overwrite = this->inode.node->inserted;
   uint64_t slba = store_segment_on_disk(size, data, this->allocator, overwrite);
 
-  // printf("write file, size is %d: \n", size);
-  // for (uint32_t i = 0; i < size; i++) {
-  //   printf("%x", ((char*) data)[i]);
-  // }
-  // printf("\n");
+  printf("write file, size is %d, inode size is %d: \n", size, this->inode.node->size);
+  for (uint32_t i = 0; i < size; i++) {
+    printf("%x", ((char*) data)[i]);
+  }
+  printf("\n");
 
   // printf("write segment to %lx\n", slba);
   this->inode.node->add_segment(slba, total_blocks);
+  this->inode.node->write_to_disk(false);
   pthread_mutex_unlock(&this->inode.lock);
 }
 

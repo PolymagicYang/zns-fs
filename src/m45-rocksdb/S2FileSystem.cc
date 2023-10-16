@@ -619,11 +619,11 @@ void callback_found_directory_count(const char *name, StoDir *parent,
                                     void *user_data, BlockManager *) {
   std::vector<std::string> *children = (std::vector<std::string> *)user_data;
 
-  for (auto &entry : parent->records) {
-    printf("get child %s\n", entry.name);
-    if (entry.inum == 0) continue;
-    children->push_back(entry.name);
-  }
+  // for (auto &entry : parent->records) {
+  //   printf("get child %s\n", entry.name);
+  //   if (entry.inum == 0) continue;
+  //   children->push_back(entry.name);
+  // }
 }
 
 IOStatus S2FileSystem::GetAbsolutePath(const std::string &db_path,
@@ -881,7 +881,7 @@ void callback_found_file_rename(const char *name, StoDir *parent,
   // Copy the name to the inode and write it to disk. Somewhat
   // inconvient to wrap it around a class.
   strncpy((char *)ss_inode->name, new_name, length);
-  printf("rename file for inode %d\n", ss_inode->id);
+  printf("rename file for inode %d, size is %d\n", ss_inode->id, ss_inode->size);
   ss_inode->name[length] = '\0';
   ss_inode->strlen = length;
   StoInode inode = StoInode(ss_inode, allocator);
@@ -895,11 +895,11 @@ void callback_found_file_rename(const char *name, StoDir *parent,
   entry->name[length] = '\0';
   entry->namelen = length;
 
-  printf("name is %d\n", entry->name);
-  printf("change entry inode id %d\n", entry->inum);
-  for (int i = 0; i < 16; i++){
-    printf("store %s into the disk\n", parent->records[i].name);
-  }
+  // printf("name is %d\n", entry->name);
+  // printf("change entry inode id %d\n", entry->inum);
+  // for (int i = 0; i < 16; i++){
+  //   printf("store %s into the disk\n", parent->records[i].name);
+  // }
 
   parent->write_to_disk();
 }
