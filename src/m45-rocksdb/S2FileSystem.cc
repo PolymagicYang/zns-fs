@@ -620,8 +620,8 @@ void callback_found_directory_count(const char *name, StoDir *parent,
   std::vector<std::string> *children = (std::vector<std::string> *)user_data;
 
   for (auto &entry : parent->records) {
-    if (entry.inum == 0) continue;
     printf("get child %s\n", entry.name);
+    if (entry.inum == 0) continue;
     children->push_back(entry.name);
   }
 }
@@ -641,8 +641,6 @@ void callback_found_file_delete(const char *name, StoDir *parent,
                                 struct ss_inode *ss_inode,
                                 struct ss_dnode_record *entry, void *user_data,
                                 BlockManager *allocator) {
-  // Copy the name to the inode and write it to disk. Somewhat
-  // inconvient to wrap it around a class.
   inode_map.erase(ss_inode->id);
   parent->remove_entry(name);
   parent->write_to_disk();
@@ -892,9 +890,16 @@ void callback_found_file_rename(const char *name, StoDir *parent,
   inode.write_to_disk(false);
 
   // Update our directory entry and write to disk
+  entry = parent->find_entry(entry->name);
   strncpy((char *)entry->name, new_name, length);
   entry->name[length] = '\0';
   entry->namelen = length;
+
+  printf("name is %d\n", entry->name);
+  printf("change entry inode id %d\n", entry->inum);
+  for (int i = 0; i < 16; i++){
+    printf("store %s into the disk\n", parent->records[i].name);
+  }
 
   parent->write_to_disk();
 }

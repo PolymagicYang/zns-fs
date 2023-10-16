@@ -25,8 +25,6 @@ StoDirFS::StoDirFS(const uint64_t inum, const struct ss_dnode *dnode,
 StoDirFS::~StoDirFS() { delete this->directory; }
 
 IOStatus StoDirFS::Fsync(const IOOptions &opts, IODebugContext *db) {
-  UNUSED(opts);
-  UNUSED(db);
   std::cerr << "Fsync the directory" << std::endl;
   this->directory->write_to_disk();
   return IOStatus::OK();
@@ -125,11 +123,11 @@ IOStatus StoSeqFile::Read(size_t size, const IOOptions &options, Slice *result,
       Slice(buffer, std::min(this->file->inode.node->size - offset - 1, size));
   this->buffer = buffer;
 
-  printf("read value size is %d\n", std::min(this->file->inode.node->size - offset - 1, size));
-  for (uint32_t i = 0; i < std::min(this->file->inode.node->size - offset - 1, size); i++) {
-    printf("%x", buffer[i]);
-  }
-  printf("\n");
+  // printf("read value size is %d\n", std::min(this->file->inode.node->size - offset - 1, size));
+  // for (uint32_t i = 0; i < std::min(this->file->inode.node->size - offset - 1, size); i++) {
+  //   printf("%x", buffer[i]);
+  // }
+  // printf("\n");
 
   this->offset = adjusted;
 

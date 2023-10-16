@@ -62,6 +62,7 @@ void StoDir::write_to_disk() {
   }
 
   // Use our stored inode number
+  memcpy(&this->dnode.entries, &this->records, sizeof(ss_dnode_record) * DIRSIZE);
   update_dnode_in_storage(this->inode_number, &this->dnode, this->allocator);
 }
 
@@ -94,16 +95,16 @@ struct ss_dnode_record *StoDir::find_entry(const char *name) {
 
   size_t needle_size = strlen(name);
 
-  for (auto &entry : this->records) {
+  for (int i = 0; i < sizeof(this->records) / sizeof(struct ss_dnode_record); i++) {
     // Weird C++ behaviour, we force it to be boolean.
     // We want to check whether they have the same length and if the entry
     // is still valid.
-    // TODO(Zhiyang): Delete Comments.
-    bool condition = needle_size == entry.namelen && entry.reclen != 0 &&
-                     (strncmp(entry.name, name, entry.namelen) == 0);
+    ss_dnode_record *entry = &this->records[i];
+    bool condition = needle_size == entry->namelen && entry->reclen != 0 &&
+                     (strncmp(entry->name, name, entry->namelen) == 0);
 
     if (condition) {
-      return &entry;
+      return entry;
     }
   }
 
@@ -114,10 +115,10 @@ int StoDir::remove_entry(const char *name) {
   struct ss_dnode_record *dnode = this->find_entry(name);
   // Set them to skippable values
   // TODO(valentijn): reuse or garbage collect these values
-  printf("remove file %s from inum %d\n", name, dnode->inum);
   dnode->inum = 0;
   dnode->namelen = 0;
   dnode->reclen = 0;
+  memset(dnode->name, '\0', sizeof(dnode->name)); 
   return 1;
 }
 

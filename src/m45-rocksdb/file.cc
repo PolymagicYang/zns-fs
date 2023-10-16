@@ -38,13 +38,13 @@ void StoFile::write(size_t size, void *data) {
   bool overwrite = this->inode.node->inserted;
   uint64_t slba = store_segment_on_disk(size, data, this->allocator, overwrite);
 
-  printf("write file, size is %d: \n", size);
-  for (uint32_t i = 0; i < size; i++) {
-    printf("%x", ((char*) data)[i]);
-  }
-  printf("\n");
+  // printf("write file, size is %d: \n", size);
+  // for (uint32_t i = 0; i < size; i++) {
+  //   printf("%x", ((char*) data)[i]);
+  // }
+  // printf("\n");
 
-  printf("write segment to %lx\n", slba);
+  // printf("write segment to %lx\n", slba);
   this->inode.node->add_segment(slba, total_blocks);
   pthread_mutex_unlock(&this->inode.lock);
 }

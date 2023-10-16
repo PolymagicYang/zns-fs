@@ -142,8 +142,11 @@ void update_dnode_in_storage(const uint64_t inum, const struct ss_dnode *dnode,
   struct ss_segment *segment = &inode->segments[0];
   const uint64_t lba = segment->start_lba;
 
-  printf("start update dnode, size if %lx\n", sizeof(struct ss_dnode));
+  printf("start update dnode to %lx, size is %lx\n", lba, sizeof(struct ss_dnode));
   int ret = allocator->write(lba, (void *)dnode, sizeof(struct ss_dnode));
+  for (int i = 0; i < 16; i++) {
+    printf("update dnode %s\n", dnode->entries[i].name);
+  }
 
   assert(ret == 0);
 }
@@ -194,6 +197,7 @@ StoDir *get_directory_by_id(const uint64_t inum, BlockManager *allocator) {
   void *buffer = malloc(sizeof(struct ss_dnode));
 
   allocator->read(segment->start_lba, buffer, sizeof(struct ss_dnode));
+  printf("read dnode from %lx\n", segment->start_lba);
   struct ss_dnode *dnode = (struct ss_dnode *)buffer;
 
   dir_cache_lock.lock();
