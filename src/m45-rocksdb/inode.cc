@@ -142,12 +142,7 @@ void update_dnode_in_storage(const uint64_t inum, const struct ss_dnode *dnode,
   struct ss_segment *segment = &inode->segments[0];
   const uint64_t lba = segment->start_lba;
 
-  printf("start update dnode to %lx, size is %lx\n", lba, sizeof(struct ss_dnode));
   int ret = allocator->write(lba, (void *)dnode, sizeof(struct ss_dnode));
-  for (int i = 0; i < 16; i++) {
-    printf("update dnode %s\n", dnode->entries[i].name);
-  }
-
   assert(ret == 0);
 }
 

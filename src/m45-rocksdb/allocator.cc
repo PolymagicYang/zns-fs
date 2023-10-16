@@ -103,8 +103,6 @@ int BlockManager::write(uint64_t lba, void *buffer, uint32_t size) {
   uint64_t wp_base = (lba / lba_size) * lba_size;
   uint64_t curr_data_size_in_block = lba - wp_base;
 
-  printf("write data to lba %lx to %lx\n", lba, lba + size);
-
   bool padding;
   bool cross_bd;
   if (lba % lba_size == 0) {

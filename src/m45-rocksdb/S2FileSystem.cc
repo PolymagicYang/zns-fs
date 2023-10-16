@@ -75,6 +75,7 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
   params.name = strdup(device.c_str());
   params.log_zones = 4;
   params.gc_wmark = 1;
+  
   params.force_reset = g_init_counter > 1;
   if (params.force_reset)
 	std::cout << "Reset everything" << std::endl;
@@ -101,6 +102,7 @@ S2FileSystem::S2FileSystem(std::string uri_db_path, bool debug) {
 
   // reboot phase.
   if (!params.force_reset) {
+	std::cout << "Reload" << std::endl;
 	char meta[g_lba_size];
 	char init_code_disk[INIT_CODE_SIZE];
 	memcpy(init_code, INIT_CODE, INIT_CODE_SIZE);
@@ -620,8 +622,7 @@ void callback_found_directory_count(const char *name, StoDir *parent,
   std::vector<std::string> *children = (std::vector<std::string> *)user_data;
 
   for (auto &entry : parent->records) {
-    printf("get child %s\n", entry.name);
-    if (entry.inum == 0) continue;
+	if (entry.inum == 0) continue;
     children->push_back(entry.name);
   }
 }
@@ -894,12 +895,6 @@ void callback_found_file_rename(const char *name, StoDir *parent,
   strncpy((char *)entry->name, new_name, length);
   entry->name[length] = '\0';
   entry->namelen = length;
-
-  printf("name is %d\n", entry->name);
-  printf("change entry inode id %d\n", entry->inum);
-  for (int i = 0; i < 16; i++){
-    printf("store %s into the disk\n", parent->records[i].name);
-  }
 
   parent->write_to_disk();
 }
