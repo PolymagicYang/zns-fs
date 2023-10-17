@@ -120,6 +120,11 @@ IOStatus StoSeqFile::Read(size_t size, const IOOptions &options, Slice *result,
   //   as badly as we do atm.
   *result =
       Slice(buffer, std::min(this->file->inode.node->size - offset - 1, size));
+  if (this->file->name == "MANIFEST-000004") {
+    printf("Data %d:\n", result->size());
+    for (int i = 0; i < result->size(); i++) printf("%d ", buffer[i]);
+    printf("\n");
+  }
   this->buffer = buffer;
 
   this->offset = adjusted;
@@ -137,7 +142,7 @@ IOStatus StoSeqFile::Skip(uint64_t size) {
 
 StoWriteFile::StoWriteFile(struct ss_inode *inode, BlockManager *allocator) {
   this->file = new StoFile(inode, allocator);
-
+  this->cheat_buffer = std::vector<char>();
   this->offset = 0;
 }
 
@@ -149,19 +154,33 @@ StoWriteFile::~StoWriteFile() {
 // Append data to the end of the file
 IOStatus StoWriteFile::Append(const Slice &data, const IOOptions &options,
                               IODebugContext *dbg) {
+  if (this->file->name.find("MANIFEST") != std::string::npos) {
+    char *p = (char *)data.data();
+    for (int i = 0; i < data.size(); i++)
+      this->cheat_buffer.push_back(data.data()[i]);
+    return IOStatus::OK();
+  }
+
   this->file->write(data.size(), (void *)data.data());
   return IOStatus::OK();
 }
 
 // Flush writes the application data to the filesystem
 IOStatus StoWriteFile::Flush(const IOOptions &options, IODebugContext *dbg) {
-  this->file->write_to_disk(true);
+  if (this->file->name.find("MANIFEST") != std::string::npos) {
+    return IOStatus::OK();
+  }
+  // this->file->write_to_disk(true);
   return IOStatus::OK();
 }
 
 // Sync writes the filesystem data to the FTL
 IOStatus StoWriteFile::Sync(const IOOptions &options, IODebugContext *dbg) {
   std::cout << "[Fsync write]" << std::endl;
+  if (this->file->name.find("MANIFEST") != std::string::npos) {
+    this->file->write(cheat_buffer.size(), (void *)cheat_buffer.data());
+    cheat_buffer.clear();
+  }
   this->file->write_to_disk(true);
   return IOStatus::OK();
 }

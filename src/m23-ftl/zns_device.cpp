@@ -49,27 +49,37 @@ SOFTWARE.
 #include "zone.hpp"
 
 extern "C" {
+void disable_gc(struct user_zns_device *my_dev) {
+  FTL *ftl = (FTL *)my_dev->_private;
+  Calliope *mori = (Calliope *)ftl->mori;
+
+  death_sensei = true;
+  if (mori != NULL && mori->thread.joinable()) {
+    pthread_mutex_lock(&ftl->need_gc_lock);
+    pthread_cond_signal(&ftl->need_gc);
+    pthread_mutex_unlock(&ftl->need_gc_lock);
+    mori->thread.join();
+  }
+}
+
+void enable_gc() { death_sensei = false; }
+
 // TODO(valentijn): Implement this functionh
 int deinit_ss_zns_device(struct user_zns_device *my_dev, const bool store) {
   int ret = -ENOSYS;
   // cppcheck-suppress cstyleCast
   FTL *ftl = (FTL *)my_dev->_private;
   Calliope *mori = (Calliope *)ftl->mori;
-
-  death_sensei = true;
-  pthread_mutex_lock(&ftl->need_gc_lock);
-  pthread_cond_signal(&ftl->need_gc);
-  pthread_mutex_unlock(&ftl->need_gc_lock);
-
-  if (mori != NULL && mori->thread.joinable()) mori->thread.join();
+  disable_gc(my_dev);
 
   // Store current ftl status.
-
   if (store) ftl->backup();
 
   free(my_dev);
   delete ftl->mori;
   delete ftl;
+
+  death_sensei = false;
   return ret;
 }
 
@@ -80,7 +90,6 @@ int init_ss_zns_device(struct zdev_init_params *params,
   void *regs;
   struct nvme_id_ns ns {};
   struct nvme_id_ctrl ctrl;
-  // death_sensei = true;
   fd = nvme_open(params->name);
 
   if (fd < 0) {

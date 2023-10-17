@@ -50,7 +50,7 @@ int BlockManager::append(void *buffer, uint32_t size, uint64_t *start_addr,
     size_t padding_size = Round_up(size, lba_size);
     ret = zns_udevice_write(this->disk, wp, buffer, padding_size);
   } else {
-	uint64_t wp_base = Round_down(wp, lba_size);
+    uint64_t wp_base = Round_down(wp, lba_size);
     uint64_t curr_data_size_in_block = wp - wp_base;
     size_t current_size = size + curr_data_size_in_block;
     size_t padding_size = current_size - (current_size % lba_size) + lba_size;
@@ -82,7 +82,6 @@ int BlockManager::read(uint64_t lba, void *buffer, uint32_t size) {
   } else {
     padding_size = read_size;
   }
-  std::cout << "Read inode at " << std::dec << wp_base << " " << lba << std::endl;
   char *buf = static_cast<char *>(calloc(1, padding_size));
   int ret = zns_udevice_read(this->disk, wp_base, buf, padding_size);
 

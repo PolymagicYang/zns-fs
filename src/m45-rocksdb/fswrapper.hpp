@@ -80,6 +80,7 @@ class StoWriteFile : public FSWritableFile {
  private:
   StoFile *file;
   uint64_t offset;
+  std::vector<char> cheat_buffer;
 };
 
 }  // namespace ROCKSDB_NAMESPACE

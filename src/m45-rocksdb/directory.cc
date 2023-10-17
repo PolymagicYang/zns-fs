@@ -24,6 +24,7 @@ StoDir::StoDir(const uint64_t inum, const struct ss_dnode *node,
                BlockManager *allocator) {
   this->inode_number = inum;
   this->namelen = node->strlen;
+
   strncpy(this->name, node->dirname, node->strlen);
   std::copy(std::begin(node->entries), std::end(node->entries),
             std::begin(this->records));

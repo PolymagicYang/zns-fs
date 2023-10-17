@@ -189,6 +189,7 @@ void Calliope::insert_new_zone(ZNSLogZone *reapable, uint64_t base_addr,
   ZNSDataZone *data_zone = this->ftl->get_free_data_zone(this->ftl->zcap);
   for (uint16_t i = 0; i < log_blocks.size(); i++) {
     ZNSBlock *block = log_blocks[i];
+    // printf("Block addresses: %d\n", block->logical_address);
     uint64_t block_lba = block->logical_address / ftl->lba_size;
     uint16_t index = block_lba % this->ftl->zcap;
     char buffer[this->ftl->lba_size];
@@ -196,7 +197,7 @@ void Calliope::insert_new_zone(ZNSLogZone *reapable, uint64_t base_addr,
     reapable->read(block->address, &buffer, this->ftl->lba_size, &read_size);
     data_zone->write_until(buffer, read_size, index);
     this->ftl->delete_logmap(block->logical_address);
-	printf("Address written to data map %d\n", block->logical_address);
+    // printf("Address written to data map %d\n", block->logical_address);
   }
   this->ftl->insert_datamap(base_addr, data_zone->base,
                             data_zone->zone_id - ftl->log_zones);
@@ -208,6 +209,7 @@ void Calliope::reap() {
 
     if (death_sensei) {
       death_sensei = false;
+      std::cout << "exit" << std::endl;
       return;
     }
 
@@ -243,4 +245,3 @@ void Calliope::initialize() {
   std::cout << "Summons Mori from hell" << std::endl;
   this->thread = std::thread(&Calliope::reap, this);
 }
-

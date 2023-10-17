@@ -105,6 +105,8 @@ int zns_udevice_read(struct user_zns_device *my_dev, uint64_t address,
 int zns_udevice_write(struct user_zns_device *my_dev, uint64_t address,
                       void *buffer, uint32_t size);
 int deinit_ss_zns_device(struct user_zns_device *my_dev, const bool rese);
+void disable_gc(struct user_zns_device *my_dev);
+void enable_gc();
 };
 
 #endif  // STOSYS_PROJECT_ZNS_DEVICE_H

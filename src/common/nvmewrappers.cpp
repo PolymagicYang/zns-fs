@@ -78,9 +78,8 @@ int ss_device_zone_reset(int fd, uint32_t nsid, uint64_t slba) {
   // this is to supress gcc warnings, remove it when you complete this function
   __u32 cdw10 = slba & 0xffffffff;
   __u32 cdw11 = slba >> 32;
-   // 08 sets to 0, 04h as the reset zone, and others reserved.
+  // 08 sets to 0, 04h as the reset zone, and others reserved.
   __u32 cdw13 = 1 << 2;
-  printf("!!! CALL RESET !!!\n");
   return nvme_io_passthru(fd, nvme_zns_cmd_mgmt_send, 0, 0, nsid, 0, 0, cdw10,
                           cdw11, 0, cdw13, 0, 0, 0, nullptr, 0, nullptr, 0,
                           NULL);

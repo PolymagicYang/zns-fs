@@ -17,7 +17,7 @@
 
 #define SEGMENT_SIZE 16
 #define NAMELEN 128
-#define DIRSIZE 16
+#define DIRSIZE 24
 #define IMAP_OCCUPY \
   1  // meta info occupies IMAP_OCCUPY * lba_size space to restore.
 #define META_ADDR 0
